@@ -1,0 +1,25 @@
+# Claude Flow generated files
+.claude-flow/
+.swarm/
+
+# Build artifacts
+*.o
+*.lo
+*.la
+*.a
+*.so
+*.dylib
+Makefile
+config.h
+config.status
+config.log
+stamp-h1
+.deps/
+.libs/
+autom4te.cache/
+
+# Compiled binaries
+src/unicornscan
+src/tools/fantaip
+src/tools/unibrow
+src/tools/unicfgtst
