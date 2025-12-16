@@ -26,6 +26,8 @@
 #include <unilib/output.h>
 #include <unilib/modules.h>
 
+#include <arpa/inet.h>
+
 int create_payload(uint8_t **, uint32_t *, void *);
 int init_module(mod_entry_t *);
 void delete_module(void);
@@ -65,6 +67,7 @@ int create_payload(uint8_t **data, uint32_t *dlen, void *i) {
 		ip_report_t *ir;
 	} i_u;
 	char request[256];
+	char host_addr[INET_ADDRSTRLEN];
 	struct in_addr ia;
 
 	i_u.p=i;
@@ -72,7 +75,8 @@ int create_payload(uint8_t **data, uint32_t *dlen, void *i) {
 	assert(i != NULL && i_u.ir->magic == IP_REPORT_MAGIC);
 
 	ia.s_addr=i_u.ir->host_addr;
-	snprintf(request, sizeof(request) -1, REQUEST, inet_ntoa(ia));
+	inet_ntop(AF_INET, &ia, host_addr, sizeof(host_addr));
+	snprintf(request, sizeof(request) -1, REQUEST, host_addr);
 
 	*dlen=(uint32_t)strlen(request);
 	*data=(uint8_t *)xstrdup(request);

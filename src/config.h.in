@@ -97,6 +97,10 @@
 #undef WITH_MYSQL
 #undef WITH_PGSQL
 
+/* P0F v3 API integration for modern OS fingerprinting */
+#undef HAVE_P0F3_API
+#undef P0F3_SOCKET_PATH
+
 /* XXX fixme */
 #undef SHLIB_EXT
 #undef LTDL_SHLIB_EXT

@@ -34,6 +34,8 @@
 #include <unilib/route.h>
 #include <unilib/modules.h>
 
+#include <arpa/inet.h>
+
 #include <scan_progs/portfunc.h>
 #include <scan_progs/workunits.h>
 
@@ -850,9 +852,9 @@ char *strworkunit(const void *ptr, size_t wul) {
 				return workunitdesc;
 			}
 			ia1.s_addr=w_u.p->shost;
-			snprintf(myaddr, sizeof(myaddr) -1, "%s", inet_ntoa(ia1));
+			inet_ntop(AF_INET, &ia1, myaddr, sizeof(myaddr));
 			ia2.s_addr=w_u.p->dhost;
-			snprintf(target, sizeof(target) -1, "%s", inet_ntoa(ia2));
+			inet_ntop(AF_INET, &ia2, target, sizeof(target));
 			snprintf(workunitdesc, sizeof(workunitdesc) -1,
 			"PRI SEND: dhost %s dport %u sport %u shost %s flags %s mseq %08x tseq %08x"
 			" m_tstamp %08x t_tstamp %08x window_size %u doff %u",

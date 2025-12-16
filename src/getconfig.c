@@ -486,7 +486,7 @@ static void usage(void) {
 	"\t-U, --no-openclosed	 dont say open or closed\n"
 	"\t-w, --safefile       *write pcap file of recieved packets\n"
 	"\t-W, --fingerprint    *OS fingerprint 0=cisco(def) 1=openbsd 2=WindowsXP 3=p0fsendsyn 4=FreeBSD 5=nmap\n"
-	"\t                      6=linux 7:strangetcp\n"
+	"\t                      6=linux 7=strangetcp 8=Win10/11 9=Linux5/6 10=macOS 11=Android\n"
 	"\t-v, --verbose         verbose (each time more verbose so -vvvvv is really verbose)\n"
 	"\t-V, --version         display version\n"
 	"\t-z, --sniff           sniff alike\n"

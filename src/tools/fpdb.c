@@ -34,6 +34,8 @@
 
 #include "p0f/p0fexport.h"
 
+#include <arpa/inet.h>
+
 #include <libpq-fe.h>
 
 #define ISSYNACK	1
@@ -150,7 +152,7 @@ int main(int argc, char **argv) {
 				ia.s_addr=i_u.i->saddr;
 
 				memset(host, 0, sizeof(host));
-				strncpy(host, inet_ntoa(ia), sizeof(host) -1);
+				inet_ntop(AF_INET, &ia, host, sizeof(host));
 				good++;
 			}
 			else if (pl[j1].type == PKLTYPE_TCP) {

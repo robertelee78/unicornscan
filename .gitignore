@@ -1,6 +1,3 @@
-# Claude Flow generated files
-.claude-flow/
-.swarm/
 
 # Build artifacts
 *.o
@@ -23,3 +20,37 @@ src/unicornscan
 src/tools/fantaip
 src/tools/unibrow
 src/tools/unicfgtst
+
+# Claude Flow generated files
+.claude/settings.local.json
+.mcp.json
+claude-flow.config.json
+.swarm/
+.hive-mind/
+.claude-flow/
+memory/
+coordination/
+memory/claude-flow-data.json
+memory/sessions/*
+!memory/sessions/README.md
+memory/agents/*
+!memory/agents/README.md
+coordination/memory_bank/*
+coordination/subtasks/*
+coordination/orchestration/*
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+claude-flow
+# Removed Windows wrapper files per user request
+hive-mind-prompt-*.txt
+
+# Build artifacts
+*.loT
+src/scan_progs/unilisten
+src/scan_progs/unisend
+p0f_*.deb
+configure~

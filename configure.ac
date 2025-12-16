@@ -359,6 +359,16 @@ fi
 
 AC_CHECK_LIB([GeoIP], [GeoIP_open], [], [], [])
 
+dnl P0F v3 integration for modern OS fingerprinting
+AC_ARG_WITH(p0f3-socket,
+    [  --with-p0f3-socket=PATH path to p0f v3 daemon socket (default: /var/run/p0f.sock)],
+    [ p0f3_socket="$withval" ],
+    [ p0f3_socket="/var/run/p0f.sock" ])
+AC_MSG_CHECKING(for p0f v3 socket path)
+AC_MSG_RESULT($p0f3_socket)
+AC_DEFINE_UNQUOTED(P0F3_SOCKET_PATH, "$p0f3_socket")
+AC_DEFINE(HAVE_P0F3_API)
+
 AC_SUBST(DESTDIR)
 AC_SUBST(DBTYPES)
 AC_SUBST(PG_LDFLAGS)

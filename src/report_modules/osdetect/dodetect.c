@@ -29,6 +29,13 @@
 
 #include "module.h"
 #include "dodetect.h"
+#include "p0f3_api.h"
+
+/* P0F v3 integration state */
+static int p0f3_enabled = 1;           /* Try p0f v3 by default */
+static int p0f3_fd = -1;               /* Socket connection to p0f daemon */
+static int p0f3_checked = 0;           /* Have we checked availability? */
+static char *p0f3_socket_path = NULL;  /* Custom socket path (NULL = default) */
 
 static void osd_add_fp(fps_t *);
 static int  osd_tcpopt_match(const tcpopt_t *, const tcpopt_t *);
@@ -45,7 +52,116 @@ fps_t *head=NULL;
 /* i wrote all this the day before the defcon talk, so umm, yah... */
 /* XXX cleaned up a little... no hardcoded fingerprints in the source ;] */
 
+/*
+ * P0F v3 integration functions
+ */
+
+/* Initialize p0f v3 connection (lazy initialization) */
+static int p0f3_init_connection(void) {
+	if (!p0f3_enabled) {
+		return -1;
+	}
+
+	if (p0f3_fd >= 0) {
+		return p0f3_fd;  /* Already connected */
+	}
+
+	if (!p0f3_checked) {
+		p0f3_checked = 1;
+		if (!p0f3_available(p0f3_socket_path)) {
+			DBG(M_MOD, "p0f v3 daemon not available, using built-in detection");
+			return -1;
+		}
+	}
+
+	p0f3_fd = p0f3_connect(p0f3_socket_path);
+	if (p0f3_fd < 0) {
+		DBG(M_MOD, "Failed to connect to p0f v3 daemon");
+		return -1;
+	}
+
+	DBG(M_MOD, "Connected to p0f v3 daemon");
+	return p0f3_fd;
+}
+
+/* Close p0f v3 connection */
+void p0f3_cleanup(void) {
+	if (p0f3_fd >= 0) {
+		p0f3_disconnect(p0f3_fd);
+		p0f3_fd = -1;
+	}
+}
+
+/* Try to get OS info from p0f v3 */
+static char *do_osdetect_p0f3(uint32_t saddr) {
+	static char result_buf[256];
+	p0f3_result_t result;
+	int ret;
+
+	if (p0f3_init_connection() < 0) {
+		return NULL;
+	}
+
+	ret = p0f3_query_ipv4(p0f3_fd, saddr, &result);
+
+	if (ret < 0) {
+		/* Connection error - try to reconnect next time */
+		p0f3_disconnect(p0f3_fd);
+		p0f3_fd = -1;
+		return NULL;
+	}
+
+	if (ret > 0 || !result.valid) {
+		/* No match from p0f v3 */
+		return NULL;
+	}
+
+	/* Format the result */
+	return p0f3_format_result(&result, result_buf, sizeof(result_buf));
+}
+
+/* Original detection function - renamed */
+static char *do_osdetect_builtin(const uint8_t *data, size_t dlen);
+
+/*
+ * Main OS detection entry point - tries p0f v3 first, then falls back to built-in
+ */
 char *do_osdetect(const uint8_t *data, size_t dlen) {
+	union {
+		const struct myiphdr *i;
+		const uint8_t *ptr;
+	} ip_u;
+	char *result = NULL;
+	uint8_t ipsig;
+
+	/* First, try to extract IP address for p0f v3 query */
+	ipsig = *data;
+	if ((ipsig & 0xF0) == 0x40 && dlen >= sizeof(struct myiphdr)) {
+		ip_u.ptr = data;
+
+		/* Try p0f v3 first if enabled */
+		if (p0f3_enabled) {
+			result = do_osdetect_p0f3(ip_u.i->saddr);
+			if (result != NULL && strlen(result) > 0) {
+				DBG(M_MOD, "p0f v3 detected: %s", result);
+				return result;
+			}
+		}
+	}
+
+	/* Fall back to built-in detection */
+	result = do_osdetect_builtin(data, dlen);
+	if (result != NULL && strlen(result) > 0) {
+		DBG(M_MOD, "Built-in detected: %s", result);
+	}
+
+	return result;
+}
+
+/*
+ * Built-in OS detection (original implementation)
+ */
+static char *do_osdetect_builtin(const uint8_t *data, size_t dlen) {
 	packetlayers_t pkl[8];
 	size_t ret=0, j=0;
 	uint8_t ipsig=0;
