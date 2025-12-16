@@ -29,6 +29,8 @@
 #include <unilib/modules.h>
 #include <unilib/cidr.h>
 
+#include <arpa/inet.h>
+
 #include <libpq-fe.h>
 
 static int pgsql_disable=0;
@@ -442,11 +444,11 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	struct in_addr ia;
 
 	ia.s_addr=i->send_addr;
-	snprintf(send_addr, sizeof(send_addr) -1, "%s", inet_ntoa(ia));
+	inet_ntop(AF_INET, &ia, send_addr, sizeof(send_addr));
 	ia.s_addr=i->host_addr;
-	snprintf(host_addr, sizeof(host_addr) -1, "%s", inet_ntoa(ia));
+	inet_ntop(AF_INET, &ia, host_addr, sizeof(host_addr));
 	ia.s_addr=i->trace_addr;
-	snprintf(trace_addr, sizeof(trace_addr) -1, "%s", inet_ntoa(ia));
+	inet_ntop(AF_INET, &ia, trace_addr, sizeof(trace_addr));
 
 	tv_sec=(uint32_t )i->recv_time.tv_sec;
 	tv_usec=(uint32_t )i->recv_time.tv_usec;
@@ -588,11 +590,8 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 
 	ia.s_addr=a->ipaddr;
 
-	str=inet_ntoa(ia);
-	assert(str != NULL);
-
 	memset(host_addr, 0, sizeof(host_addr));
-	memcpy(host_addr, str, MIN(sizeof(host_addr) -1, strlen(str)));
+	inet_ntop(AF_INET, &ia, host_addr, sizeof(host_addr));
 
 	snprintf(hwaddr, sizeof(hwaddr) -1, "%02x:%02x:%02x:%02x:%02x:%02x",
 		a->hwaddr[0], a->hwaddr[1], a->hwaddr[2],

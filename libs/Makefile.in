@@ -16,7 +16,7 @@ libpcap-$(PCAPVER)/stamp: libpcap-$(PCAPVER).tar.gz
 
 libdnet-$(DNETVER)/stamp: libdnet-$(DNETVER).tar.gz
 	gzip -dc libdnet-$(DNETVER).tar.gz | tar -xvf -
-	cd libdnet-$(DNETVER) && patch -p1 < ../libdnet-no-test-python.patch && CC="$(CC)" CFLAGS="$(CFLAGS)" ./configure --build=@build@ --host=@host@ --prefix=`pwd`/../fake --enable-shared=no && CC="$(CC)" CFLAGS="$(CFLAGS)" $(USE_MAKE) && $(USE_MAKE) install && touch stamp
+	cd libdnet-$(DNETVER) && patch -p1 < ../libdnet-no-test-python.patch && patch -p1 < ../libdnet-tun-linux-uio.patch && CC="$(CC)" CFLAGS="$(CFLAGS)" ./configure --build=@build@ --host=@host@ --prefix=`pwd`/../fake --enable-shared=no && CC="$(CC)" CFLAGS="$(CFLAGS)" $(USE_MAKE) && $(USE_MAKE) install && touch stamp
 
 libltdl/stamp: libltdl.tar.gz
 	gzip -dc libltdl.tar.gz | tar -xvf -

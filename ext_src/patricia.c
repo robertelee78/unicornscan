@@ -415,7 +415,7 @@ Clear_Patricia (patricia_tree_t *patricia, void_fn_t func)
     	    if (Xrn->prefix) {
 		Deref_Prefix (Xrn->prefix);
 		if (Xrn->data && func)
-	    	    func (Xrn->data);
+	    	    func (Xrn->prefix, Xrn->data);
     	    }
     	    else {
 		assert (Xrn->data == NULL);

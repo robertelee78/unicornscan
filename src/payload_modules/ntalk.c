@@ -72,7 +72,7 @@ int create_payload(uint8_t **data, uint32_t *dlen, void *ir) {
 	s_u.ss=&_m->s->vi[0]->myaddr;
 
 	if (s_u.fs->family != AF_INET) {
-		return NULL;
+		return -1;
 	}
 
 	ret=(ntalk_msg_t *)xmalloc(sizeof(ntalk_msg_t));

@@ -254,18 +254,19 @@ static void decode_arp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	}
 
 	if (ISDBG(M_PKT) || GET_SNIFF()) {
-		char srcip[32], srcmac[32];
+		char srcip[INET_ADDRSTRLEN], dstip[INET_ADDRSTRLEN], srcmac[32];
 		struct in_addr ia;
 
 		ia.s_addr=a_u.a->sip;
-		sprintf(srcip, "%s", inet_ntoa(ia));
+		inet_ntop(AF_INET, &ia, srcip, sizeof(srcip));
 		ia.s_addr=a_u.a->dip;
+		inet_ntop(AF_INET, &ia, dstip, sizeof(dstip));
 		sprintf(srcmac, "%s", decode_6mac(a_u.a->smac));
 
 		INF("ARP : hw_type `%s' protocol `%s' hwsize %d protosize %d opcode `%s'",
 		str_hwtype(hwtype), str_hwproto(a_u.a->protocol), a_u.a->hwsize, a_u.a->protosize, str_opcode(opcode));
 		INF("ARP : SRC HW %s SRC IP -> %s DST HW %s DST IP %s",
-		srcmac, srcip, decode_6mac(a_u.a->dmac), inet_ntoa(ia));
+		srcmac, srcip, decode_6mac(a_u.a->dmac), dstip);
 	}
 
 	pk_len -= sizeof(struct myetherarphdr);
@@ -362,14 +363,14 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 
 	if (ISDBG(M_PKT) || GET_SNIFF()) {
 		char frag_flags[32];
-		char src_addr[32], dst_addr[32];
+		char src_addr[INET_ADDRSTRLEN], dst_addr[INET_ADDRSTRLEN];
 		struct in_addr ia;
 
 		ia.s_addr=saddr;
-		sprintf(src_addr, "%s", inet_ntoa(ia));
+		inet_ntop(AF_INET, &ia, src_addr, sizeof(src_addr));
 
 		ia.s_addr=daddr;
-		sprintf(dst_addr, "%s", inet_ntoa(ia));
+		inet_ntop(AF_INET, &ia, dst_addr, sizeof(dst_addr));
 
 		CLEAR(frag_flags);
 		if (fragoff & IP_DF) {

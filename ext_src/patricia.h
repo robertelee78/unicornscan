@@ -16,7 +16,6 @@
 #define _PATRICIA_H
 
 /* typedef unsigned int u_int; */
-typedef void (*void_fn_t)();
 /* { from defs.h */
 #define prefix_touchar(prefix) ((u_char *)&(prefix)->add.sin)
 #define MAXLINE 1024
@@ -57,6 +56,9 @@ typedef struct _prefix_t {
 #endif /* IPV6 */
     } add;
 } prefix_t;
+
+/* callback function type for patricia tree operations */
+typedef void (*void_fn_t)(prefix_t *, void *);
 
 /* } */
 

@@ -1,0 +1,18 @@
+The goal is to resurrect and modernize Unicornscan 0.4.7 - Jack's final release - so it becomes a fully functional, maintainable tool on modern Linux systems.              
+                                                                                                                                                                              
+  This is NOT:                                                                                                                                                                
+  - Just making compiler errors go away                                                                                                                                       
+  - Suppressing warnings until it builds                                                                                                                                      
+  - A quick patch job to get something that sort of runs                                                                                                                      
+                                                                                                                                                                              
+  This IS:                                                                                                                                                                    
+  - Preserving Jack's work: Every capability he built (TCP/UDP/ARP/ICMP/IP scanning, the drone architecture for distributed scanning, the modular payload/output/report system
+, OS fingerprinting, rate control, all of it) must continue to work                                                                                                           
+  - Truly modernizing: Using current library versions and modern API equivalents, not staying locked to 2006-era code. When we replace inet_ntoa() with inet_ntop(), it's not 
+because the compiler complains - it's because the old function has real bugs (static buffer overwrites) that we're fixing properly                                            
+  - Understanding before changing: Following Chesterton's fence - know WHY something exists before modifying it. No assumptions. No shortcuts                                 
+  - Incremental, testable progress: Each phase leaves us with working, testable code. We verify against your 192.168.1.0/24 network that nothing regressed                    
+  - Setting up for the future: When we're done, this should be code that could accept contributions, maybe even IPv6 support down the road                                    
+                                                                                                                                                                              
+  The end state: A unicornscan that compiles cleanly on modern Linux, uses current libraries, has no deprecated function landmines, and does everything Jack intended it to do
+ - just on 2024/2025 infrastructure instead of 2006 infrastructure.  

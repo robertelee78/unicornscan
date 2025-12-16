@@ -30,12 +30,12 @@ int tsc_supported(void) {
 	return 1;
 }
 
-inline tsc_t get_tsc(void) {
-	tsc_t j;
+static inline tsc_t get_tsc(void) {
+	uint32_t lo, hi;
 	asm volatile (	"pause\n"
 			"nop\n"
-			"rdtsc" : "=A" (j));
-	return j;
+			"rdtsc" : "=a" (lo), "=d" (hi));
+	return ((tsc_t)hi << 32) | lo;
 }
 
 #elif defined(__powerpc__) || defined(__ppc__)
@@ -52,7 +52,7 @@ int tsc_supported(void) {
 	 * by Matteo Frigo
 	 */
 
-inline tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	uint32_t tbl, tbu0, tbu1;
 
 	asm volatile("nop");
@@ -75,7 +75,7 @@ int tsc_supported(void) {
 	return 1;
 }
 
-inline tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	tsc_t j;
 
 	asm volatile (
@@ -96,7 +96,7 @@ int tsc_supported(void) {
 	return 1;
 }
 
-inline tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	uint32_t j;
 
 	/*
@@ -144,7 +144,7 @@ int tsc_supported(void) {
 	return 0;
 }
 
-inline tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	PANIC("Your CPU is not supported by the `tsc' delay, use -d2 or -d3 or edit your config file to use gtod or sleep");
 }
 
