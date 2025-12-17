@@ -4,14 +4,29 @@ Store your unicornscan results in a cloud PostgreSQL database using [Supabase](h
 
 ## Quick Start (5 Minutes)
 
-### 1. Create a Supabase Project
+### Option A: Interactive Setup Wizard (Recommended)
+
+```bash
+# Run the setup wizard
+unicornscan --supabase-setup
+
+# Follow the prompts to enter your Supabase URL and password
+# Configuration is saved to ~/.unicornscan/supabase.conf
+
+# Now run scans - credentials are loaded automatically
+unicornscan -e pgsql -I 192.168.1.0/24
+```
+
+### Option B: Manual Configuration
+
+#### 1. Create a Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) and sign up (free tier available)
 2. Click **New Project**
 3. Set a database password (save this!) and create the project
 4. Wait ~2 minutes for provisioning
 
-### 2. Get Your Connection Details
+#### 2. Get Your Connection Details
 
 From your Supabase dashboard:
 
@@ -20,7 +35,7 @@ From your Supabase dashboard:
    - **Project URL**: `https://xxxxx.supabase.co` (from Settings → API)
    - **Database Password**: The password you set when creating the project
 
-### 3. Run unicornscan with Supabase
+#### 3. Run unicornscan with Supabase
 
 ```bash
 # Using CLI flags
@@ -42,10 +57,13 @@ unicornscan -e pgsql -I 192.168.1.0/24
 
 | Flag | Description | Required |
 |------|-------------|----------|
-| `--supabase-url URL` | Supabase project URL (e.g., `https://xxxxx.supabase.co`) | Yes |
-| `--supabase-db-password PWD` | Database password (set during project creation) | Yes |
+| `--supabase-setup` | Run interactive setup wizard (saves to `~/.unicornscan/`) | No |
+| `--supabase-url URL` | Supabase project URL (e.g., `https://xxxxx.supabase.co`) | Yes* |
+| `--supabase-db-password PWD` | Database password (set during project creation) | Yes* |
 | `--supabase-key KEY` | API key (optional, for future REST API features) | No |
 | `-e pgsql` | Enable PostgreSQL output module | Yes |
+
+*Not required if using saved configuration from `--supabase-setup`
 
 ### Examples
 
@@ -70,17 +88,30 @@ unicornscan --supabase-url https://myproject.supabase.co \
 
 ## Environment Variables
 
-Environment variables provide a secure alternative to CLI flags. They're checked in this priority order:
+Credentials can come from multiple sources. They're checked in this priority order:
 
-| Priority | Variable | Description |
-|----------|----------|-------------|
-| 1 (highest) | CLI flag | `--supabase-url`, `--supabase-db-password` |
-| 2 | `UNICORNSCAN_SUPABASE_URL` | unicornscan-specific URL |
-| 3 | `SUPABASE_URL` | Standard Supabase URL |
-| 2 | `UNICORNSCAN_SUPABASE_DB_PASSWORD` | unicornscan-specific password |
-| 3 | `SUPABASE_DB_PASSWORD` | Standard Supabase password |
-| 2 | `UNICORNSCAN_SUPABASE_KEY` | unicornscan-specific API key |
-| 3 | `SUPABASE_KEY` | Standard Supabase key |
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 (highest) | CLI flags | `--supabase-url`, `--supabase-db-password` |
+| 2 | Environment: `UNICORNSCAN_SUPABASE_*` | unicornscan-specific env vars |
+| 3 | Environment: `SUPABASE_*` | Standard Supabase env vars |
+| 4 (lowest) | Config file | `~/.unicornscan/supabase.conf` |
+
+### Saved Configuration File
+
+The `--supabase-setup` wizard saves credentials to `~/.unicornscan/supabase.conf`:
+
+```ini
+# ~/.unicornscan/supabase.conf
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_DB_PASSWORD=your_database_password
+```
+
+The file is created with mode `0600` (owner read/write only). To remove saved credentials:
+
+```bash
+rm ~/.unicornscan/supabase.conf
+```
 
 ### Shell Configuration Examples
 
