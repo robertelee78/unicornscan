@@ -61,6 +61,7 @@ int scan_settrans(int);
 int scan_setpayload_grp(int);
 
 int scan_setverboseinc(void); /* kludge for getconfig.c */
+int scan_setspoofmac(const char *);
 
 char *scan_getgports(void);
 char *scan_getdesthosts(void);
