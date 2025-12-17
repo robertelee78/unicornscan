@@ -863,6 +863,8 @@ static void _send_packet(void) {
 		 *			BUILD TCP HEADER			*
 		 ****************************************************************/
 		TCPHASHTRACK(seq, target_u.sin->sin_addr.s_addr, rport, sl.local_port, s->ss->syn_key);
+		DBG(M_PKT, "SEND TCPHASHTRACK: seq=%08x target=%08x rport=%u local_port=%u syn_key=%08x",
+			seq, target_u.sin->sin_addr.s_addr, rport, sl.local_port, s->ss->syn_key);
 
 		makepkt_build_tcp(	(uint16_t)sl.local_port,
 					rport,
