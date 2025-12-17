@@ -299,6 +299,8 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	i_u.d=packet;
 	r_u.i.flags=0;
 
+	DBG(M_PKT, "decode_ip ENTRY: pk_layer=%d pk_len=%zu", pk_layer, pk_len);
+
 	if (pk_len < sizeof(struct myiphdr)) {
 		ERR("short ip packet");
 		return;
@@ -418,6 +420,8 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	pk_len -= sizeof(struct myiphdr) + opt_len;
 	packet += sizeof(struct myiphdr) + opt_len;
 
+	DBG(M_PKT, "decode_ip: dispatching pk_len=%zu proto=%d pk_layer=%d", pk_len, i_u.i->protocol, pk_layer);
+
 	if (pk_len) {
 		switch (i_u.i->protocol) {
 			case IPPROTO_TCP:
@@ -459,6 +463,8 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	struct chksumv c[2];
 
 	t_u.d=packet;
+
+	DBG(M_PKT, "decode_tcp ENTRY: pk_layer=%d pk_len=%zu", pk_layer, pk_len);
 
 	if (pk_layer == 4) { /* this is inside an icmp error reflection, check that */
 		if (r_u.i.proto != IPPROTO_ICMP) {
@@ -503,6 +509,8 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 		uint32_t eackseq=0, high=0;
 
 		TCPHASHTRACK(eackseq, r_u.i.host_addr, sport, dport, s->ss->syn_key);
+		DBG(M_PKT, "RECV TCPHASHTRACK: eackseq=%08x host_addr=%08x sport=%u dport=%u syn_key=%08x actual_ackseq=%08x",
+			eackseq, r_u.i.host_addr, sport, dport, s->ss->syn_key, ackseq);
 
 		if (GET_LDOCONNECT()) {
 			DBG(M_PKT, "window size is %u or whatever", s->ss->window_size);
@@ -516,7 +524,7 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 			DBG(M_PKT, "packet within my %08x-%08x window, with %08x expecting %08x", eackseq, high, ackseq, eackseq);
 		}
 		else if (! GET_SNIFF() && ! GET_IGNORESEQ() && ! (GET_IGNORERSEQ() && t_u.t->rst)) {
-			DBG(M_PKT, "not my packet ackseq %08x expecting somewhere around %08x-%08x", ackseq, eackseq, high);
+			DBG(M_PKT, "REJECTED: not my packet ackseq %08x expecting somewhere around %08x-%08x", ackseq, eackseq, high);
 			return;
 		}
 	} /* layer 3 seq checking */
