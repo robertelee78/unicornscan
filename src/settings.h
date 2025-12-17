@@ -219,6 +219,10 @@ typedef struct settings_s {
 
 	void *argv_ext;
 	void *dns;
+
+	/* Supabase cloud database integration */
+	char *supabase_url;	/* Supabase project URL (e.g., https://xxxxx.supabase.co) */
+	char *supabase_key;	/* Supabase API key (service role or anon) */
 } settings_t;
 
 #ifndef MODULE
