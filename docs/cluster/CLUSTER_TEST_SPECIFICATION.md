@@ -659,10 +659,12 @@ make test-valgrind       # Memory checks (~2 hours)
 
 | **Category**        | **Target** | **Current** |
 |---------------------|------------|-------------|
-| Line Coverage       | 85%        | 0%          |
-| Branch Coverage     | 75%        | 0%          |
-| Function Coverage   | 90%        | 0%          |
-| Integration Paths   | 100%       | 0%          |
+| Line Coverage       | 85%        | ~40%        |
+| Branch Coverage     | 75%        | ~30%        |
+| Function Coverage   | 90%        | ~50%        |
+| Integration Paths   | 100%       | ~20%        |
+
+**Note:** Current coverage from `test_drone_cluster.c` (22 unit tests). Integration tests still needed.
 
 ### 7.3 Test Automation
 
