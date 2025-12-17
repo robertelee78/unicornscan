@@ -851,6 +851,12 @@ int scan_setsupabaseurl(const char *url) {
 		return -1;
 	}
 
+	/* Validate Supabase domain */
+	if (strstr(url, ".supabase.co") == NULL) {
+		ERR("Supabase URL must contain .supabase.co domain: `%s'", url);
+		return -1;
+	}
+
 	if (s->supabase_url != NULL) {
 		xfree(s->supabase_url);
 	}
