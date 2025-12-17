@@ -653,7 +653,13 @@ void process_packet(uint8_t *user, const struct pcap_pkthdr *phdr, const uint8_t
 		return;  /* Not ARP, ignore silently */
 	}
 
-	min_arp_size = sizeof(struct ether_header) + sizeof(struct arp_packet);
+	/*
+	 * Minimum ARP packet size: 14 bytes Ethernet header + 28 bytes ARP
+	 * (for IPv4 over Ethernet: hwsize=6, protosize=4).
+	 * Note: We use a hardcoded constant because sizeof(struct arp_packet)
+	 * may include padding if the _PACKED_ attribute isn't working.
+	 */
+	min_arp_size = 14 + 28;  /* Ethernet header + ARP for IPv4/Ethernet */
 	if (phdr->caplen < min_arp_size) {
 		VRB(3, "short ARP packet: %u < %zu", phdr->caplen, min_arp_size);
 		return;
