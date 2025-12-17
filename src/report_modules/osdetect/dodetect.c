@@ -488,7 +488,8 @@ static void osd_fp_dump(const fps_t *fp) {
 		PANIC("snprintf fails");
 	}
 
-	OUT("%s", fpstr);
+	/* Only show fingerprint details with -vv or higher */
+	VRB(1, "%s", fpstr);
 
 	if (fp->misc_flags & OSD_URGPTR_LEAK) {
 		DBG(M_MOD, "urgent pointer leak!");
