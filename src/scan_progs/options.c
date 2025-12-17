@@ -796,6 +796,41 @@ int scan_setverboseinc(void) { /* kludge for getconfig.c */
 	return 1;
 }
 
+int scan_setspoofmac(const char *mac) {
+	unsigned int a, b, c, d, e, f;
+
+	if (mac == NULL || strlen(mac) < 1) {
+		ERR("MAC address is empty");
+		return -1;
+	}
+
+	/* Validate and parse MAC address format XX:XX:XX:XX:XX:XX */
+	if (sscanf(mac, "%x:%x:%x:%x:%x:%x", &a, &b, &c, &d, &e, &f) != 6) {
+		ERR("invalid MAC address format `%s' (expected XX:XX:XX:XX:XX:XX)", mac);
+		return -1;
+	}
+
+	/* Validate each octet is in range */
+	if (a > 255 || b > 255 || c > 255 || d > 255 || e > 255 || f > 255) {
+		ERR("MAC address octet out of range in `%s'", mac);
+		return -1;
+	}
+
+	/* Store in hwaddr_s for later use by child process */
+	snprintf(s->vi[0]->hwaddr_s, sizeof(s->vi[0]->hwaddr_s) - 1,
+		"%02x:%02x:%02x:%02x:%02x:%02x", a, b, c, d, e, f);
+
+	/* Also populate the binary hwaddr array */
+	s->vi[0]->hwaddr[0] = (uint8_t)a;
+	s->vi[0]->hwaddr[1] = (uint8_t)b;
+	s->vi[0]->hwaddr[2] = (uint8_t)c;
+	s->vi[0]->hwaddr[3] = (uint8_t)d;
+	s->vi[0]->hwaddr[4] = (uint8_t)e;
+	s->vi[0]->hwaddr[5] = (uint8_t)f;
+
+	return 1;
+}
+
 char *scan_getgports(void) {
 	return s->gport_str;
 }

@@ -96,7 +96,7 @@ int getconfig_argv(int argc, char ** argv) {
 	char conffile[512];
 
 #define OPTS	\
-		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H" "i:" "I" "j:" "l:" "L:" "m:" "M:" "o:" "p:" "P:" "q:" "Q" \
+		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
 		"r:" "R:" "s:" "S" "t:" "T:" "u:" "U" "w:" "W:" "v" "V" "z" "Z:"
 
 #ifdef WITH_LONGOPTS
@@ -111,7 +111,7 @@ int getconfig_argv(int argc, char ** argv) {
 		{"try-frags",		0, NULL, 'F'},
 		{"payload-group",	1, NULL, 'G'},
 		{"help",		0, NULL, 'h'},
-		{"do-dns",		0, NULL, 'H'},
+		{"hardware-address",	1, NULL, 'H'},
 		{"interface",		1, NULL, 'i'},
 		{"immediate",		0, NULL, 'I'},
 		{"ignore-seq",		1, NULL, 'j'},
@@ -119,6 +119,7 @@ int getconfig_argv(int argc, char ** argv) {
 		{"packet-timeout",	1, NULL, 'L'},
 		{"mode",		1, NULL, 'm'},
 		{"module-dir",		1, NULL, 'M'},
+		{"do-dns",		0, NULL, 'N'},
 		{"format",		1, NULL, 'o'},
 		{"ports",		1, NULL, 'p'},
 		{"pcap-filter",		1, NULL, 'P'},
@@ -213,8 +214,8 @@ int getconfig_argv(int argc, char ** argv) {
 				usage();
 				break;
 
-			case 'H': /* resolve ip addresses into names during reporting phase */
-				if (scan_setdodns(1) < 0) {
+			case 'H': /* spoof hardware (MAC) address */
+				if (scan_setspoofmac(optarg) < 0) {
 					usage();
 				}
 				break;
@@ -262,6 +263,12 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+
+			case 'N': /* resolve ip addresses into names during reporting phase */
+				if (scan_setdodns(1) < 0) {
+					usage();
+				}
+				break;
 			case 'o': /* report format string */
 				if (scan_setformat(optarg) < 0) {
 					usage();
@@ -461,7 +468,7 @@ static void usage(void) {
 	"\t-F, --try-frags       \n"
 	"\t-G, --payload-group	*payload group (numeric) for tcp/udp type payload selection (default all)\n"
 	"\t-h, --help            help\n"
-	"\t-H, --do-dns          resolve hostnames during the reporting phase\n"
+	"\t-H, --hardware-address *spoof source MAC address (XX:XX:XX:XX:XX:XX format)\n"
 	"\t-i, --interface      *interface name, like eth0 or fxp1, not normally required\n"
 	"\t-I, --immediate       immediate mode, display things as we find them\n"
 	"\t-j, --ignore-seq     *ignore `A'll, 'R'eset sequence numbers for tcp header validation\n"
@@ -471,6 +478,7 @@ static void usage(void) {
 	"\t                       for -mT you can also specify tcp flags following the T like -mTsFpU for example\n"
 	"\t                       that would send tcp syn packets with (NO Syn|FIN|NO Push|URG)\n"
 	"\t-M, --module-dir     *directory modules are found at (defaults to %s)\n"
+	"\t-N, --do-dns          resolve hostnames during the reporting phase\n"
 	"\t-o, --format         *format of what to display for replies, see man page for format specification\n"
 	"\t-p, --ports           global ports to scan, if not specified in target options\n"
 	"\t-P, --pcap-filter    *extra pcap filter string for reciever\n"
