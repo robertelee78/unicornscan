@@ -33,6 +33,8 @@
 
 #include <libpq-fe.h>
 
+#include "pgsql_schema_embedded.h"
+
 static int pgsql_disable=0;
 static unsigned long long int pgscanid=0;
 
@@ -144,6 +146,133 @@ static char *supabase_build_connstring(const settings_t *settings) {
 	return connstr;
 }
 
+/*
+ * Check if the unicornscan schema exists in the database
+ * Returns: 1 if schema exists, 0 if not, -1 on error
+ */
+static int supabase_check_schema(PGconn *conn) {
+	PGresult *res;
+	int schema_exists = 0;
+
+	/* Check if uni_scans table exists - it's the primary table */
+	res = PQexec(conn,
+		"SELECT EXISTS ("
+		"    SELECT FROM information_schema.tables "
+		"    WHERE table_schema = 'public' "
+		"    AND table_name = 'uni_scans'"
+		");"
+	);
+
+	if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+		ERR("Supabase: failed to check schema existence: %s", PQerrorMessage(conn));
+		PQclear(res);
+		return -1;
+	}
+
+	if (PQntuples(res) == 1) {
+		const char *val = PQgetvalue(res, 0, 0);
+		if (val != NULL && (val[0] == 't' || val[0] == 'T' || val[0] == '1')) {
+			schema_exists = 1;
+		}
+	}
+
+	PQclear(res);
+	return schema_exists;
+}
+
+/*
+ * Execute a DDL statement and check for success
+ * Returns: 1 on success, 0 on failure
+ */
+static int supabase_exec_ddl(PGconn *conn, const char *ddl, const char *desc) {
+	PGresult *res;
+	ExecStatusType status;
+
+	res = PQexec(conn, ddl);
+	status = PQresultStatus(res);
+
+	if (status != PGRES_COMMAND_OK && status != PGRES_TUPLES_OK) {
+		ERR("Supabase: failed to %s: %s", desc, PQerrorMessage(conn));
+		PQclear(res);
+		return 0;
+	}
+
+	PQclear(res);
+	return 1;
+}
+
+/*
+ * Create the unicornscan database schema
+ * Returns: 1 on success, 0 on failure
+ */
+static int supabase_create_schema(PGconn *conn) {
+	char version_sql[256];
+
+	VRB(0, "Supabase: creating unicornscan database schema (version %d)...", PGSQL_SCHEMA_VERSION);
+
+	/* Create schema version tracking table first */
+	if (!supabase_exec_ddl(conn, pgsql_schema_version_ddl, "create schema version table")) {
+		return 0;
+	}
+
+	/* Create sequences */
+	if (!supabase_exec_ddl(conn, pgsql_schema_sequences_ddl, "create sequences")) {
+		return 0;
+	}
+
+	/* Create main tables */
+	if (!supabase_exec_ddl(conn, pgsql_schema_scans_ddl, "create uni_scans table")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_sworkunits_ddl, "create uni_sworkunits table")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_lworkunits_ddl, "create uni_lworkunits table")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_stats_ddl, "create stats tables")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_ipreport_ddl, "create uni_ipreport table")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_arpreport_ddl, "create uni_arpreport table")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_ipreportdata_ddl, "create report data tables")) {
+		return 0;
+	}
+
+	if (!supabase_exec_ddl(conn, pgsql_schema_arppackets_ddl, "create uni_arppackets table")) {
+		return 0;
+	}
+
+	/* Create indexes */
+	if (!supabase_exec_ddl(conn, pgsql_schema_indexes_ddl, "create indexes")) {
+		return 0;
+	}
+
+	/* Add foreign key constraints */
+	if (!supabase_exec_ddl(conn, pgsql_schema_constraints_ddl, "create foreign key constraints")) {
+		return 0;
+	}
+
+	/* Record schema version */
+	snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, PGSQL_SCHEMA_VERSION);
+	if (!supabase_exec_ddl(conn, version_sql, "record schema version")) {
+		return 0;
+	}
+
+	VRB(0, "Supabase: schema created successfully");
+	return 1;
+}
+
 int init_module(mod_entry_t *m) {
 	snprintf(m->license, sizeof(m->license) -1, "GPLv2");
 	snprintf(m->author, sizeof(m->author) -1, "jack");
@@ -242,6 +371,34 @@ void pgsql_database_init(void) {
 		PQuser((const PGconn *)pgconn),
 		PQprotocolVersion((const PGconn *)pgconn)
 	);
+
+	/*
+	 * Supabase mode: auto-create schema if needed
+	 * Only do this when connstr_allocated is true, indicating Supabase mode
+	 */
+	if (connstr_allocated) {
+		int schema_exists;
+
+		schema_exists = supabase_check_schema(pgconn);
+		if (schema_exists < 0) {
+			/* Error checking schema - disable module */
+			pgsql_disable = 1;
+			PQfinish(pgconn);
+			return;
+		}
+		else if (schema_exists == 0) {
+			/* Schema doesn't exist - create it */
+			if (!supabase_create_schema(pgconn)) {
+				ERR("Supabase: failed to create database schema");
+				pgsql_disable = 1;
+				PQfinish(pgconn);
+				return;
+			}
+		}
+		else {
+			VRB(0, "Supabase: schema already exists");
+		}
+	}
 
 	escres=pgsql_escstr(s->profile);
 	strncpy(profile, escres, sizeof(profile) -1);
