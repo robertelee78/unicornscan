@@ -16,10 +16,10 @@
 
 Unicornscan's cluster mode enables distributed network scanning across multiple machines (called "drones"), allowing for:
 
-- **Horizontal Scaling**: Spread scanning workload across multiple systems
-- **Increased Throughput**: Achieve higher packets-per-second (PPS) rates
-- **Network Segmentation**: Scan from different network vantage points
+- **Horizontal Scaling**: Spread scanning workload across multiple sender drones
+- **Increased Throughput**: Achieve higher aggregate packets-per-second (PPS)
 - **Resource Distribution**: Separate packet sending from response capture
+- **Flexible Deployment**: Run drones on different machines for resource isolation
 
 ### Drone Types
 
@@ -27,7 +27,8 @@ Unicornscan's cluster mode enables distributed network scanning across multiple 
 |------------|------|-------------|
 | **Sender** | Transmitter | Sends probe packets to targets |
 | **Listener** | Receiver | Captures and analyzes responses |
-| **Output** | Collector | Aggregates scan results |
+
+Note: The code defines `DRONE_TYPE_OUTPUT` but it is not implemented. Only sender and listener drones are functional.
 
 ---
 
@@ -167,13 +168,13 @@ unicornscan -Z drone1:5555,drone2:5556,drone3:5557,listener:5558 \
     -mTs -r 50000 -p1-10000 192.168.0.0/16
 ```
 
-### Example 3: UDP Scan with Multiple Listeners
+### Example 3: UDP Scan
 
-Use multiple listener drones for better response capture:
+UDP scan with sender and listener drones:
 
 ```bash
-# Multiple listeners can capture responses from different network segments
-unicornscan -Z listener1:5555,listener2:5556,sender:5557 \
+# Note: One listener is typically sufficient since responses go to one source IP
+unicornscan -Z listener:5555,sender1:5556,sender2:5557 \
     -mU -p53,67,68,123,161,500 10.0.0.0/8
 ```
 
@@ -305,8 +306,8 @@ Debug mask options:
 
 | Metric | Recommended |
 |--------|-------------|
-| Senders per scan | 2-8 |
-| Listeners per scan | 1-4 |
+| Senders per scan | 2-8 (more = higher PPS) |
+| Listeners per scan | 1 (typically sufficient) |
 | Max drones total | 32 (hard limit) |
 
 ### 3. Performance Tuning

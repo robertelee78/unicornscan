@@ -339,25 +339,29 @@ close(d->s);
 **Location:** `/opt/unicornscan-0.4.7/src/scan_progs/tests/`
 
 **Test Files:**
-- `tests1.c` - Packet slicing unit test (NOT cluster-related)
-- `testp1.c` - Unknown (likely packet parsing)
+- `test_drone_cluster.c` - **Cluster mode test suite (22 tests)**
+- `Makefile.drone_tests` - Build system for cluster tests
+- `tests1.c` - Packet slicing unit test
+- `testp1.c` - Packet parsing tests
 - `common.c/h` - Test utilities
 
-**Cluster-Specific Tests:** ❌ **NONE FOUND**
+**Cluster-Specific Tests:** ✅ **22 tests across 8 categories**
+
+Run tests: `make -f Makefile.drone_tests run`
 
 ### 5.2 Testing Gaps
 
-**Critical Missing Tests:**
-1. ❌ Multi-drone workunit distribution
-2. ❌ Drone failure mid-scan recovery
-3. ❌ IPC message serialization/deserialization
-4. ❌ Workunit reject/retry logic
-5. ❌ Concurrent sender/listener coordination
-6. ❌ MAX_CONNS boundary testing
-7. ❌ Network partition handling
-8. ❌ Protocol version mismatch
-9. ❌ Performance benchmarks (throughput, latency)
-10. ❌ Memory leak detection under load
+**Test Coverage Status (as of 2025-12-16):**
+1. ✅ Multi-drone workunit distribution - tested
+2. ❌ Drone failure mid-scan recovery - NOT TESTED (needs integration test)
+3. ✅ IPC message serialization/deserialization - basic coverage
+4. ❌ Workunit reject/retry logic - NOT TESTED (functions not implemented)
+5. ✅ Concurrent sender/listener coordination - basic coverage
+6. ✅ MAX_CONNS boundary testing - tested
+7. ❌ Network partition handling - NOT TESTED (needs integration test)
+8. ✅ Protocol version mismatch - tested
+9. ❌ Performance benchmarks (throughput, latency) - NOT TESTED
+10. ❌ Memory leak detection under load - NOT TESTED
 
 **Test Recommendations:**
 ```c
@@ -614,13 +618,13 @@ if (d_u.v->maj != DRONE_MAJ || d_u.v->min != DRONE_MIN) {
 | Workunit Throughput     | ~100/sec    | 10,000/sec    | MEDIUM       |
 | Failover Time           | N/A (none)  | <5 seconds    | HIGH         |
 | Memory Efficiency       | Poor        | Good          | LOW          |
-| Test Coverage           | 0%          | >80%          | HIGH         |
+| Test Coverage           | ~40%        | >80%          | MEDIUM       |
 
 ### 10.2 Critical Issues
 
 **Must Fix (P0):**
 1. ❌ **Implement workunit retry logic** - Currently crashes on drone failure
-2. ❌ **Add cluster integration tests** - Zero coverage is unacceptable
+2. ⚠️ **Expand cluster integration tests** - Unit tests added, integration tests needed
 3. ❌ **Remove MAX_CONNS hard limit** - Blocks large-scale deployments
 
 **Should Fix (P1):**
