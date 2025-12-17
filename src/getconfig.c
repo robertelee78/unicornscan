@@ -45,6 +45,7 @@
 #include <getopt.h>
 #endif
 
+#include <supabase_setup.h>
 
 #include <compile.h>
 
@@ -99,6 +100,7 @@ int getconfig_argv(int argc, char ** argv) {
 #define OPT_SUPABASE_URL	256
 #define OPT_SUPABASE_KEY	257
 #define OPT_SUPABASE_DB_PASSWORD	258
+#define OPT_SUPABASE_SETUP	259
 
 #define OPTS	\
 		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
@@ -148,6 +150,7 @@ int getconfig_argv(int argc, char ** argv) {
 		{"supabase-url",	1, NULL, OPT_SUPABASE_URL},
 		{"supabase-key",	1, NULL, OPT_SUPABASE_KEY},
 		{"supabase-db-password", 1, NULL, OPT_SUPABASE_DB_PASSWORD},
+		{"supabase-setup",	0, NULL, OPT_SUPABASE_SETUP},
 		{NULL,			0, NULL,  0 }
 	};
 #endif /* LONG OPTION SUPPORT */
@@ -157,6 +160,14 @@ int getconfig_argv(int argc, char ** argv) {
 	snprintf(conffile, sizeof(conffile) -1, CONF_FILE, s->profile);
 	if (readconf(conffile) < 0) {
 		return -1;
+	}
+
+	/*
+	 * Load saved Supabase configuration from ~/.unicornscan/supabase.conf
+	 * This provides lowest priority - CLI args and env vars can override
+	 */
+	if (supabase_load_config() < 0) {
+		VRB(0, "warning: failed to load Supabase configuration file");
 	}
 
 #ifdef WITH_LONGOPTS
@@ -412,6 +423,14 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+			case OPT_SUPABASE_SETUP: /* Run interactive setup wizard */
+				if (supabase_run_wizard() == 0) {
+					uexit(0); /* Success - exit */
+				} else {
+					uexit(1); /* Error - exit with failure */
+				}
+				break;
+
 			default:
 				usage();
 				break;
@@ -576,6 +595,7 @@ static void usage(void) {
 	"\t-z, --sniff           sniff alike\n"
 	"\t-Z, --drone-str      *drone String\n"
 	"\n\tSupabase Cloud Database:\n"
+	"\t    --supabase-setup  Interactive setup wizard (saves config to ~/.unicornscan/)\n"
 	"\t    --supabase-url   *Supabase project URL (env: UNICORNSCAN_SUPABASE_URL or SUPABASE_URL)\n"
 	"\t    --supabase-key   *Supabase API key (env: UNICORNSCAN_SUPABASE_KEY or SUPABASE_KEY)\n"
 	"\t    --supabase-db-password *Database password (env: UNICORNSCAN_SUPABASE_DB_PASSWORD)\n"
