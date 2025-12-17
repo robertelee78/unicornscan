@@ -132,13 +132,14 @@ static char *supabase_build_connstring(const settings_t *settings) {
 	}
 
 	/* Build connection string - format:
-	 * host=db.xxxxx.supabase.co port=5432 dbname=postgres user=postgres password=...
+	 * host=db.xxxxx.supabase.co port=5432 dbname=postgres user=postgres password=... sslmode=require
+	 * Note: sslmode=require ensures encrypted connection to Supabase cloud database
 	 */
 	len = 256 + strlen(project_ref) + strlen(settings->supabase_db_password);
 	connstr = xmalloc(len);
 
 	snprintf(connstr, len - 1,
-		"host=db.%s.supabase.co port=5432 dbname=postgres user=postgres password=%s",
+		"host=db.%s.supabase.co port=5432 dbname=postgres user=postgres password=%s sslmode=require",
 		project_ref, settings->supabase_db_password);
 
 	VRB(0, "Supabase: connecting to db.%s.supabase.co", project_ref);

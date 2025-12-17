@@ -380,9 +380,9 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO unicornscan;
 
 Then modify the connection (requires code change or custom dbconf).
 
-### 3. Enable SSL (Default)
+### 3. SSL Encryption (Enforced)
 
-Supabase connections are SSL-encrypted by default. The connection string includes `sslmode=require`.
+All Supabase connections use SSL encryption. The connection string automatically includes `sslmode=require` to ensure encrypted communication with the cloud database.
 
 ### 4. IP Allowlisting
 
