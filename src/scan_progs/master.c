@@ -679,6 +679,14 @@ static int dispatch_work_units(void) {
 				DBG(M_MST, "done sending listener workunits");
 				master_updatestate(MASTER_SENT_LISTEN_WORKUNITS);
 				workunit_stir_sp();
+				/*
+				 * Give listener subprocess time to enter its pcap_dispatch/xpoll loop.
+				 * Without this delay, early packets from the sender may be missed
+				 * because the listener hasn't started capturing yet (race condition).
+				 * 10ms is sufficient for the listener to transition from sending
+				 * MSG_READY to being in its main capture loop.
+				 */
+				usleep(10000);
 			}
 		} /* if its a valid listener and we havent emptied the listener workunit pool */
 		else if (master_state == MASTER_SENT_LISTEN_WORKUNITS && c->type == DRONE_TYPE_SENDER) {
