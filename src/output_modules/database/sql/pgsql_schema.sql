@@ -221,9 +221,20 @@ alter table "uni_arppackets"
 	references "uni_arpreport"("arpreport_id");
 
 -- Additional indexes for common query patterns
+-- Single-column indexes
 create index uni_ipreport_host_addr_idx on uni_ipreport("host_addr");
 create index uni_ipreport_dport_idx on uni_ipreport("dport");
+create index uni_ipreport_sport_idx on uni_ipreport("sport");
 create index uni_scans_s_time_idx on uni_scans("s_time");
+
+-- Composite indexes for common query patterns
+create index uni_ipreport_scan_host_idx on uni_ipreport("scans_id", "host_addr");
+create index uni_ipreport_scan_dport_idx on uni_ipreport("scans_id", "dport");
+
+-- GIN indexes for JSONB columns (efficient for containment queries)
+create index uni_scans_metadata_gin on uni_scans using gin("scan_metadata");
+create index uni_ipreport_extra_gin on uni_ipreport using gin("extra_data");
+create index uni_arpreport_extra_gin on uni_arpreport using gin("extra_data");
 
 -- Record schema version
 insert into uni_schema_version (version) values (2);

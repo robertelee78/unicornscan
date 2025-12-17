@@ -217,11 +217,20 @@ static const char *pgsql_schema_arppackets_ddl =
  * Indexes for common query patterns
  */
 static const char *pgsql_schema_indexes_ddl =
+	/* Basic single-column indexes */
 	"CREATE INDEX IF NOT EXISTS uni_ipreport_scansid_idx ON uni_ipreport(scans_id);\n"
 	"CREATE INDEX IF NOT EXISTS uni_arpreport_scansid_idx ON uni_arpreport(scans_id);\n"
 	"CREATE INDEX IF NOT EXISTS uni_ipreport_host_addr_idx ON uni_ipreport(host_addr);\n"
 	"CREATE INDEX IF NOT EXISTS uni_ipreport_dport_idx ON uni_ipreport(dport);\n"
-	"CREATE INDEX IF NOT EXISTS uni_scans_s_time_idx ON uni_scans(s_time);\n";
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_sport_idx ON uni_ipreport(sport);\n"
+	"CREATE INDEX IF NOT EXISTS uni_scans_s_time_idx ON uni_scans(s_time);\n"
+	/* Composite indexes for common query patterns */
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_scan_host_idx ON uni_ipreport(scans_id, host_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_scan_dport_idx ON uni_ipreport(scans_id, dport);\n"
+	/* GIN indexes for JSONB columns (efficient for containment queries) */
+	"CREATE INDEX IF NOT EXISTS uni_scans_metadata_gin ON uni_scans USING gin(scan_metadata);\n"
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_extra_gin ON uni_ipreport USING gin(extra_data);\n"
+	"CREATE INDEX IF NOT EXISTS uni_arpreport_extra_gin ON uni_arpreport USING gin(extra_data);\n";
 
 /*
  * Foreign key constraints (added separately for IF NOT EXISTS compatibility)
@@ -293,10 +302,11 @@ static const char *pgsql_schema_constraints_ddl =
 	"END $$;\n";
 
 /*
- * Schema v2 migration - add JSONB columns to existing databases
+ * Schema v2 migration - add JSONB columns and new indexes to existing databases
  * Uses DO blocks with exception handling for safe idempotent migrations
  */
 static const char *pgsql_schema_migration_v2_ddl =
+	/* Add JSONB columns */
 	"DO $$ BEGIN\n"
 	"    ALTER TABLE uni_scans ADD COLUMN scan_metadata JSONB DEFAULT '{}'::jsonb;\n"
 	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
@@ -310,7 +320,15 @@ static const char *pgsql_schema_migration_v2_ddl =
 	"DO $$ BEGIN\n"
 	"    ALTER TABLE uni_arpreport ADD COLUMN extra_data JSONB DEFAULT '{}'::jsonb;\n"
 	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
-	"END $$;\n";
+	"END $$;\n"
+	"\n"
+	/* Add new indexes (IF NOT EXISTS makes these idempotent) */
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_sport_idx ON uni_ipreport(sport);\n"
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_scan_host_idx ON uni_ipreport(scans_id, host_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_scan_dport_idx ON uni_ipreport(scans_id, dport);\n"
+	"CREATE INDEX IF NOT EXISTS uni_scans_metadata_gin ON uni_scans USING gin(scan_metadata);\n"
+	"CREATE INDEX IF NOT EXISTS uni_ipreport_extra_gin ON uni_ipreport USING gin(extra_data);\n"
+	"CREATE INDEX IF NOT EXISTS uni_arpreport_extra_gin ON uni_arpreport USING gin(extra_data);\n";
 
 /*
  * Record schema version
