@@ -66,6 +66,7 @@ int scan_setspoofmac(const char *);
 /* Supabase cloud database integration */
 int scan_setsupabaseurl(const char *);
 int scan_setsupabasekey(const char *);
+int scan_setsupabasedbpassword(const char *);
 
 char *scan_getgports(void);
 char *scan_getdesthosts(void);

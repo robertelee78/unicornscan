@@ -98,6 +98,7 @@ int getconfig_argv(int argc, char ** argv) {
 /* Long-only option values (must be >= 256 to not conflict with short opts) */
 #define OPT_SUPABASE_URL	256
 #define OPT_SUPABASE_KEY	257
+#define OPT_SUPABASE_DB_PASSWORD	258
 
 #define OPTS	\
 		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
@@ -146,6 +147,7 @@ int getconfig_argv(int argc, char ** argv) {
 		/* Supabase cloud database integration (long-only options) */
 		{"supabase-url",	1, NULL, OPT_SUPABASE_URL},
 		{"supabase-key",	1, NULL, OPT_SUPABASE_KEY},
+		{"supabase-db-password", 1, NULL, OPT_SUPABASE_DB_PASSWORD},
 		{NULL,			0, NULL,  0 }
 	};
 #endif /* LONG OPTION SUPPORT */
@@ -404,6 +406,12 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+			case OPT_SUPABASE_DB_PASSWORD: /* Supabase database password */
+				if (scan_setsupabasedbpassword(optarg) < 0) {
+					usage();
+				}
+				break;
+
 			default:
 				usage();
 				break;
@@ -445,6 +453,21 @@ int getconfig_argv(int argc, char ** argv) {
 			if (scan_setsupabasekey(env_key) < 0) {
 				/* Don't fail - env var may be set for other tools */
 				VRB(0, "warning: SUPABASE_KEY environment variable is invalid, ignoring");
+			}
+		}
+	}
+
+	if (s->supabase_db_password == NULL) {
+		const char *env_pass=NULL;
+
+		env_pass=getenv("UNICORNSCAN_SUPABASE_DB_PASSWORD");
+		if (env_pass == NULL) {
+			env_pass=getenv("SUPABASE_DB_PASSWORD");
+		}
+		if (env_pass != NULL && strlen(env_pass) > 0) {
+			if (scan_setsupabasedbpassword(env_pass) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_DB_PASSWORD environment variable is invalid, ignoring");
 			}
 		}
 	}
@@ -555,6 +578,7 @@ static void usage(void) {
 	"\n\tSupabase Cloud Database:\n"
 	"\t    --supabase-url   *Supabase project URL (env: UNICORNSCAN_SUPABASE_URL or SUPABASE_URL)\n"
 	"\t    --supabase-key   *Supabase API key (env: UNICORNSCAN_SUPABASE_KEY or SUPABASE_KEY)\n"
+	"\t    --supabase-db-password *Database password (env: UNICORNSCAN_SUPABASE_DB_PASSWORD)\n"
 	"*:\toptions with `*' require an argument following them\n\n"
 	"  address ranges are cidr like 1.2.3.4/8 for all of 1.?.?.?\n"
 	"  if you omit the cidr mask then /32 is implied\n"

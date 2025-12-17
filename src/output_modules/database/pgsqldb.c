@@ -56,6 +56,94 @@ static int pgsql_dealwith_arpreport(const arp_report_t *);
 static int pgsql_dealwith_wkstats(uint32_t /* magic */, const workunit_stats_t *);
 static void database_walk_func(void *);
 
+/*
+ * Extract project reference from Supabase URL
+ * Input: "https://xxxxx.supabase.co" or "https://xxxxx.supabase.co/..."
+ * Output: "xxxxx" (static buffer, not thread-safe)
+ * Returns NULL on parse error
+ */
+static const char *supabase_extract_project_ref(const char *url) {
+	static char project_ref[128];
+	const char *start, *end;
+
+	if (url == NULL) {
+		return NULL;
+	}
+
+	/* Skip protocol */
+	if (strncmp(url, "https://", 8) == 0) {
+		start = url + 8;
+	} else if (strncmp(url, "http://", 7) == 0) {
+		start = url + 7;
+	} else {
+		return NULL;
+	}
+
+	/* Find the subdomain (project ref) - ends at first '.' */
+	end = strchr(start, '.');
+	if (end == NULL || end == start) {
+		return NULL;
+	}
+
+	/* Verify it's a supabase domain */
+	if (strstr(end, ".supabase.co") == NULL) {
+		return NULL;
+	}
+
+	/* Copy project reference */
+	if ((size_t)(end - start) >= sizeof(project_ref)) {
+		return NULL; /* too long */
+	}
+
+	memset(project_ref, 0, sizeof(project_ref));
+	memcpy(project_ref, start, (size_t)(end - start));
+
+	return project_ref;
+}
+
+/*
+ * Build PostgreSQL connection string for Supabase
+ * Returns malloc'd string (caller must free) or NULL on error
+ *
+ * Supabase direct connection format:
+ *   host=db.[project-ref].supabase.co port=5432 dbname=postgres user=postgres password=...
+ */
+static char *supabase_build_connstring(const settings_t *settings) {
+	const char *project_ref;
+	char *connstr;
+	size_t len;
+
+	if (settings->supabase_url == NULL) {
+		ERR("Supabase URL is not set");
+		return NULL;
+	}
+
+	if (settings->supabase_db_password == NULL) {
+		ERR("Supabase database password is not set (use --supabase-db-password or SUPABASE_DB_PASSWORD env var)");
+		return NULL;
+	}
+
+	project_ref = supabase_extract_project_ref(settings->supabase_url);
+	if (project_ref == NULL) {
+		ERR("Cannot parse project reference from Supabase URL: %s", settings->supabase_url);
+		return NULL;
+	}
+
+	/* Build connection string - format:
+	 * host=db.xxxxx.supabase.co port=5432 dbname=postgres user=postgres password=...
+	 */
+	len = 256 + strlen(project_ref) + strlen(settings->supabase_db_password);
+	connstr = xmalloc(len);
+
+	snprintf(connstr, len - 1,
+		"host=db.%s.supabase.co port=5432 dbname=postgres user=postgres password=%s",
+		project_ref, settings->supabase_db_password);
+
+	VRB(0, "Supabase: connecting to db.%s.supabase.co", project_ref);
+
+	return connstr;
+}
+
 int init_module(mod_entry_t *m) {
 	snprintf(m->license, sizeof(m->license) -1, "GPLv2");
 	snprintf(m->author, sizeof(m->author) -1, "jack");
@@ -82,6 +170,7 @@ int delete_module(void) {
 void pgsql_database_init(void) {
 	keyval_t *kv=NULL;
 	char *connstr=NULL, *escres=NULL;
+	int connstr_allocated=0; /* track if we need to free connstr */
 	char profile[200], dronestr[200], modules[200], user[200], pcap_dumpfile[200], pcap_readfile[200];
 	long long int est_e_time=0;
 
@@ -93,23 +182,40 @@ void pgsql_database_init(void) {
 
 	DBG(M_MOD, "PostgreSQL module is enabled");
 
-	for (kv=_m->mp->kv ; kv != NULL ; kv=kv->next) {
-		if (strcmp(kv->key, "dbconf") == 0) {
-			connstr=kv->value;
+	/*
+	 * Check for Supabase mode first - if supabase_url is set, use Supabase
+	 * cloud database instead of traditional dbconf keyval
+	 */
+	if (s->supabase_url != NULL && strlen(s->supabase_url) > 0) {
+		DBG(M_MOD, "Supabase mode detected, building connection string from URL");
+		connstr = supabase_build_connstring(s);
+		if (connstr == NULL) {
+			ERR("Failed to build Supabase connection string");
+			pgsql_disable=1;
+			return;
 		}
-		if (strcmp(kv->key, "logpacket") == 0) {
-			if (strcmp(kv->value, "true") == 0) {
-				if (scan_setretlayers(0xff) < 0) {
-					ERR("cant request whole packet transfer, ignoring log packet option");
+		connstr_allocated=1; /* we allocated this, need to free later */
+	}
+	else {
+		/* Traditional mode: look for dbconf keyval */
+		for (kv=_m->mp->kv ; kv != NULL ; kv=kv->next) {
+			if (strcmp(kv->key, "dbconf") == 0) {
+				connstr=kv->value;
+			}
+			if (strcmp(kv->key, "logpacket") == 0) {
+				if (strcmp(kv->value, "true") == 0) {
+					if (scan_setretlayers(0xff) < 0) {
+						ERR("cant request whole packet transfer, ignoring log packet option");
+					}
 				}
 			}
 		}
-	}
 
-	if (connstr == NULL) {
-		ERR("no configuration for PostGreSQL, need an entry in config for `dbconf' with a valid PostGreSQL connection string");
-		pgsql_disable=1;
-		return;
+		if (connstr == NULL) {
+			ERR("no configuration for PostGreSQL, need an entry in config for `dbconf' with a valid PostGreSQL connection string, or use --supabase-url with --supabase-db-password");
+			pgsql_disable=1;
+			return;
+		}
 	}
 
 	pgconn=PQconnectdb(connstr);
@@ -117,8 +223,17 @@ void pgsql_database_init(void) {
 		ERR("PostgreSQL connection fails: %s",
 			pgconn == NULL ? "unknown" : PQerrorMessage(pgconn)
 		);
+		if (connstr_allocated && connstr != NULL) {
+			xfree(connstr);
+		}
 		pgsql_disable=1;
 		return;
+	}
+
+	/* Free connection string if we allocated it - libpq has copied it internally */
+	if (connstr_allocated && connstr != NULL) {
+		xfree(connstr);
+		connstr = NULL;
 	}
 
 	VRB(0, "PostgreSQL: connected to host %s, database %s, as user %s, with protocol version %d",

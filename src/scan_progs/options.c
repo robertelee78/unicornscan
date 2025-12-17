@@ -883,6 +883,29 @@ int scan_setsupabasekey(const char *key) {
 	return 1;
 }
 
+int scan_setsupabasedbpassword(const char *password) {
+	size_t len;
+
+	if (password == NULL || (len = strlen(password)) < 1) {
+		ERR("Supabase database password is empty");
+		return -1;
+	}
+
+	/* Database passwords should be at least 6 characters */
+	if (len < 6) {
+		ERR("Supabase database password appears too short: length %zu", len);
+		return -1;
+	}
+
+	if (s->supabase_db_password != NULL) {
+		xfree(s->supabase_db_password);
+	}
+
+	s->supabase_db_password = xstrdup(password);
+
+	return 1;
+}
+
 char *scan_getgports(void) {
 	return s->gport_str;
 }
