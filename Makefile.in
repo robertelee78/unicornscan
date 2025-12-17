@@ -40,5 +40,43 @@ distclean: clean
 dist: distclean
 	./scripts/tarup.sh
 
+# Set Linux capabilities so unicornscan can run without root
+# Requires: sudo make setcap (one time after install)
+# This grants only the minimum necessary privileges:
+#   cap_net_raw    - create raw sockets for packet crafting
+#   cap_net_admin  - network interface configuration
+#   cap_sys_chroot - chroot for privilege dropping
+#   cap_setuid     - setuid for privilege dropping
+#   cap_setgid     - setgid for privilege dropping
+setcap:
+	@echo "Setting Linux capabilities on unicornscan binaries..."
+	@echo "This allows running without root (requires sudo for setcap itself)"
+	@if [ -x "$(DESTDIR)$(bindir)/unicornscan" ]; then \
+		setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' "$(DESTDIR)$(bindir)/unicornscan" && \
+		echo "  $(DESTDIR)$(bindir)/unicornscan - OK"; \
+	else \
+		echo "  $(DESTDIR)$(bindir)/unicornscan - not found (run make install first)"; \
+	fi
+	@if [ -x "$(DESTDIR)$(libexecdir)/@targetname@/unilisten" ]; then \
+		setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' "$(DESTDIR)$(libexecdir)/@targetname@/unilisten" && \
+		echo "  $(DESTDIR)$(libexecdir)/@targetname@/unilisten - OK"; \
+	else \
+		echo "  $(DESTDIR)$(libexecdir)/@targetname@/unilisten - not found"; \
+	fi
+	@if [ -x "$(DESTDIR)$(libexecdir)/@targetname@/unisend" ]; then \
+		setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' "$(DESTDIR)$(libexecdir)/@targetname@/unisend" && \
+		echo "  $(DESTDIR)$(libexecdir)/@targetname@/unisend - OK"; \
+	else \
+		echo "  $(DESTDIR)$(libexecdir)/@targetname@/unisend - not found"; \
+	fi
+	@if [ -x "$(DESTDIR)$(bindir)/fantaip" ]; then \
+		setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' "$(DESTDIR)$(bindir)/fantaip" && \
+		echo "  $(DESTDIR)$(bindir)/fantaip - OK"; \
+	else \
+		echo "  $(DESTDIR)$(bindir)/fantaip - not found"; \
+	fi
+	@echo ""
+	@echo "Done! You can now run unicornscan without sudo."
+
 libtool: $(LIBTOOL_DEPS)
 	$(SHELL) $(BUILD_DIR)/config.status --recheck
