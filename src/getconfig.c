@@ -95,6 +95,10 @@ int getconfig_argv(int argc, char ** argv) {
 	int ch=0;
 	char conffile[512];
 
+/* Long-only option values (must be >= 256 to not conflict with short opts) */
+#define OPT_SUPABASE_URL	256
+#define OPT_SUPABASE_KEY	257
+
 #define OPTS	\
 		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
 		"r:" "R:" "s:" "S" "t:" "T:" "u:" "U" "w:" "W:" "v" "V" "z" "Z:"
@@ -139,6 +143,9 @@ int getconfig_argv(int argc, char ** argv) {
 		{"version",		0, NULL, 'V'},
 		{"sniff",		0, NULL, 'z'},
 		{"drone-str",		1, NULL, 'Z'},
+		/* Supabase cloud database integration (long-only options) */
+		{"supabase-url",	1, NULL, OPT_SUPABASE_URL},
+		{"supabase-key",	1, NULL, OPT_SUPABASE_KEY},
 		{NULL,			0, NULL,  0 }
 	};
 #endif /* LONG OPTION SUPPORT */
@@ -385,6 +392,18 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+			case OPT_SUPABASE_URL: /* Supabase project URL */
+				if (scan_setsupabaseurl(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_SUPABASE_KEY: /* Supabase API key */
+				if (scan_setsupabasekey(optarg) < 0) {
+					usage();
+				}
+				break;
+
 			default:
 				usage();
 				break;
@@ -394,6 +413,40 @@ int getconfig_argv(int argc, char ** argv) {
 	/* its not set if its null, so set it, otherwise it is */
 	if (s->mod_dir == NULL) {
 		scan_setmoddir(MODULE_DIR);
+	}
+
+	/*
+	 * Supabase environment variable fallback
+	 * Priority: CLI flags > UNICORNSCAN_SUPABASE_* > SUPABASE_*
+	 */
+	if (s->supabase_url == NULL) {
+		const char *env_url=NULL;
+
+		env_url=getenv("UNICORNSCAN_SUPABASE_URL");
+		if (env_url == NULL) {
+			env_url=getenv("SUPABASE_URL");
+		}
+		if (env_url != NULL && strlen(env_url) > 0) {
+			if (scan_setsupabaseurl(env_url) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_URL environment variable is invalid, ignoring");
+			}
+		}
+	}
+
+	if (s->supabase_key == NULL) {
+		const char *env_key=NULL;
+
+		env_key=getenv("UNICORNSCAN_SUPABASE_KEY");
+		if (env_key == NULL) {
+			env_key=getenv("SUPABASE_KEY");
+		}
+		if (env_key != NULL && strlen(env_key) > 0) {
+			if (scan_setsupabasekey(env_key) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_KEY environment variable is invalid, ignoring");
+			}
+		}
 	}
 
 	s->argv_ext=fifo_init();
@@ -499,6 +552,9 @@ static void usage(void) {
 	"\t-V, --version         display version\n"
 	"\t-z, --sniff           sniff alike\n"
 	"\t-Z, --drone-str      *drone String\n"
+	"\n\tSupabase Cloud Database:\n"
+	"\t    --supabase-url   *Supabase project URL (env: UNICORNSCAN_SUPABASE_URL or SUPABASE_URL)\n"
+	"\t    --supabase-key   *Supabase API key (env: UNICORNSCAN_SUPABASE_KEY or SUPABASE_KEY)\n"
 	"*:\toptions with `*' require an argument following them\n\n"
 	"  address ranges are cidr like 1.2.3.4/8 for all of 1.?.?.?\n"
 	"  if you omit the cidr mask then /32 is implied\n"

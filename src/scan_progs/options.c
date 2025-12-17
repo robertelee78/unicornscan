@@ -831,6 +831,58 @@ int scan_setspoofmac(const char *mac) {
 	return 1;
 }
 
+int scan_setsupabaseurl(const char *url) {
+	size_t len;
+
+	if (url == NULL || (len = strlen(url)) < 1) {
+		ERR("Supabase URL is empty");
+		return -1;
+	}
+
+	/* URL must start with https:// (Supabase requires secure connections) */
+	if (strncmp(url, "https://", 8) != 0) {
+		ERR("Supabase URL must start with https:// (got `%s')", url);
+		return -1;
+	}
+
+	/* Basic sanity check: should be at least https://x.supabase.co length */
+	if (len < 20) {
+		ERR("Supabase URL appears too short to be valid: `%s'", url);
+		return -1;
+	}
+
+	if (s->supabase_url != NULL) {
+		xfree(s->supabase_url);
+	}
+
+	s->supabase_url = xstrdup(url);
+
+	return 1;
+}
+
+int scan_setsupabasekey(const char *key) {
+	size_t len;
+
+	if (key == NULL || (len = strlen(key)) < 1) {
+		ERR("Supabase API key is empty");
+		return -1;
+	}
+
+	/* Supabase keys are JWTs, typically start with eyJ and are 200+ chars */
+	if (len < 100) {
+		ERR("Supabase API key appears too short (expected JWT format): length %zu", len);
+		return -1;
+	}
+
+	if (s->supabase_key != NULL) {
+		xfree(s->supabase_key);
+	}
+
+	s->supabase_key = xstrdup(key);
+
+	return 1;
+}
+
 char *scan_getgports(void) {
 	return s->gport_str;
 }
