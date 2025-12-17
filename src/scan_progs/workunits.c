@@ -621,8 +621,13 @@ static void balance_recv_workunits(void *wptr) {
 	assert(w_u.w->r != NULL);
 
 	/*
-	 * XXX
+	 * Pass the listen address/mask to the listener so it can filter for responses.
+	 * When using -s (phantom IP/CIDR), this will be the phantom address/network.
+	 * Otherwise it's the real interface address.
 	 */
+	memcpy(&w_u.w->r->listen_addr, &s->vi[0]->myaddr, sizeof(struct sockaddr_storage));
+	memcpy(&w_u.w->r->listen_mask, &s->vi[0]->mymask, sizeof(struct sockaddr_storage));
+	DBG(M_WRK, "listen_addr=`%s'", cidr_saddrstr((const struct sockaddr *)&w_u.w->r->listen_addr));
 
 	w_u.w->r->ret_layers=s->ss->ret_layers;
 
