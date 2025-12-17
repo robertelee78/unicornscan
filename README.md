@@ -163,10 +163,28 @@ global {
 }
 ```
 
+## Cloud Database (Supabase)
+
+Store scan results in [Supabase](https://supabase.com) cloud PostgreSQL:
+
+```bash
+# Quick setup - schema auto-creates on first connection
+unicornscan --supabase-url https://xxxxx.supabase.co \
+            --supabase-db-password YOUR_DB_PASSWORD \
+            -e pgsql -I 192.168.1.0/24
+
+# Or use environment variables
+export SUPABASE_URL="https://xxxxx.supabase.co"
+export SUPABASE_DB_PASSWORD="your_database_password"
+unicornscan -e pgsql 10.0.0.0/24
+```
+
+See [Supabase Integration Guide](docs/supabase-integration.md) for full documentation.
+
 ## Building with Optional Features
 
 ```bash
-# With PostgreSQL output support
+# With PostgreSQL output support (required for Supabase)
 ./configure --with-pgsql
 
 # With MySQL output support
@@ -302,6 +320,7 @@ $PREFIX/
 - `man unicornscan` - Full manual page
 - `docs/Unicornscan-Getting_Started.pdf` - Original getting started guide
 - [Cluster Mode Guide](docs/cluster/CLUSTER_MODE_GUIDE.md) - Distributed scanning setup
+- [Supabase Integration Guide](docs/supabase-integration.md) - Cloud database setup
 
 ## License
 
