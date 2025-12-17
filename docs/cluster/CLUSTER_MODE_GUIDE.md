@@ -297,9 +297,9 @@ Debug mask options:
 
 ### 1. Network Placement
 
-- Place listener drones on the same network segment as targets when possible
-- Use multiple listeners for scanning across subnets
-- Position senders behind NAT/firewall for stealth
+- **Listener placement**: The listener must be able to capture responses to the source IP used in probes. If scanning with your real IP, run the listener on that host. If spoofing (with `fantaip`), the listener must be on the network where responses to the spoofed IP will arrive.
+- **Sender placement**: Senders can be anywhere with network connectivity to targets. Multiple senders increase aggregate PPS.
+- **NAT warning**: Do NOT place senders behind NAT unless you understand that responses will go to the NAT device's external IP, not back through NAT. You'd need a listener positioned to capture traffic at the NAT egress point.
 
 ### 2. Resource Allocation
 
@@ -327,9 +327,10 @@ sysctl -w net.core.wmem_max=16777216
 
 ### 5. Workload Distribution
 
-- Distribute port ranges evenly across sender drones
-- Use multiple listeners for UDP scans (responses may arrive at any listener)
-- Monitor drone status during long scans
+- Multiple senders share the workunit (target/port ranges) and send in parallel
+- One listener is typically sufficient - responses go to one source IP
+- Multiple listeners only help if using multiple source IPs or need capture redundancy
+- Monitor drone status during long scans with `-v` verbosity
 
 ---
 
