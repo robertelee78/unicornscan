@@ -1,0 +1,75 @@
+# Makefile for Unicornscan Cluster Mode Tests
+#
+# Usage:
+#   make -f Makefile.drone_tests          - Build tests
+#   make -f Makefile.drone_tests run      - Build and run tests
+#   make -f Makefile.drone_tests clean    - Clean build artifacts
+
+# Compiler settings
+CC = gcc
+CFLAGS = -Wall -Wextra -g -O0 -DHAVE_CONFIG_H
+
+# Include paths (relative to src/scan_progs/tests/)
+INCLUDES = -I../.. \
+           -I../../unilib \
+           -I..
+
+# Unilib object files needed for tests
+UNILIB_DIR = ../../unilib
+UNILIB_OBJS = $(UNILIB_DIR)/drone.o \
+              $(UNILIB_DIR)/xmalloc.o \
+              $(UNILIB_DIR)/panic.o \
+              $(UNILIB_DIR)/output.o \
+              $(UNILIB_DIR)/xipc.o \
+              $(UNILIB_DIR)/settings.o \
+              $(UNILIB_DIR)/xpoll.o \
+              $(UNILIB_DIR)/xdelay.o \
+              $(UNILIB_DIR)/socktrans.o \
+              $(UNILIB_DIR)/chtbl.o \
+              $(UNILIB_DIR)/prng.o \
+              $(UNILIB_DIR)/gtod.o \
+              $(UNILIB_DIR)/arch.o \
+              $(UNILIB_DIR)/sleep.o \
+              $(UNILIB_DIR)/tsc.o
+
+# Note: We use stubs instead of linking against full workunits.o
+# to minimize dependencies and enable focused unit testing
+
+# Libraries
+LIBS = -lpthread -lm
+
+# Source files
+TEST_SRC = test_drone_cluster.c
+
+# Object files
+TEST_OBJ = $(TEST_SRC:.c=.o)
+
+# Test binary
+TEST_BIN = test_drone_cluster
+
+# Targets
+.PHONY: all clean run
+
+all: $(TEST_BIN)
+
+$(TEST_BIN): $(TEST_OBJ)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(UNILIB_OBJS) $(LIBS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+
+run: $(TEST_BIN)
+	@echo "Running cluster mode tests..."
+	@./$(TEST_BIN)
+
+clean:
+	rm -f $(TEST_OBJ) $(TEST_BIN)
+	rm -f *.o
+
+# Dependencies
+test_drone_cluster.o: test_drone_cluster.c \
+                      ../../config.h \
+                      ../../settings.h \
+                      ../../unilib/drone.h \
+                      ../../unilib/xipc.h \
+                      ../workunits.h

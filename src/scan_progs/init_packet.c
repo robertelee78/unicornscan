@@ -291,7 +291,22 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->tcpoptions[17]=0x03; s->ss->tcpoptions[18]=0x03; s->ss->tcpoptions[19]=0x00;
 			}
 			break;
-		case 7: /* some crazy stuff i just made up */
+		case 7:
+			/*
+			 * "strangetcp" - BGP router evasion fingerprint
+			 * Uses TCP MD5 Signature option (RFC 2385, kind 0x13) with random
+			 * data to mimic BGP router traffic. May bypass firewalls that
+			 * whitelist BGP-like packets. Random TTL (128-255) defeats hop counting.
+			 *
+			 * Options sent (24 bytes): MSS=1024, SACK, MD5-Sig(random 16 bytes)
+			 *
+			 * NOTE: Code below writes 37 bytes (indices 0-36) but tcpoptions_len=24
+			 * due to makepkt.c requiring length % 4 == 0 (37 would PANIC).
+			 * Lines 333-337 write timestamps/NOPs that are never transmitted.
+			 * This is harmless - buffer is 64 bytes, no overflow. The extra
+			 * writes are orphaned code from when author tried larger options.
+			 * Left as-is since fingerprint works correctly for evasion purpose.
+			 */
 			/* XXX ADD rand ttl option to ttl parser */
 			if (s->ss->minttl == 0 && s->ss->maxttl == 0) {
 				uint8_t rttl=0;
@@ -340,10 +355,12 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 
 		case 8:
 			/*
-			 * Windows 10/11 fingerprint
-			 * From p0f v3: *:128:0:*:8192,8:mss,nop,ws,nop,nop,sok:df,id+:0
-			 * TTL=128, DF=1, Window=8192, WScale=8
+			 * Windows 10/11/Server 2019/2022 fingerprint
+			 * Modern Windows TCP stack (shared across desktop and server editions)
+			 * Sources: Microsoft TechCommunity traces, runZero research (2024)
+			 * TTL=128, DF=1, Window=64240 (MSS*44), WScale=8
 			 * Options: MSS, NOP, WS8, NOP, NOP, SACK (12 bytes)
+			 * Note: Desktop and Server editions are identical at TCP SYN level
 			 */
 			if (s->ss->minttl == 0 && s->ss->maxttl == 0) {
 				scan_setttl("128");
@@ -353,7 +370,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 			}
 
 			if (s->ss->mode == MODE_TCPSCAN) {
-				s->ss->window_size=8192;
+				s->ss->window_size=64240;  /* MSS(1460) * 44 */
 				s->ss->tcpoptions_len=12;
 				/* MSS (size 4) */
 				s->ss->tcpoptions[0]=0x02; s->ss->tcpoptions[1]=0x04;
