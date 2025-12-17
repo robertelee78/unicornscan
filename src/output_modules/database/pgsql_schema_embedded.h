@@ -302,6 +302,87 @@ static const char *pgsql_schema_constraints_ddl =
 	"END $$;\n";
 
 /*
+ * Convenience views for common query patterns
+ * Using CREATE OR REPLACE for idempotent updates
+ */
+static const char *pgsql_schema_views_ddl =
+	/* v_open_ports: Human-readable port scan results */
+	"CREATE OR REPLACE VIEW v_open_ports AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    to_timestamp(s.s_time) AS scan_time,\n"
+	"    s.profile,\n"
+	"    i.host_addr,\n"
+	"    i.dport AS port,\n"
+	"    CASE i.proto\n"
+	"        WHEN 6 THEN 'TCP'\n"
+	"        WHEN 17 THEN 'UDP'\n"
+	"        WHEN 1 THEN 'ICMP'\n"
+	"        ELSE 'OTHER(' || i.proto || ')'\n"
+	"    END AS protocol,\n"
+	"    i.ttl,\n"
+	"    to_timestamp(i.tstamp) AS response_time,\n"
+	"    i.extra_data\n"
+	"FROM uni_scans s\n"
+	"JOIN uni_ipreport i ON s.scans_id = i.scans_id\n"
+	"ORDER BY s.s_time DESC, i.host_addr, i.dport;\n"
+	"\n"
+	/* v_scan_summary: Aggregate statistics per scan */
+	"CREATE OR REPLACE VIEW v_scan_summary AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    to_timestamp(s.s_time) AS started,\n"
+	"    to_timestamp(NULLIF(s.e_time, 0)) AS completed,\n"
+	"    s.profile,\n"
+	"    s.\"user\" AS scan_user,\n"
+	"    s.num_hosts AS target_hosts,\n"
+	"    s.num_packets AS packets_sent,\n"
+	"    COUNT(DISTINCT i.host_addr) AS hosts_responded,\n"
+	"    COUNT(i.ipreport_id) AS total_responses,\n"
+	"    COUNT(DISTINCT i.dport) AS unique_ports,\n"
+	"    s.scan_metadata\n"
+	"FROM uni_scans s\n"
+	"LEFT JOIN uni_ipreport i ON s.scans_id = i.scans_id\n"
+	"GROUP BY s.scans_id, s.s_time, s.e_time, s.profile, s.\"user\",\n"
+	"         s.num_hosts, s.num_packets, s.scan_metadata;\n"
+	"\n"
+	/* v_recent_scans: Last 50 scans with key metrics */
+	"CREATE OR REPLACE VIEW v_recent_scans AS\n"
+	"SELECT * FROM v_scan_summary\n"
+	"ORDER BY started DESC\n"
+	"LIMIT 50;\n"
+	"\n"
+	/* v_host_history: All results for a given host across all scans */
+	"CREATE OR REPLACE VIEW v_host_history AS\n"
+	"SELECT\n"
+	"    i.host_addr,\n"
+	"    s.scans_id,\n"
+	"    to_timestamp(s.s_time) AS scan_time,\n"
+	"    s.profile,\n"
+	"    i.dport AS port,\n"
+	"    i.proto,\n"
+	"    i.ttl,\n"
+	"    i.sport AS source_port,\n"
+	"    i.extra_data\n"
+	"FROM uni_ipreport i\n"
+	"JOIN uni_scans s ON i.scans_id = s.scans_id\n"
+	"ORDER BY i.host_addr, s.s_time DESC, i.dport;\n"
+	"\n"
+	/* v_arp_results: Human-readable ARP scan results */
+	"CREATE OR REPLACE VIEW v_arp_results AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    to_timestamp(s.s_time) AS scan_time,\n"
+	"    s.profile,\n"
+	"    a.host_addr AS ip_address,\n"
+	"    a.hwaddr AS mac_address,\n"
+	"    to_timestamp(a.tstamp) AS response_time,\n"
+	"    a.extra_data\n"
+	"FROM uni_scans s\n"
+	"JOIN uni_arpreport a ON s.scans_id = a.scans_id\n"
+	"ORDER BY s.s_time DESC, a.host_addr;\n";
+
+/*
  * Schema v2 migration - add JSONB columns and new indexes to existing databases
  * Uses DO blocks with exception handling for safe idempotent migrations
  */

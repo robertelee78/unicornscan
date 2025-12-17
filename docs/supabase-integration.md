@@ -476,4 +476,36 @@ Schema version: 2 (tracked in `uni_schema_version` table)
 - Added `scan_metadata` JSONB column to `uni_scans` for storing extensible scan metadata
 - Added `extra_data` JSONB column to `uni_ipreport` for storing additional IP report data
 - Added `extra_data` JSONB column to `uni_arpreport` for storing additional ARP report data
+- Added performance indexes (composite, GIN for JSONB)
+- Added convenience views for common query patterns
 - Automatic migration from v1 to v2 when connecting to existing databases
+
+### Convenience Views
+
+Schema v2 includes convenience views for common query patterns:
+
+| View | Description |
+|------|-------------|
+| `v_open_ports` | Human-readable port scan results with protocol names |
+| `v_scan_summary` | Aggregate statistics per scan (hosts, ports, responses) |
+| `v_recent_scans` | Last 50 scans with summary metrics |
+| `v_host_history` | All results for a given host across all scans |
+| `v_arp_results` | Human-readable ARP scan results |
+
+**Example queries using views:**
+
+```sql
+-- Get all open ports from the most recent scan
+SELECT host_addr, port, protocol, ttl
+FROM v_open_ports
+WHERE scans_id = (SELECT MAX(scans_id) FROM uni_scans);
+
+-- Get scan summary with response counts
+SELECT scans_id, started, profile, hosts_responded, unique_ports
+FROM v_recent_scans;
+
+-- Get history for a specific host
+SELECT scan_time, port, protocol, ttl
+FROM v_host_history
+WHERE host_addr = '192.168.1.1';
+```

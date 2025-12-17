@@ -178,11 +178,16 @@ static int supabase_get_schema_version(PGconn *conn) {
 static int supabase_migrate_schema(PGconn *conn, int from_version) {
 	char version_sql[256];
 
-	/* Migration from v1 to v2: add JSONB columns */
+	/* Migration from v1 to v2: add JSONB columns, indexes, and views */
 	if (from_version < 2) {
 		VRB(0, "Supabase: migrating schema from v%d to v%d...", from_version, PGSQL_SCHEMA_VERSION);
 
-		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v2_ddl, "migrate to v2 (add JSONB columns)")) {
+		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v2_ddl, "migrate to v2 (add JSONB columns and indexes)")) {
+			return 0;
+		}
+
+		/* Create/update convenience views (CREATE OR REPLACE is idempotent) */
+		if (!supabase_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
 			return 0;
 		}
 
@@ -316,6 +321,11 @@ static int supabase_create_schema(PGconn *conn) {
 
 	/* Add foreign key constraints */
 	if (!supabase_exec_ddl(conn, pgsql_schema_constraints_ddl, "create foreign key constraints")) {
+		return 0;
+	}
+
+	/* Create convenience views */
+	if (!supabase_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
 		return 0;
 	}
 
