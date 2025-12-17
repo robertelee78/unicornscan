@@ -40,6 +40,7 @@ static unsigned long long int pgscanid=0;
 
 static mod_entry_t *_m=NULL;
 static char *pgsql_escstr(const char *);
+static int supabase_exec_ddl(PGconn *conn, const char *ddl, const char *desc);
 
 static PGconn *pgconn=NULL;
 static PGresult *pgres=NULL;
@@ -145,6 +146,60 @@ static char *supabase_build_connstring(const settings_t *settings) {
 	VRB(0, "Supabase: connecting to db.%s.supabase.co", project_ref);
 
 	return connstr;
+}
+
+/*
+ * Get current schema version from database
+ * Returns: version number (>= 0), or -1 on error/no version table
+ */
+static int supabase_get_schema_version(PGconn *conn) {
+	PGresult *res;
+	int version = -1;
+
+	res = PQexec(conn,
+		"SELECT COALESCE(MAX(version), 0) FROM uni_schema_version;"
+	);
+
+	if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) == 1) {
+		const char *val = PQgetvalue(res, 0, 0);
+		if (val != NULL) {
+			version = atoi(val);
+		}
+	}
+
+	PQclear(res);
+	return version;
+}
+
+/*
+ * Migrate schema from old version to current version
+ * Returns: 1 on success, 0 on failure
+ */
+static int supabase_migrate_schema(PGconn *conn, int from_version) {
+	char version_sql[256];
+
+	/* Migration from v1 to v2: add JSONB columns */
+	if (from_version < 2) {
+		VRB(0, "Supabase: migrating schema from v%d to v%d...", from_version, PGSQL_SCHEMA_VERSION);
+
+		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v2_ddl, "migrate to v2 (add JSONB columns)")) {
+			return 0;
+		}
+
+		/* Record new version */
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 2);
+		if (!supabase_exec_ddl(conn, version_sql, "record schema version 2")) {
+			return 0;
+		}
+
+		VRB(0, "Supabase: schema migration to v2 complete");
+	}
+
+	/* Future migrations would go here:
+	 * if (from_version < 3) { ... }
+	 */
+
+	return 1;
 }
 
 /*
@@ -397,7 +452,31 @@ void pgsql_database_init(void) {
 			}
 		}
 		else {
-			VRB(0, "Supabase: schema already exists");
+			int current_version;
+
+			VRB(0, "Supabase: schema already exists, checking version...");
+
+			/* Check schema version and migrate if needed */
+			current_version = supabase_get_schema_version(pgconn);
+			if (current_version < 0) {
+				/* Version table doesn't exist - legacy schema, treat as v1 */
+				VRB(0, "Supabase: legacy schema detected (no version table), treating as v1");
+				current_version = 1;
+			}
+
+			if (current_version < PGSQL_SCHEMA_VERSION) {
+				VRB(0, "Supabase: schema v%d found, current is v%d - migrating...",
+					current_version, PGSQL_SCHEMA_VERSION);
+				if (!supabase_migrate_schema(pgconn, current_version)) {
+					ERR("Supabase: failed to migrate database schema");
+					pgsql_disable = 1;
+					PQfinish(pgconn);
+					return;
+				}
+			}
+			else {
+				VRB(0, "Supabase: schema is up to date (v%d)", current_version);
+			}
 		}
 	}
 
