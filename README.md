@@ -13,6 +13,7 @@ Unicornscan is an asynchronous stateless network stimulus delivery/response reco
 - **OS Fingerprinting**: Integrated p0f v3 signatures with 50+ embedded OS fingerprints
 - **Source Spoofing**: Full phantom IP support with ARP proxy tool (`fantaip`)
 - **Protocol Payloads**: HTTP, DNS, SIP, UPnP/SSDP, NTALK for service-specific probing
+- **Distributed Scanning**: Cluster mode with remote sender/listener drones
 - **Modular Design**: Pluggable payload, output, and report modules
 - **OS Personality Emulation**: Emulate 12 different OS TCP/IP stacks when scanning
 - **Linux Capabilities**: Run without root using file capabilities
@@ -300,6 +301,7 @@ $PREFIX/
 
 - `man unicornscan` - Full manual page
 - `docs/Unicornscan-Getting_Started.pdf` - Original getting started guide
+- [Cluster Mode Guide](docs/cluster/CLUSTER_MODE_GUIDE.md) - Distributed scanning setup
 
 ## License
 
