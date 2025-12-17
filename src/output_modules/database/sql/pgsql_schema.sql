@@ -1,16 +1,27 @@
-drop table "uni_sworkunits";
-drop table "uni_lworkunits";
-drop table "uni_workunitstats";
-drop table "uni_output";
-drop table "uni_ipreportdata";
-drop table "uni_ippackets";
-drop table "uni_arppackets";
-drop table "uni_ipreport";
-drop sequence "uni_ipreport_id_seq";
-drop table "uni_arpreport";
-drop sequence "uni_arpreport_id_seq";
-drop table "uni_scans";
-drop sequence "uni_scans_id_seq";
+-- Unicornscan PostgreSQL Schema v2
+-- Includes JSONB columns for extensible metadata
+
+drop table if exists "uni_sworkunits";
+drop table if exists "uni_lworkunits";
+drop table if exists "uni_workunitstats";
+drop table if exists "uni_output";
+drop table if exists "uni_ipreportdata";
+drop table if exists "uni_ippackets";
+drop table if exists "uni_arppackets";
+drop table if exists "uni_ipreport";
+drop sequence if exists "uni_ipreport_id_seq";
+drop table if exists "uni_arpreport";
+drop sequence if exists "uni_arpreport_id_seq";
+drop table if exists "uni_scans";
+drop sequence if exists "uni_scans_id_seq";
+drop table if exists "uni_schema_version";
+
+-- Schema version tracking
+create table "uni_schema_version" (
+	"version"	int4 not null,
+	"applied_at"	timestamptz default now(),
+	primary key ("version")
+);
 
 create sequence "uni_scans_id_seq";
 -- MASTER INFORMATION
@@ -34,6 +45,7 @@ create table "uni_scans" (
 	"tickrate"	int4 not null,
 	"num_hosts"	double precision not null,
 	"num_packets"	double precision not null,
+	"scan_metadata"	jsonb default '{}'::jsonb,
 	primary key("scans_id")
 );
 
@@ -145,6 +157,7 @@ create table "uni_ipreport" (
 	"window_size"	int4 not null,
 	"t_tstamp"	int8 not null,
 	"m_tstamp"	int8 not null,
+	"extra_data"	jsonb default '{}'::jsonb,
 	primary key ("ipreport_id")
 );
 
@@ -165,6 +178,7 @@ create table "uni_arpreport" (
 	"hwaddr"	macaddr not null,
 	"tstamp"	int8 not null,
 	"utstamp"	int8 not null,
+	"extra_data"	jsonb default '{}'::jsonb,
 	primary key ("arpreport_id")
 );
 
@@ -205,3 +219,11 @@ alter table "uni_arppackets"
 	add constraint uni_arppackets_uni_arpreport_FK
 	foreign key("arpreport_id")
 	references "uni_arpreport"("arpreport_id");
+
+-- Additional indexes for common query patterns
+create index uni_ipreport_host_addr_idx on uni_ipreport("host_addr");
+create index uni_ipreport_dport_idx on uni_ipreport("dport");
+create index uni_scans_s_time_idx on uni_scans("s_time");
+
+-- Record schema version
+insert into uni_schema_version (version) values (2);

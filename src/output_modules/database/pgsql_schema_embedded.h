@@ -26,9 +26,10 @@
  * This schema is auto-created when using Supabase integration with
  * a fresh database. Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 1
+ * Schema version: 2
+ * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 1
+#define PGSQL_SCHEMA_VERSION 2
 
 /*
  * Schema version tracking table - created first
@@ -72,6 +73,7 @@ static const char *pgsql_schema_scans_ddl =
 	"    tickrate    INTEGER NOT NULL,\n"
 	"    num_hosts   DOUBLE PRECISION NOT NULL,\n"
 	"    num_packets DOUBLE PRECISION NOT NULL,\n"
+	"    scan_metadata JSONB DEFAULT '{}'::jsonb,\n"
 	"    PRIMARY KEY (scans_id)\n"
 	");\n";
 
@@ -167,6 +169,7 @@ static const char *pgsql_schema_ipreport_ddl =
 	"    window_size INTEGER NOT NULL,\n"
 	"    t_tstamp    BIGINT NOT NULL,\n"
 	"    m_tstamp    BIGINT NOT NULL,\n"
+	"    extra_data  JSONB DEFAULT '{}'::jsonb,\n"
 	"    PRIMARY KEY (ipreport_id)\n"
 	");\n";
 
@@ -182,6 +185,7 @@ static const char *pgsql_schema_arpreport_ddl =
 	"    hwaddr      MACADDR NOT NULL,\n"
 	"    tstamp      BIGINT NOT NULL,\n"
 	"    utstamp     BIGINT NOT NULL,\n"
+	"    extra_data  JSONB DEFAULT '{}'::jsonb,\n"
 	"    PRIMARY KEY (arpreport_id)\n"
 	");\n";
 
@@ -286,6 +290,26 @@ static const char *pgsql_schema_constraints_ddl =
 	"        ALTER TABLE uni_arppackets ADD CONSTRAINT uni_arppackets_uni_arpreport_FK\n"
 	"            FOREIGN KEY(arpreport_id) REFERENCES uni_arpreport(arpreport_id);\n"
 	"    END IF;\n"
+	"END $$;\n";
+
+/*
+ * Schema v2 migration - add JSONB columns to existing databases
+ * Uses DO blocks with exception handling for safe idempotent migrations
+ */
+static const char *pgsql_schema_migration_v2_ddl =
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN scan_metadata JSONB DEFAULT '{}'::jsonb;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_ipreport ADD COLUMN extra_data JSONB DEFAULT '{}'::jsonb;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_arpreport ADD COLUMN extra_data JSONB DEFAULT '{}'::jsonb;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
 	"END $$;\n";
 
 /*

@@ -467,5 +467,13 @@ Unicornscan uses libpq for direct SQL access, which requires the database passwo
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-12 | Initial Supabase integration (FR-1, FR-2, FR-4, FR-6) |
+| 1.1 | 2025-12 | Schema v2: Added JSONB columns for extensible metadata |
 
-Schema version: 1 (tracked in `uni_schema_version` table)
+Schema version: 2 (tracked in `uni_schema_version` table)
+
+### Schema v2 Changes
+
+- Added `scan_metadata` JSONB column to `uni_scans` for storing extensible scan metadata
+- Added `extra_data` JSONB column to `uni_ipreport` for storing additional IP report data
+- Added `extra_data` JSONB column to `uni_arpreport` for storing additional ARP report data
+- Automatic migration from v1 to v2 when connecting to existing databases
