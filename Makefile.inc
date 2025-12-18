@@ -28,7 +28,7 @@ CC=gcc
 CFLAGS=$(COPTS) $(CDEFS) $(CINCS) $(CDEPS)
 SHELL=/bin/bash
 
-#LIBTOOL_DEPS=autostuff/ltmain.sh
+#LIBTOOL_DEPS=./autostuff//ltmain.sh
 LIBTOOL=$(SHELL) $(BUILD_DIR)/libtool --quiet
 
 USE_MAKE=/usr/bin/gmake

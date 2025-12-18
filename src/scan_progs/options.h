@@ -67,6 +67,7 @@ int scan_setspoofmac(const char *);
 int scan_setsupabaseurl(const char *);
 int scan_setsupabasekey(const char *);
 int scan_setsupabasedbpassword(const char *);
+int scan_setsupabaseregion(const char *);
 
 char *scan_getgports(void);
 char *scan_getdesthosts(void);

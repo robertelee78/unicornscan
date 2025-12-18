@@ -1,0 +1,294 @@
+/**********************************************************************
+ * Copyright (C) (2006) (Jack Louis) <jack@rapturesecurity.org>       *
+ *                                                                    *
+ * This program is free software; you can redistribute it and/or      *
+ * modify it under the terms of the GNU General Public License        *
+ * as published by the Free Software Foundation; either               *
+ * version 2 of the License, or (at your option) any later            *
+ * version.                                                           *
+ *                                                                    *
+ * This program is distributed in the hope that it will be useful,    *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the      *
+ * GNU General Public License for more details.                       *
+ *                                                                    *
+ * You should have received a copy of the GNU General Public License  *
+ * along with this program; if not, write to the Free Software        *
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.          *
+ **********************************************************************/
+
+/*
+ * unicorn_defs.h - Unicornscan project definitions
+ *
+ * This file contains project-specific definitions that are NOT managed
+ * by autoheader. config.h.in is auto-generated and should only contain
+ * autoheader placeholders. This file is included at the end of config.h.
+ */
+#ifndef _UNICORN_DEFS_H
+#define _UNICORN_DEFS_H
+
+/* Enable POSIX features (nanosleep, etc) - must be defined before system headers */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+/*
+ * Project constants
+ */
+#define UNI_SYNC_SIGNAL	SIGUSR1
+
+/*
+ * used to find out when spawned processes or connected drones have given us a foul taste for execution,
+ * causing us to cease our existance in this cruel world
+ */
+#define MAX_ERRORS 32
+
+#define DEF_SOCK_TIMEOUT 8
+
+/* you can change this, it doesnt matter, think firewalls */
+#define BINDPORT_START	8000
+#define DEF_LISTEN_ADDR	"localhost:1234"
+
+/*
+ * by default, 2 processes will be forked, this is where they will listen
+ */
+#define DEF_SENDER	"unix:" LOCALSTATEDIR "/" TARGETNAME "/send"
+#define DEF_LISTENER	"unix:" LOCALSTATEDIR "/" TARGETNAME "/listen"
+
+#define DEF_SCANTIMEOUT 7	/* number of seconds to wait for packets coming back */
+
+#define CONF_DIR	SYSCONFDIR "/" TARGETNAME
+
+#define CONF_FILE	CONF_DIR "/%s.conf"
+#define DEF_PROFILE	"unicorn"
+
+#define PORT_NUMBERS	CONF_DIR "/ports.txt"
+#define OUI_CONF	CONF_DIR "/oui.txt"
+#define MODULE_DIR	LIBDIR "/" TARGETNAME "/modules"
+#define SENDER_PATH	LIBEXECDIR "/" TARGETNAME "/" SENDERNAME
+#define LISTENER_PATH	LIBEXECDIR "/" TARGETNAME "/" LISTENERNAME
+
+/* may or may not be used, depending */
+#define CHROOT_DIR LOCALSTATEDIR "/" TARGETNAME
+
+#define MAX_CONNS	32	/* MAX amount of ipc or pollable connections	*/
+#define IPC_DSIZE	65536	/* MAX amount of bytes for an ipc message chunk	*/
+
+/*
+ * Compiler attribute macros
+ */
+#ifdef HAVE___ATTRIBUTE__
+# define _PACKED_ __attribute__((packed))
+# define _PRINTF45_ __attribute__((format(printf, 4, 5)))
+# define _PRINTF45NR_ __attribute__((format(printf, 4, 5), noreturn))
+# define _PRINTF12NR_ __attribute__((format(printf, 1, 2), noreturn))
+# define _NORETURN_ __attribute__((noreturn))
+#else
+# define _PACKED_
+# define _PRINTF45_
+# define _PRINTF45NR_
+# define _PRINTF12NR_
+# define _NORETURN_
+#endif
+
+/*
+ * Standard system headers
+ */
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+
+#ifdef STDC_HEADERS
+# include <stdlib.h>
+# include <stddef.h>
+#else
+# ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+# endif
+#endif
+#ifdef HAVE_STRING_H
+# if !STDC_HEADERS && HAVE_MEMORY_H
+#  include <memory.h>
+# endif
+# include <string.h>
+#endif
+#ifdef HAVE_STRINGS_H
+# include <strings.h>
+#endif
+#ifdef HAVE_INTTYPES_H
+# include <inttypes.h>
+#else
+# ifdef HAVE_STDINT_H
+#  include <stdint.h>
+# endif
+#endif
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+
+#if HAVE_SYS_WAIT_H
+# include <sys/wait.h>
+#endif
+#ifndef WEXITSTATUS
+# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
+#endif
+#ifndef WIFEXITED
+# define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
+#endif
+
+#include <time.h>
+#if TIME_WITH_SYS_TIME
+# include <sys/time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# endif
+#endif
+
+/* dont ask, its not worth trying to understand */
+#ifndef u_int
+# define u_int unsigned int
+#endif
+#ifndef u_short
+# define u_short unsigned short
+#endif
+#ifndef u_char
+# define u_char unsigned char
+#endif
+
+#ifdef HAVE_LIMITS_H
+# include <limits.h>
+#endif
+
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif
+#ifdef HAVE_NET_IF_H
+# include <net/if.h>
+#endif
+#ifdef HAVE_NETINET_ETHER_H
+# include <netinet/ether.h>
+#endif
+#ifdef HAVE_NETPACKET_PACKET_H
+# include <netpacket/packet.h>
+#endif
+#ifdef HAVE_IFADDRS_H
+# include <ifaddrs.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+# include <arpa/inet.h>
+#endif
+#ifdef HAVE_NET_IF_DL_H
+# include <net/if_dl.h>
+#endif
+
+#ifdef HAVE_NET_ETHERNET_H
+# include <net/ethernet.h>
+#elif defined(HAVE_NETINET_IF_ETHER_H)
+# include <netinet/if_ether.h>
+#elif defined(HAVE_SYS_ETHERNET_H)
+# include <sys/ethernet.h>
+#endif
+
+#ifdef HAVE_NETDB_H
+# include <netdb.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+
+#if defined(solaris) || (defined(__SVR4) && defined(sun))
+# define SOLARIS 1
+#endif
+
+/*
+ * Byte order handling
+ */
+#ifndef BYTE_ORDER
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN 1234
+# endif
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+# endif
+# if defined(CPU_BIGENDIAN)
+#  define BYTE_ORDER BIG_ENDIAN
+# elif defined(CPU_LITTLEENDIAN)
+#  define BYTE_ORDER LITTLE_ENDIAN
+# else
+#  error PDP bad, weirdo
+# endif
+#endif /* BYTE ORDER */
+
+#ifndef PATH_MAX
+#define PATH_MAX 512
+#endif
+#ifndef INT_MAX
+# define INT_MAX 0x7fffffff /* seems good to me, i dont really feel like checking */
+#endif
+
+#include <globalheaders.h>
+
+/* some older boxes will require this gross stuff here */
+#ifndef suseconds_t
+#define suseconds_t long
+#endif
+
+#define assert(x) \
+	if (!(x)) { \
+		PANIC("Assertion `%s' fails", # x); \
+	}
+
+#define THE_ONLY_SUPPORTED_HWADDR_LEN 6
+
+#ifdef MAX
+# undef MAX
+#endif
+#ifdef MIN
+# undef MIN
+#endif
+#ifdef SWAP
+# undef SWAP
+#endif
+
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define SWAP(x, y)	\
+	(x) ^= (y);	\
+	(y) ^= (x);	\
+	(x) ^= (y)
+#define CLEAR(m) memset((m), 0, sizeof(m))
+
+/*
+ * Sockaddr family structure for portability
+ */
+#ifdef HAVE_STRUCT_SOCKADDR_LEN
+struct f_s {
+	uint8_t len;
+	uint8_t family;
+};
+#else
+struct f_s {
+	uint16_t family;
+};
+#endif
+
+#define SSTFMT	"%zd"
+#define STFMT	"%zu"
+
+#endif /* _UNICORN_DEFS_H */

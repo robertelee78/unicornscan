@@ -1,6 +1,6 @@
-dnl --> insert something meaningfull here <--
+dnl Unicornscan custom m4 macros (modernized for autoconf 2.69+)
 
-AC_DEFUN(AC_UNI_SELINUX, [
+AC_DEFUN([AC_UNI_SELINUX], [
 shlibs=".la"
 
 AC_MSG_CHECKING(for selinux)
@@ -36,8 +36,8 @@ if test $good = "yes"; then
 		SP_MODE=4511
 		UNILDADD="${UNILDADD} -lselinux"
 		shlibs=".so"
-		AC_DEFINE(WITH_SELINUX)
-		AC_MSG_RESULT(yes, sender and listener will be setuid root)
+		AC_DEFINE([WITH_SELINUX], [1], [Define if SELinux support is enabled])
+		AC_MSG_RESULT([yes, sender and listener will be setuid root])
 	else
 		CHCON=true
 		SP_MODE=755
@@ -51,10 +51,10 @@ fi
 
 AC_SUBST(CHCON)
 AC_SUBST(SP_MODE)
-AC_DEFINE_UNQUOTED(SHLIB_EXT, "$shlibs")
+AC_DEFINE_UNQUOTED([SHLIB_EXT], ["$shlibs"], [Shared library extension])
 ])
 
-AC_DEFUN(AC_UNI_PRNG, [
+AC_DEFUN([AC_UNI_PRNG], [
 AC_MSG_CHECKING(for a readable prng device)
 default_prng_paths="/dev/urandom /etc/random /dev/egd-pool"
 AC_ARG_WITH(prng,
@@ -70,27 +70,27 @@ good=no
 for g in $lookat; do
 	if test -c "$g"
 	then
-		AC_DEFINE_UNQUOTED(RANDOM_DEVICE, "$g")
-		AC_MSG_RESULT(yes found at $g)
+		AC_DEFINE_UNQUOTED([RANDOM_DEVICE], ["$g"], [Path to random device])
+		AC_MSG_RESULT([yes found at $g])
 		good=yes
 		break
 	elif test -S "$g"
 	then
-		AC_DEFINE_UNQUOTED(RANDOM_DEVICE, "$g")
-		AC_MSG_RESULT(yes found at $g)
+		AC_DEFINE_UNQUOTED([RANDOM_DEVICE], ["$g"], [Path to random device])
+		AC_MSG_RESULT([yes found at $g])
 		good=yes
 		break
 	fi
 done
 
 if test $good = "no"; then
-	AC_MSG_WARN(cant find a working random number generator, will try and make due)
-	AC_DEFINE(RANDOM_DEVICE, "")
+	AC_MSG_WARN([cannot find a working random number generator, will try and make due])
+	AC_DEFINE([RANDOM_DEVICE], [""], [Path to random device])
 fi
 AC_SUBST(RANDOM_DEVICE)
 ])
 
-AC_DEFUN(AC_UNI_LIBDNET, [
+AC_DEFUN([AC_UNI_LIBDNET], [
 AC_MSG_CHECKING(for libdnet)
 default_libdnet_directories="/usr /usr/local"
 lookin=$default_libdnet_directories
@@ -133,41 +133,40 @@ AC_SUBST(DNETLIBS)
 ])
 
 dnl find /proc/net/route or just give up and cry
-AC_DEFUN(AC_UNI_PROCNETROUTE, [
-AC_MSG_CHECKING(for a readable /proc/net/route file)
+AC_DEFUN([AC_UNI_PROCNETROUTE], [
+AC_MSG_CHECKING([for a readable /proc/net/route file])
 if test -r /proc/net/route; then
-	AC_DEFINE(HAVE_PROC_NET_ROUTE)
-	AC_MSG_RESULT(Yes)
+	AC_DEFINE([HAVE_PROC_NET_ROUTE], [1], [Define if /proc/net/route is available])
+	AC_MSG_RESULT([yes])
 else
-	AC_MSG_RESULT(No)
+	AC_MSG_RESULT([no])
 fi
-],
-[])
+])
 
 dnl find pcap, or just make it
-AC_DEFUN(AC_UNI_LIBPCAP, [
-AC_MSG_CHECKING(for libpcap (http://www.tcpdump.org))
-AC_CHECK_LIB(pcap, pcap_open_live,[
- AC_MSG_CHECKING(for pcap_lib_version)
- AC_CHECK_LIB(pcap, pcap_lib_version, AC_DEFINE(HAVE_PCAP_LIB_VERSION), [])
- AC_MSG_CHECKING(for pcap_setnonblock)
- AC_CHECK_LIB(pcap, pcap_setnonblock, AC_DEFINE(HAVE_PCAP_SET_NONBLOCK), [])
- AC_CHECK_LIB(pcap, pcap_get_selectable_fd, [],
+AC_DEFUN([AC_UNI_LIBPCAP], [
+AC_MSG_CHECKING([for libpcap (http://www.tcpdump.org)])
+AC_CHECK_LIB([pcap], [pcap_open_live],[
+ AC_MSG_CHECKING([for pcap_lib_version])
+ AC_CHECK_LIB([pcap], [pcap_lib_version], [AC_DEFINE([HAVE_PCAP_LIB_VERSION], [1], [Define if pcap_lib_version is available])], [])
+ AC_MSG_CHECKING([for pcap_setnonblock])
+ AC_CHECK_LIB([pcap], [pcap_setnonblock], [AC_DEFINE([HAVE_PCAP_SET_NONBLOCK], [1], [Define if pcap_setnonblock is available])], [])
+ AC_CHECK_LIB([pcap], [pcap_get_selectable_fd], [],
 [
-  AC_DEFINE(HAVE_PCAP_LIB_VERSION)
-  AC_DEFINE(HAVE_PCAP_SET_NONBLOCK)
+  AC_DEFINE([HAVE_PCAP_LIB_VERSION], [1], [Define if pcap_lib_version is available])
+  AC_DEFINE([HAVE_PCAP_SET_NONBLOCK], [1], [Define if pcap_setnonblock is available])
   NEED_AUX_LIBS="${NEED_AUX_LIBS} pcap"
 ]
  )
 ],
 [NEED_AUX_LIBS="${NEED_AUX_LIBS} pcap"
-AC_DEFINE(HAVE_PCAP_LIB_VERSION)
-AC_DEFINE(HAVE_PCAP_SET_NONBLOCK)])
+AC_DEFINE([HAVE_PCAP_LIB_VERSION], [1], [Define if pcap_lib_version is available])
+AC_DEFINE([HAVE_PCAP_SET_NONBLOCK], [1], [Define if pcap_setnonblock is available])])
 ])
 
-AC_DEFUN(AC_UNI_LIBLTDL, [
-AC_MSG_CHECKING(for libltdl)
-AC_CHECK_LIB(ltdl, lt_dlopen, [], [
+AC_DEFUN([AC_UNI_LIBLTDL], [
+AC_MSG_CHECKING([for libltdl])
+AC_CHECK_LIB([ltdl], [lt_dlopen], [], [
 NEED_AUX_LIBS="${NEED_AUX_LIBS} libltdl"
 ])
 ])

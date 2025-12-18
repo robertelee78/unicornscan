@@ -912,6 +912,35 @@ int scan_setsupabasedbpassword(const char *password) {
 	return 1;
 }
 
+int scan_setsupabaseregion(const char *region) {
+	size_t len;
+
+	if (region == NULL || (len = strlen(region)) < 1) {
+		ERR("Supabase region is empty");
+		return -1;
+	}
+
+	/* Region should be AWS-style like "us-west-2", "us-east-1", "eu-west-1" */
+	if (len < 5 || len > 20) {
+		ERR("Supabase region `%s' appears invalid (expected AWS region format like us-west-2)", region);
+		return -1;
+	}
+
+	/* Basic format check: should contain at least one hyphen */
+	if (strchr(region, '-') == NULL) {
+		ERR("Supabase region `%s' appears invalid (expected format like us-west-2)", region);
+		return -1;
+	}
+
+	if (s->supabase_region != NULL) {
+		xfree(s->supabase_region);
+	}
+
+	s->supabase_region = xstrdup(region);
+
+	return 1;
+}
+
 char *scan_getgports(void) {
 	return s->gport_str;
 }

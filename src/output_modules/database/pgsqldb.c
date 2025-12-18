@@ -109,17 +109,20 @@ static const char *supabase_extract_project_ref(const char *url) {
  * Returns malloc'd string (caller must free) or NULL on error
  *
  * Uses Supabase Transaction Pooler (IPv4 compatible) format:
- *   host=aws-0-us-west-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.[project-ref] password=...
+ *   host=aws-0-{region}.pooler.supabase.com port=6543 dbname=postgres user=postgres.[project-ref] password=...
  *
  * The pooler has IPv4 addresses while direct connection (db.<ref>.supabase.co) is IPv6-only.
  * Transaction mode pooler on port 6543 is suitable for most scan operations.
+ *
+ * Region is obtained from settings->supabase_region (configured via setup wizard or --supabase-region)
  */
 static char *supabase_build_connstring(const settings_t *settings) {
 	const char *project_ref;
 	char *connstr;
+	char pooler_host[256];
 	size_t len;
-	const char *pooler_host = "aws-0-us-west-2.pooler.supabase.com";
 	const char *pooler_port = "6543";
+	const char *region;
 
 	if (settings->supabase_url == NULL) {
 		ERR("Supabase URL is not set");
@@ -131,14 +134,26 @@ static char *supabase_build_connstring(const settings_t *settings) {
 		return NULL;
 	}
 
+	if (settings->supabase_region == NULL || strlen(settings->supabase_region) == 0) {
+		ERR("Supabase region is not set (use --supabase-region or run 'unicornscan --supabase-setup')");
+		return NULL;
+	}
+
 	project_ref = supabase_extract_project_ref(settings->supabase_url);
 	if (project_ref == NULL) {
 		ERR("Cannot parse project reference from Supabase URL: %s", settings->supabase_url);
 		return NULL;
 	}
 
+	/* Build pooler hostname from region
+	 * Format: aws-0-{region}.pooler.supabase.com
+	 * Examples: aws-0-us-west-2.pooler.supabase.com, aws-0-us-east-1.pooler.supabase.com
+	 */
+	region = settings->supabase_region;
+	snprintf(pooler_host, sizeof(pooler_host) - 1, "aws-0-%s.pooler.supabase.com", region);
+
 	/* Build connection string using pooler format:
-	 * host=aws-0-us-west-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.xxxxx password=... sslmode=require
+	 * host=aws-0-{region}.pooler.supabase.com port=6543 dbname=postgres user=postgres.xxxxx password=... sslmode=require
 	 * Note: Pooler uses user=postgres.<project-ref> format
 	 * Note: sslmode=require ensures encrypted connection to Supabase cloud database
 	 */
@@ -149,7 +164,7 @@ static char *supabase_build_connstring(const settings_t *settings) {
 		"host=%s port=%s dbname=postgres user=postgres.%s password=%s sslmode=require",
 		pooler_host, pooler_port, project_ref, settings->supabase_db_password);
 
-	VRB(0, "Supabase: connecting via pooler to %s (project: %s)", pooler_host, project_ref);
+	VRB(0, "Supabase: connecting via pooler to %s (project: %s, region: %s)", pooler_host, project_ref, region);
 
 	return connstr;
 }
