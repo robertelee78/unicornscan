@@ -43,9 +43,9 @@ dnl	LDFLAGS
 dnl	ac_cv_lbl_gcc_vers
 dnl	LBL_CFLAGS
 dnl
-AC_DEFUN(AC_LBL_C_INIT,
-    [AC_PREREQ(2.12)
-    AC_BEFORE([$0], [AC_PROG_CC])
+AC_DEFUN([AC_LBL_C_INIT],
+    [AC_PREREQ([2.69])
+    dnl Removed AC_BEFORE for AC_PROG_CC - use AC_REQUIRE instead for modern autoconf
     AC_BEFORE([$0], [AC_LBL_FIXINCLUDES])
     AC_BEFORE([$0], [AC_LBL_DEVEL])
     AC_ARG_WITH(gcc, [  --without-gcc           don't use gcc])
@@ -73,7 +73,8 @@ AC_DEFUN(AC_LBL_C_INIT,
 	    CC=cc
 	    export CC
     fi
-    AC_PROG_CC
+    dnl Use AC_REQUIRE to ensure AC_PROG_CC is expanded only once
+    AC_REQUIRE([AC_PROG_CC])
     if test "$GCC" = yes ; then
 	    if test "$SHLICC2" = yes ; then
 		    ac_cv_lbl_gcc_vers=2
@@ -94,11 +95,10 @@ AC_DEFUN(AC_LBL_C_INIT,
     else
 	    AC_MSG_CHECKING(that $CC handles ansi prototypes)
 	    AC_CACHE_VAL(ac_cv_lbl_cc_ansi_prototypes,
-		AC_TRY_COMPILE(
-		    [#include <sys/types.h>],
-		    [int frob(int, char *)],
-		    ac_cv_lbl_cc_ansi_prototypes=yes,
-		    ac_cv_lbl_cc_ansi_prototypes=no))
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>]],
+		    [[int frob(int, char *);]])],
+		    [ac_cv_lbl_cc_ansi_prototypes=yes],
+		    [ac_cv_lbl_cc_ansi_prototypes=no]))
 	    AC_MSG_RESULT($ac_cv_lbl_cc_ansi_prototypes)
 	    if test $ac_cv_lbl_cc_ansi_prototypes = no ; then
 		    case "$host_os" in
@@ -108,18 +108,17 @@ AC_DEFUN(AC_LBL_C_INIT,
 			    savedcflags="$CFLAGS"
 			    CFLAGS="-Aa -D_HPUX_SOURCE $CFLAGS"
 			    AC_CACHE_VAL(ac_cv_lbl_cc_hpux_cc_aa,
-				AC_TRY_COMPILE(
-				    [#include <sys/types.h>],
-				    [int frob(int, char *)],
-				    ac_cv_lbl_cc_hpux_cc_aa=yes,
-				    ac_cv_lbl_cc_hpux_cc_aa=no))
+				AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>]],
+				    [[int frob(int, char *);]])],
+				    [ac_cv_lbl_cc_hpux_cc_aa=yes],
+				    [ac_cv_lbl_cc_hpux_cc_aa=no]))
 			    AC_MSG_RESULT($ac_cv_lbl_cc_hpux_cc_aa)
 			    if test $ac_cv_lbl_cc_hpux_cc_aa = no ; then
 				    AC_MSG_ERROR(see the INSTALL doc for more info)
 			    fi
 			    CFLAGS="$savedcflags"
 			    V_CCOPT="-Aa $V_CCOPT"
-			    AC_DEFINE(_HPUX_SOURCE)
+			    AC_DEFINE([_HPUX_SOURCE], [1], [Define for HP-UX])
 			    ;;
 
 		    *)
@@ -143,15 +142,14 @@ AC_DEFUN(AC_LBL_C_INIT,
 	    ultrix*)
 		    AC_MSG_CHECKING(that Ultrix $CC hacks const in prototypes)
 		    AC_CACHE_VAL(ac_cv_lbl_cc_const_proto,
-			AC_TRY_COMPILE(
-			    [#include <sys/types.h>],
-			    [struct a { int b; };
-			    void c(const struct a *)],
-			    ac_cv_lbl_cc_const_proto=yes,
-			    ac_cv_lbl_cc_const_proto=no))
+			AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>]],
+			    [[struct a { int b; };
+			    void c(const struct a *);]])],
+			    [ac_cv_lbl_cc_const_proto=yes],
+			    [ac_cv_lbl_cc_const_proto=no]))
 		    AC_MSG_RESULT($ac_cv_lbl_cc_const_proto)
 		    if test $ac_cv_lbl_cc_const_proto = no ; then
-			    AC_DEFINE(const,)
+			    AC_DEFINE([const], [], [Define to empty for broken compilers])
 		    fi
 		    ;;
 	    esac
@@ -167,28 +165,29 @@ AC_DEFUN(AC_LBL_C_INIT,
 # at least some versions of HP's C compiler can inline that, but can't
 # inline a function that returns a struct pointer.
 #
-AC_DEFUN(AC_LBL_C_INLINE,
-    [AC_MSG_CHECKING(for inline)
-    AC_CACHE_VAL(ac_cv_lbl_inline, [
+AC_DEFUN([AC_LBL_C_INLINE],
+    [AC_MSG_CHECKING([for inline])
+    AC_CACHE_VAL([ac_cv_lbl_inline], [
 	ac_cv_lbl_inline=""
 	ac_lbl_cc_inline=no
 	for ac_lbl_inline in inline __inline__ __inline
 	do
-	    AC_TRY_COMPILE(
-		[#define inline $ac_lbl_inline
-		static inline struct iltest *foo(void);
-		struct iltest {
-		    int iltest1;
-		    int iltest2;
-		};
+	    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#define inline $ac_lbl_inline
+static inline struct iltest *foo(void);
+struct iltest {
+    int iltest1;
+    int iltest2;
+};
 
-		static inline struct iltest *
-		foo()
-		{
-		    static struct iltest xxx;
-
-		    return &xxx;
-		}],,ac_lbl_cc_inline=yes,)
+static inline struct iltest *
+foo(void)
+{
+    static struct iltest xxx;
+    return &xxx;
+}
+]], [[]])],
+		[ac_lbl_cc_inline=yes], [])
 	    if test "$ac_lbl_cc_inline" = yes ; then
 		break;
 	    fi
@@ -197,11 +196,11 @@ AC_DEFUN(AC_LBL_C_INLINE,
 	    ac_cv_lbl_inline=$ac_lbl_inline
 	fi])
     if test ! -z "$ac_cv_lbl_inline" ; then
-	AC_MSG_RESULT($ac_cv_lbl_inline)
+	AC_MSG_RESULT([$ac_cv_lbl_inline])
     else
-	AC_MSG_RESULT(no)
+	AC_MSG_RESULT([no])
     fi
-    AC_DEFINE_UNQUOTED(inline, $ac_cv_lbl_inline, [Define as token for inline if inlining supported])])
+    AC_DEFINE_UNQUOTED([inline], [$ac_cv_lbl_inline], [Define as token for inline if inlining supported])])
 
 dnl
 dnl Use pfopen.c if available and pfopen() not in standard libraries
@@ -220,7 +219,7 @@ dnl	$2 (incls appended)
 dnl	LIBS
 dnl	LBL_LIBS
 dnl
-AC_DEFUN(AC_LBL_LIBPCAP,
+AC_DEFUN([AC_LBL_LIBPCAP],
     [AC_REQUIRE([AC_LBL_LIBRARY_NET])
     dnl
     dnl save a copy before locating libpcap.a
@@ -360,25 +359,22 @@ dnl
 dnl	RETSIGTYPE (defined)
 dnl	RETSIGVAL (defined)
 dnl
-AC_DEFUN(AC_LBL_TYPE_SIGNAL,
+AC_DEFUN([AC_LBL_TYPE_SIGNAL],
     [AC_BEFORE([$0], [AC_LBL_LIBPCAP])
-    AC_TYPE_SIGNAL
-    if test "$ac_cv_type_signal" = void ; then
-	    AC_DEFINE(RETSIGVAL,)
-    else
-	    AC_DEFINE(RETSIGVAL,(0))
-    fi
+    dnl Modern systems use void signal handlers
+    AC_DEFINE([RETSIGTYPE], [void], [Signal handler return type])
+    AC_DEFINE([RETSIGVAL], [], [Signal handler return value])
     case "$host_os" in
 
     irix*)
-	    AC_DEFINE(_BSD_SIGNALS)
+	    AC_DEFINE([_BSD_SIGNALS], [1], [Define for BSD signals on IRIX])
 	    ;;
 
     *)
 	    dnl prefer sigaction() to sigset()
-	    AC_CHECK_FUNCS(sigaction)
+	    AC_CHECK_FUNCS([sigaction])
 	    if test $ac_cv_func_sigaction = no ; then
-		    AC_CHECK_FUNCS(sigset)
+		    AC_CHECK_FUNCS([sigset])
 	    fi
 	    ;;
     esac])
@@ -390,32 +386,34 @@ dnl usage:
 dnl
 dnl	AC_LBL_FIXINCLUDES
 dnl
-AC_DEFUN(AC_LBL_FIXINCLUDES,
+AC_DEFUN([AC_LBL_FIXINCLUDES],
     [if test "$GCC" = yes ; then
-	    AC_MSG_CHECKING(for ANSI ioctl definitions)
-	    AC_CACHE_VAL(ac_cv_lbl_gcc_fixincludes,
-		AC_TRY_COMPILE(
-		    [/*
-		     * This generates a "duplicate case value" when fixincludes
-		     * has not be run.
-		     */
-#		include <sys/types.h>
-#		include <sys/time.h>
-#		include <sys/ioctl.h>
-#		ifdef HAVE_SYS_IOCCOM_H
-#		include <sys/ioccom.h>
-#		endif],
-		    [switch (0) {
-		    case _IO('A', 1):;
-		    case _IO('B', 1):;
-		    }],
-		    ac_cv_lbl_gcc_fixincludes=yes,
-		    ac_cv_lbl_gcc_fixincludes=no))
-	    AC_MSG_RESULT($ac_cv_lbl_gcc_fixincludes)
+	    AC_MSG_CHECKING([for ANSI ioctl definitions])
+	    AC_CACHE_VAL([ac_cv_lbl_gcc_fixincludes],
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+/*
+ * This generates a "duplicate case value" when fixincludes
+ * has not be run.
+ */
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#ifdef HAVE_SYS_IOCCOM_H
+#include <sys/ioccom.h>
+#endif
+]], [[
+switch (0) {
+case _IO('A', 1):;
+case _IO('B', 1):;
+}
+]])],
+		    [ac_cv_lbl_gcc_fixincludes=yes],
+		    [ac_cv_lbl_gcc_fixincludes=no]))
+	    AC_MSG_RESULT([$ac_cv_lbl_gcc_fixincludes])
 	    if test $ac_cv_lbl_gcc_fixincludes = no ; then
 		    # Don't cache failure
 		    unset ac_cv_lbl_gcc_fixincludes
-		    AC_MSG_ERROR(see the INSTALL for more info)
+		    AC_MSG_ERROR([see the INSTALL for more info])
 	    fi
     fi])
 
@@ -436,7 +434,7 @@ dnl	$1 (lex set)
 dnl	$2 (yacc appended)
 dnl	$3 (optional flex and bison -P prefix)
 dnl
-AC_DEFUN(AC_LBL_LEX_AND_YACC,
+AC_DEFUN([AC_LBL_LEX_AND_YACC],
     [AC_ARG_WITH(flex, [  --without-flex          don't use flex])
     AC_ARG_WITH(bison, [  --without-bison         don't use bison])
     if test "$with_flex" = no ; then
@@ -489,22 +487,24 @@ dnl results:
 dnl
 dnl	DECLWAITSTATUS (defined)
 dnl
-AC_DEFUN(AC_LBL_UNION_WAIT,
-    [AC_MSG_CHECKING(if union wait is used)
-    AC_CACHE_VAL(ac_cv_lbl_union_wait,
-	AC_TRY_COMPILE([
-#	include <sys/types.h>
-#	include <sys/wait.h>],
-	    [int status;
-	    u_int i = WEXITSTATUS(status);
-	    u_int j = waitpid(0, &status, 0);],
-	    ac_cv_lbl_union_wait=no,
-	    ac_cv_lbl_union_wait=yes))
-    AC_MSG_RESULT($ac_cv_lbl_union_wait)
+AC_DEFUN([AC_LBL_UNION_WAIT],
+    [AC_MSG_CHECKING([if union wait is used])
+    AC_CACHE_VAL([ac_cv_lbl_union_wait],
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/types.h>
+#include <sys/wait.h>
+]], [[
+int status;
+unsigned int i = WEXITSTATUS(status);
+unsigned int j = waitpid(0, &status, 0);
+]])],
+	    [ac_cv_lbl_union_wait=no],
+	    [ac_cv_lbl_union_wait=yes]))
+    AC_MSG_RESULT([$ac_cv_lbl_union_wait])
     if test $ac_cv_lbl_union_wait = yes ; then
-	    AC_DEFINE(DECLWAITSTATUS,union wait)
+	    AC_DEFINE([DECLWAITSTATUS], [union wait], [Define wait status type])
     else
-	    AC_DEFINE(DECLWAITSTATUS,int)
+	    AC_DEFINE([DECLWAITSTATUS], [int], [Define wait status type])
     fi])
 
 dnl
@@ -518,18 +518,20 @@ dnl results:
 dnl
 dnl	HAVE_SOCKADDR_SA_LEN (defined)
 dnl
-AC_DEFUN(AC_LBL_SOCKADDR_SA_LEN,
-    [AC_MSG_CHECKING(if sockaddr struct has sa_len member)
-    AC_CACHE_VAL(ac_cv_lbl_sockaddr_has_sa_len,
-	AC_TRY_COMPILE([
-#	include <sys/types.h>
-#	include <sys/socket.h>],
-	[u_int i = sizeof(((struct sockaddr *)0)->sa_len)],
-	ac_cv_lbl_sockaddr_has_sa_len=yes,
-	ac_cv_lbl_sockaddr_has_sa_len=no))
-    AC_MSG_RESULT($ac_cv_lbl_sockaddr_has_sa_len)
+AC_DEFUN([AC_LBL_SOCKADDR_SA_LEN],
+    [AC_MSG_CHECKING([if sockaddr struct has sa_len member])
+    AC_CACHE_VAL([ac_cv_lbl_sockaddr_has_sa_len],
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/types.h>
+#include <sys/socket.h>
+]], [[
+unsigned int i = sizeof(((struct sockaddr *)0)->sa_len);
+]])],
+	[ac_cv_lbl_sockaddr_has_sa_len=yes],
+	[ac_cv_lbl_sockaddr_has_sa_len=no]))
+    AC_MSG_RESULT([$ac_cv_lbl_sockaddr_has_sa_len])
     if test $ac_cv_lbl_sockaddr_has_sa_len = yes ; then
-	    AC_DEFINE(HAVE_SOCKADDR_SA_LEN)
+	    AC_DEFINE([HAVE_SOCKADDR_SA_LEN], [1], [Define if sockaddr has sa_len])
     fi])
 
 dnl
@@ -543,7 +545,7 @@ dnl results:
 dnl
 dnl	ac_cv_lbl_have_run_path (yes or no)
 dnl
-AC_DEFUN(AC_LBL_HAVE_RUN_PATH,
+AC_DEFUN([AC_LBL_HAVE_RUN_PATH],
     [AC_MSG_CHECKING(for ${CC-cc} -R)
     AC_CACHE_VAL(ac_cv_lbl_have_run_path,
 	[echo 'main(){}' > conftest.c
@@ -569,7 +571,7 @@ dnl
 dnl	int32_t (defined)
 dnl	u_int32_t (defined)
 dnl
-AC_DEFUN(AC_LBL_CHECK_TYPE,
+AC_DEFUN([AC_LBL_CHECK_TYPE],
     [AC_MSG_CHECKING(for $1 using $CC)
     AC_CACHE_VAL(ac_cv_lbl_have_$1,
 	AC_TRY_COMPILE([
@@ -598,7 +600,7 @@ dnl results:
 dnl
 dnl	LBL_ALIGN (DEFINED)
 dnl
-AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
+AC_DEFUN([AC_LBL_UNALIGNED_ACCESS],
     [AC_MSG_CHECKING(if unaligned accesses fail)
     AC_CACHE_VAL(ac_cv_lbl_unaligned_fail,
 	[case "$host_cpu" in
@@ -704,7 +706,7 @@ dnl	$1 (copt appended)
 dnl	HAVE_OS_PROTO_H (defined)
 dnl	os-proto.h (symlinked)
 dnl
-AC_DEFUN(AC_LBL_DEVEL,
+AC_DEFUN([AC_LBL_DEVEL],
     [rm -f os-proto.h
     if test "${LBL_CFLAGS+set}" = set; then
 	    $1="$$1 ${LBL_CFLAGS}"
@@ -840,7 +842,7 @@ dnl The check for libresolv is in case you are attempting to link
 dnl statically and happen to have a libresolv.a lying around (and no
 dnl libnsl.a).
 dnl
-AC_DEFUN(AC_LBL_LIBRARY_NET, [
+AC_DEFUN([AC_LBL_LIBRARY_NET], [
     # Most operating systems have gethostbyname() in the default searched
     # libraries (i.e. libc):
     # Some OSes (eg. Solaris) place it in libnsl
@@ -887,7 +889,7 @@ dnl SUCH DAMAGE.
 
 dnl
 dnl Checks to see if AF_INET6 is defined
-AC_DEFUN(AC_CHECK_AF_INET6, [
+AC_DEFUN([AC_CHECK_AF_INET6], [
 	AC_MSG_CHECKING(for AF_INET6)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -905,7 +907,7 @@ AC_DEFUN(AC_CHECK_AF_INET6, [
 dnl
 dnl Checks to see if the sockaddr struct has the 4.4 BSD sa_len member
 dnl borrowed from LBL libpcap
-AC_DEFUN(AC_CHECK_SA_LEN, [
+AC_DEFUN([AC_CHECK_SA_LEN], [
 	AC_MSG_CHECKING(if sockaddr struct has sa_len member)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -922,7 +924,7 @@ AC_DEFUN(AC_CHECK_SA_LEN, [
 
 dnl
 dnl Checks for portable prototype declaration macro
-AC_DEFUN(AC_CHECK_PORTABLE_PROTO,  [
+AC_DEFUN([AC_CHECK_PORTABLE_PROTO],  [
 	AC_MSG_CHECKING(for __P)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -937,7 +939,7 @@ AC_DEFUN(AC_CHECK_PORTABLE_PROTO,  [
 ])
 
 dnl checks for u_intXX_t
-AC_DEFUN(AC_CHECK_BITTYPES, [
+AC_DEFUN([AC_CHECK_BITTYPES], [
 	$1=yes
 dnl check for u_int8_t
 	AC_MSG_CHECKING(for u_int8_t)
@@ -985,7 +987,7 @@ dnl check for u_int32_t
 
 dnl
 dnl Checks for addrinfo structure
-AC_DEFUN(AC_STRUCT_ADDRINFO, [
+AC_DEFUN([AC_STRUCT_ADDRINFO], [
 	AC_MSG_CHECKING(for addrinfo)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -1003,7 +1005,7 @@ AC_DEFUN(AC_STRUCT_ADDRINFO, [
 
 dnl
 dnl Checks for NI_MAXSERV
-AC_DEFUN(AC_NI_MAXSERV, [
+AC_DEFUN([AC_NI_MAXSERV], [
 	AC_MSG_CHECKING(for NI_MAXSERV)
 	AC_CACHE_VAL($1,
 	AC_EGREP_CPP(yes, [#include <netdb.h>
@@ -1020,7 +1022,7 @@ yes
 
 dnl
 dnl Checks for NI_NAMEREQD
-AC_DEFUN(AC_NI_NAMEREQD, [
+AC_DEFUN([AC_NI_NAMEREQD], [
 	AC_MSG_CHECKING(for NI_NAMEREQD)
 	AC_CACHE_VAL($1,
 	AC_EGREP_CPP(yes, [#include <netdb.h>
@@ -1037,7 +1039,7 @@ yes
 
 dnl
 dnl Checks for sockaddr_storage structure
-AC_DEFUN(AC_STRUCT_SA_STORAGE, [
+AC_DEFUN([AC_STRUCT_SA_STORAGE], [
 	AC_MSG_CHECKING(for sockaddr_storage)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -1054,7 +1056,7 @@ AC_DEFUN(AC_STRUCT_SA_STORAGE, [
 
 dnl
 dnl Checks for macro of IP address size
-AC_DEFUN(AC_CHECK_ADDRSZ, [
+AC_DEFUN([AC_CHECK_ADDRSZ], [
 	$1=yes
 dnl check for INADDRSZ
 	AC_MSG_CHECKING(for INADDRSZ)
@@ -1088,7 +1090,7 @@ dnl check for IN6ADDRSZ
 
 dnl
 dnl check for RES_USE_INET6
-AC_DEFUN(AC_CHECK_RES_USE_INET6, [
+AC_DEFUN([AC_CHECK_RES_USE_INET6], [
 	AC_MSG_CHECKING(for RES_USE_INET6)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -1106,7 +1108,7 @@ AC_DEFUN(AC_CHECK_RES_USE_INET6, [
 
 dnl
 dnl check for AAAA
-AC_DEFUN(AC_CHECK_AAAA, [
+AC_DEFUN([AC_CHECK_AAAA], [
 	AC_MSG_CHECKING(for AAAA)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -1123,7 +1125,7 @@ AC_DEFUN(AC_CHECK_AAAA, [
 
 dnl
 dnl check for struct res_state_ext
-AC_DEFUN(AC_STRUCT_RES_STATE_EXT, [
+AC_DEFUN([AC_STRUCT_RES_STATE_EXT], [
 	AC_MSG_CHECKING(for res_state_ext)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -1142,7 +1144,7 @@ AC_DEFUN(AC_STRUCT_RES_STATE_EXT, [
 
 dnl
 dnl check for struct res_state_ext
-AC_DEFUN(AC_STRUCT_RES_STATE, [
+AC_DEFUN([AC_STRUCT_RES_STATE], [
 	AC_MSG_CHECKING(for nsort in res_state)
 	AC_CACHE_VAL($1,
 	AC_TRY_COMPILE([
@@ -1161,7 +1163,7 @@ AC_DEFUN(AC_STRUCT_RES_STATE, [
 
 dnl
 dnl check for h_errno
-AC_DEFUN(AC_VAR_H_ERRNO, [
+AC_DEFUN([AC_VAR_H_ERRNO], [
 	AC_MSG_CHECKING(for h_errno)
 	AC_CACHE_VAL(ac_cv_var_h_errno,
 	AC_TRY_COMPILE([
@@ -1180,7 +1182,7 @@ dnl
 dnl Test for __attribute__
 dnl
 
-AC_DEFUN(AC_C___ATTRIBUTE__, [
+AC_DEFUN([AC_C___ATTRIBUTE__], [
 AC_MSG_CHECKING(for __attribute__)
 AC_CACHE_VAL(ac_cv___attribute__, [
 AC_TRY_COMPILE([
