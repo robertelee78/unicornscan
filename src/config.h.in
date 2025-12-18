@@ -17,6 +17,14 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.          *
  **********************************************************************/
 
+/* Enable POSIX features (nanosleep, etc) */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 /*
  * you have selinux, or you dont. its not that complex
  * only enable this if you _always use_ selinux, you will know
@@ -24,7 +32,7 @@
  */
 #undef WITH_SELINUX
 
-/* 
+/*
  * GNU/Linux with /usr/include/execinfo.h, otherwise comment it out
  */
 #undef WITH_BACKTRACE
@@ -61,45 +69,101 @@
 #undef CPU_LITTLEENDIAN
 #undef HAVE_LIBGEOIP
 
-#undef STDC_HEADERS
+/* Autoheader-generated defines - DO NOT REMOVE */
+#undef AC_APPLE_UNIVERSAL_BUILD
+#undef DEBUG_SUPPORT
+#undef HAVE_ALARM
 #undef HAVE_ARPA_INET_H
+#undef HAVE_CLOSEDIR
+#undef HAVE_DIRENT_H
+#undef HAVE_DLFCN_H
+#undef HAVE_FCNTL_H
+#undef HAVE_FORK
+#undef HAVE_GETADDRINFO
+#undef HAVE_GETHOSTBYNAME
+#undef HAVE_GETNAMEINFO
+#undef HAVE_GETTIMEOFDAY
 #undef HAVE_IFADDRS_H
+#undef HAVE_INET_NTOA
 #undef HAVE_INTTYPES_H
+#undef HAVE_LIBLTDL
+#undef HAVE_LIBPCAP
+#undef HAVE_LIBZ
 #undef HAVE_LIMITS_H
+#undef HAVE_MALLOC
+#undef HAVE_MALLOC_H
 #undef HAVE_MEMORY_H
+#undef HAVE_MEMSET
+#undef HAVE_NETDB_H
+#undef HAVE_NETINET_ETHER_H
 #undef HAVE_NETINET_IF_ETHER_H
 #undef HAVE_NETINET_IN_H
+#undef HAVE_NETPACKET_PACKET_H
 #undef HAVE_NET_BPF_H
 #undef HAVE_NET_ETHERNET_H
 #undef HAVE_NET_IF_DL_H
 #undef HAVE_NET_IF_H
+#undef HAVE_P0F3_API
 #undef HAVE_PCAP_LIB_VERSION
 #undef HAVE_PCAP_SET_NONBLOCK
+#undef HAVE_REALLOC
+#undef HAVE_SELECT
+#undef HAVE_SOCKET
+#undef HAVE_STAT
+#undef HAVE_STDDEF_H
 #undef HAVE_STDINT_H
+#undef HAVE_STDIO_H
 #undef HAVE_STDLIB_H
+#undef HAVE_STRDUP
+#undef HAVE_STRERROR
 #undef HAVE_STRINGS_H
 #undef HAVE_STRING_H
+#undef HAVE_STRRCHR
+#undef HAVE_STRSTR
+#undef HAVE_STRUCT_SOCKADDR_LEN
 #undef HAVE_SYS_ETHERNET_H
+#undef HAVE_SYS_IOCTL_H
+#undef HAVE_SYS_PARAM_H
 #undef HAVE_SYS_SOCKET_H
 #undef HAVE_SYS_STAT_H
 #undef HAVE_SYS_TIME_H
+#undef HAVE_SYS_TYPES_H
 #undef HAVE_SYS_WAIT_H
 #undef HAVE_UNISTD_H
-#undef TIME_WITH_SYS_TIME
-#undef HAVE_NETDB_H
-#undef HAVE_SYS_IOCTL_H
-#undef HAVE_FCNTL_H
-#undef DEBUG_SUPPORT
-#undef HAVE_NETINET_ETHER_H
-#undef HAVE_NETPACKET_PACKET_H
-
+#undef HAVE_VFORK
+#undef HAVE_VFORK_H
+#undef HAVE_VPRINTF
+#undef HAVE_WORKING_FORK
+#undef HAVE_WORKING_VFORK
+#undef LISTENERNAME
+#undef LT_OBJDIR
+#undef P0F3_SOCKET_PATH
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_URL
+#undef PACKAGE_VERSION
+#undef SENDERNAME
+#undef STDC_HEADERS
+#undef TARGETNAME
+#undef USE_SETRE
+#undef WORDS_BIGENDIAN
+#undef _HPUX_SOURCE
+#undef const
+#undef gid_t
+#undef inline
+#undef malloc
+#undef off_t
+#undef pid_t
+#undef realloc
+#undef size_t
+#undef uid_t
+#undef vfork
+#undef volatile
 
 #undef WITH_MYSQL
 #undef WITH_PGSQL
-
-/* P0F v3 API integration for modern OS fingerprinting */
-#undef HAVE_P0F3_API
-#undef P0F3_SOCKET_PATH
 
 /* XXX fixme */
 #undef SHLIB_EXT
@@ -108,7 +172,7 @@
 #define UNI_SYNC_SIGNAL	SIGUSR1
 
 /*
- * used to find out when spawned processes or connected drones have given us a foul taste for execution, 
+ * used to find out when spawned processes or connected drones have given us a foul taste for execution,
  * causing us to cease our existance in this cruel world
  */
 #define MAX_ERRORS 32
@@ -126,10 +190,6 @@
 #define DEF_LISTENER	"unix:" LOCALSTATEDIR "/" TARGETNAME "/listen"
 
 #define DEF_SCANTIMEOUT 7	/* number of seconds to wait for packets coming back */
-
-#undef SENDERNAME
-#undef TARGETNAME
-#undef LISTENERNAME
 
 #define CONF_DIR	SYSCONFDIR "/" TARGETNAME
 
@@ -207,14 +267,12 @@
 # define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
 #endif
 
+#include <time.h>
 #if TIME_WITH_SYS_TIME
 # include <sys/time.h>
-# include <time.h>
 #else
 # if HAVE_SYS_TIME_H
 #  include <sys/time.h>
-# else
-#  include <time.h>
 # endif
 #endif
 

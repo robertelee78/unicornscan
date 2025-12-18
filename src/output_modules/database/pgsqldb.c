@@ -108,13 +108,18 @@ static const char *supabase_extract_project_ref(const char *url) {
  * Build PostgreSQL connection string for Supabase
  * Returns malloc'd string (caller must free) or NULL on error
  *
- * Supabase direct connection format:
- *   host=db.[project-ref].supabase.co port=5432 dbname=postgres user=postgres password=...
+ * Uses Supabase Transaction Pooler (IPv4 compatible) format:
+ *   host=aws-0-us-west-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.[project-ref] password=...
+ *
+ * The pooler has IPv4 addresses while direct connection (db.<ref>.supabase.co) is IPv6-only.
+ * Transaction mode pooler on port 6543 is suitable for most scan operations.
  */
 static char *supabase_build_connstring(const settings_t *settings) {
 	const char *project_ref;
 	char *connstr;
 	size_t len;
+	const char *pooler_host = "aws-0-us-west-2.pooler.supabase.com";
+	const char *pooler_port = "6543";
 
 	if (settings->supabase_url == NULL) {
 		ERR("Supabase URL is not set");
@@ -132,18 +137,19 @@ static char *supabase_build_connstring(const settings_t *settings) {
 		return NULL;
 	}
 
-	/* Build connection string - format:
-	 * host=db.xxxxx.supabase.co port=5432 dbname=postgres user=postgres password=... sslmode=require
+	/* Build connection string using pooler format:
+	 * host=aws-0-us-west-1.pooler.supabase.com port=6543 dbname=postgres user=postgres.xxxxx password=... sslmode=require
+	 * Note: Pooler uses user=postgres.<project-ref> format
 	 * Note: sslmode=require ensures encrypted connection to Supabase cloud database
 	 */
-	len = 256 + strlen(project_ref) + strlen(settings->supabase_db_password);
+	len = 256 + strlen(pooler_host) + strlen(project_ref) + strlen(settings->supabase_db_password);
 	connstr = xmalloc(len);
 
 	snprintf(connstr, len - 1,
-		"host=db.%s.supabase.co port=5432 dbname=postgres user=postgres password=%s sslmode=require",
-		project_ref, settings->supabase_db_password);
+		"host=%s port=%s dbname=postgres user=postgres.%s password=%s sslmode=require",
+		pooler_host, pooler_port, project_ref, settings->supabase_db_password);
 
-	VRB(0, "Supabase: connecting to db.%s.supabase.co", project_ref);
+	VRB(0, "Supabase: connecting via pooler to %s (project: %s)", pooler_host, project_ref);
 
 	return connstr;
 }
