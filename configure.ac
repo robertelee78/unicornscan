@@ -1,13 +1,21 @@
-AC_PREREQ(2.57)
+AC_PREREQ([2.69])
 
 dnl
-dnl autoconf initialisation
+dnl autoconf initialisation (modernized for autoconf 2.69+)
 dnl
 AC_INIT([unicornscan], [0.4.7], [osace-users@lists.sourceforge.net])
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])
+
+dnl Add project-specific definitions at the bottom of config.h
+dnl These are definitions NOT managed by autoheader (macros, system includes, etc.)
+AH_BOTTOM([
+/* Include project-specific definitions not managed by autoheader */
+#include <unicorn_defs.h>
+])
+
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_AUX_DIR([autostuff])
-dnl AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_MACRO_DIRS([m4])
 
 dnl
 dnl get defaults for use later in an ugly way
@@ -30,8 +38,9 @@ AC_MSG_RESULT(configuring unicornscan version ${PACKAGE_VERSION})
 
 AC_LBL_C_INIT(U_COPTS, U_CINCS)
 
-AC_LIBTOOL_DLOPEN
-AC_PROG_LIBTOOL
+dnl Modern libtool initialization (replaces AC_PROG_LIBTOOL + AC_LIBTOOL_DLOPEN)
+LT_PREREQ([2.4])
+LT_INIT([dlopen])
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_C_VOLATILE
@@ -44,11 +53,12 @@ U_LIBS="${LIBS}"
 
 dnl
 dnl checks for programs.
-dnl 
+dnl
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LN_S
+PKG_PROG_PKG_CONFIG
 dnl we dont really even need the end user to have this, we ship pre-generated ones now
 dnl AC_PROG_LEX
 dnl AC_PROG_YACC
@@ -66,10 +76,10 @@ AC_TYPE_SIZE_T
 dnl
 dnl checks for header files.
 dnl
-AC_HEADER_STDC
-AC_HEADER_SYS_WAIT
-AC_HEADER_DIRENT
-AC_HEADER_TIME
+AC_CHECK_HEADERS([stdlib.h string.h])
+AC_CHECK_HEADERS([sys/wait.h])
+AC_CHECK_HEADERS([dirent.h])
+AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([fcntl.h inttypes.h malloc.h memory.h netdb.h stddef.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/time.h unistd.h limits.h])
 
 AC_CHECK_HEADERS([sys/socket.h], [], [], [#include <sys/types.h>
@@ -96,21 +106,19 @@ AC_CHECK_HEADERS([arpa/inet.h ifaddrs.h net/if_dl.h ifaddrs.h net/bpf.h net/ethe
 #endif
 ])
 
-AC_CHECK_MEMBER([struct sockaddr.sa_len], [AC_DEFINE(HAVE_STRUCT_SOCKADDR_LEN)], [], [#include <sys/types.h>
-#include <sys/socket.h>])
+AC_CHECK_MEMBER([struct sockaddr.sa_len],
+  [AC_DEFINE([HAVE_STRUCT_SOCKADDR_LEN], [1], [Define if struct sockaddr has sa_len member])],
+  [],
+  [[#include <sys/types.h>
+#include <sys/socket.h>]])
 
 dnl
 dnl checks for library functions.
 dnl
-AC_FUNC_CLOSEDIR_VOID
 AC_FUNC_FORK
-AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_TYPE_SIGNAL
-AC_FUNC_STAT
-AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([alarm gethostbyname gettimeofday inet_ntoa memset select socket strdup strerror strstr strrchr getnameinfo getaddrinfo])
+AC_CHECK_FUNCS([alarm gethostbyname gettimeofday inet_ntoa memset select socket strdup strerror strstr strrchr getnameinfo getaddrinfo closedir vprintf stat])
 
 AC_SEARCH_LIBS([nanosleep], [rt posix4])
 AC_SEARCH_LIBS([inet_aton], [resolv])
@@ -131,9 +139,9 @@ dnl XXX hack until selinux code is updated, the above macro is no longer called.
 CHCON=true
 SP_MODE=755
 shlibs=.la
-AC_SUBST(CHCON)
-AC_SUBST(SP_MODE)
-AC_DEFINE_UNQUOTED(SHLIB_EXT, "$shlibs")
+AC_SUBST([CHCON])
+AC_SUBST([SP_MODE])
+AC_DEFINE_UNQUOTED([SHLIB_EXT], ["$shlibs"], [Shared library extension])
 
 AC_UNI_PRNG
 AC_PATH_PROGS(USE_MAKE, gmake gnumake make)
@@ -142,17 +150,17 @@ AX_C___ATTRIBUTE__
 
 dnl execinfo.h -> real test
 AC_MSG_CHECKING(for backtrace in execinfo.h)
-AC_LINK_IFELSE([
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <stdio.h>
+#include <stdlib.h>
 #include <execinfo.h>
-int main(int argc, char ** argv) {
-        void *bs[[50]]; int sz=0;
+]], [[
+        void *bs[50]; int sz=0;
         sz=backtrace(bs, 50);
         backtrace_symbols_fd(bs, sz, 2);
         exit(0);
-}
-], [AC_MSG_RESULT(yes)
-AC_DEFINE(WITH_BACKTRACE)], [AC_MSG_RESULT(no)])
+]])], [AC_MSG_RESULT(yes)
+AC_DEFINE([WITH_BACKTRACE], [1], [Define if backtrace is available])], [AC_MSG_RESULT(no)])
 
 bundled_ltdl="no"
 AC_MSG_CHECKING([whether to force bundled libltdl to be staticly linked into executables])
@@ -171,9 +179,9 @@ yes)
 esac
 
 AC_ARG_ENABLE(debug-support,
-[  --enable-debug-support  enable possibly unsafe debugging functions],
+[AS_HELP_STRING([--enable-debug-support], [enable possibly unsafe debugging functions])],
 [
-AC_DEFINE(DEBUG_SUPPORT)
+AC_DEFINE([DEBUG_SUPPORT], [1], [Enable debugging support])
 U_COPTS="${U_COPTS} -ggdb -Wall -pipe -Wshadow -Wcast-align -Wcast-qual -Wchar-subscripts -Wno-deprecated-declarations -Wformat-security -Wimplicit -Wsign-compare -Wuninitialized -Wunused -Wwrite-strings -Wmissing-format-attribute -Wmissing-noreturn -Wmissing-braces -Wparentheses -Wsequence-point -Wno-format-y2k"
 ], [])
 
@@ -190,14 +198,14 @@ case "$listen_user" in
 yes)
 	listen_user="nobody"
 	AC_MSG_RESULT([Using user nobody])
-	AC_DEFINE_UNQUOTED(NOPRIV_USER, "$listen_user")
+	AC_DEFINE_UNQUOTED([NOPRIV_USER], ["$listen_user"], [Non-privileged user for listener])
 	;;
 no)
 	AC_MSG_ERROR([using a listen-user of no is silly, what i was looking for was a username])
 	;;
 *)
 	AC_MSG_RESULT([Using user $listen_user])
-	AC_DEFINE_UNQUOTED(NOPRIV_USER, "$listen_user")
+	AC_DEFINE_UNQUOTED([NOPRIV_USER], ["$listen_user"], [Non-privileged user for listener])
 	;;
 esac
 AC_SUBST(NOPRIV_USER)
@@ -210,13 +218,13 @@ esac
 
 case "${host_os}" in
 *linux*)
-	AC_DEFINE(USE_SETRE)
+	AC_DEFINE([USE_SETRE], [1], [Use setreuid/setregid for privilege dropping])
 	;;
 *netbsd*)
-	AC_DEFINE(USE_SETRE)
+	AC_DEFINE([USE_SETRE], [1], [Use setreuid/setregid for privilege dropping])
 	;;
 *freebsd*)
-	AC_DEFINE(USE_SETRE)
+	AC_DEFINE([USE_SETRE], [1], [Use setreuid/setregid for privilege dropping])
 	;;
 *darwin*)
 	;;
@@ -286,7 +294,7 @@ if test "$with_mysql" != "no"; then
       fi
     else
       AC_MSG_RESULT(yes)
-      AC_DEFINE(WITH_MYSQL)
+      AC_DEFINE([WITH_MYSQL], [1], [Define if MySQL support is enabled])
       AC_CHECK_LIB(z, compress)
       MY_LDFLAGS="-L${MYSQL_LIB_DIR}"
       MY_CPPFLAGS="-I${MYSQL_INC_DIR}"
@@ -296,63 +304,70 @@ if test "$with_mysql" != "no"; then
   fi
 fi
 
-default_directory="/usr /usr/local /usr/local/pgsql /usr/local/postgresql"
-
+dnl PostgreSQL detection - modernized to use pkg-config
 AC_ARG_WITH(pgsql,
-    [  --with-pgsql=DIR        support for PostgreSQL],
+    [AS_HELP_STRING([--with-pgsql@<:@=DIR@:>@], [support for PostgreSQL (default: no)])],
     [ with_pgsql="$withval" ],
     [ with_pgsql=no ])
+
 if test "$with_pgsql" != "no"; then
-  if test "$with_pgsql" = "yes"; then
-    pgsql_directory="$default_directory";
-    pgsql_fail="yes"
-  elif test -d $withval; then
-    pgsql_directory="$withval"
-    pgsql_fail="no"
-  elif test "$with_pgsql" = ""; then
-    pgsql_directory="$default_directory";
-    pgsql_fail="no"
+  AC_MSG_CHECKING([for PostgreSQL])
+  pgsql_found=no
+
+  dnl Try pkg-config first (modern systems)
+  if test "$with_pgsql" = "yes" || test -z "$with_pgsql"; then
+    PKG_CHECK_EXISTS([libpq], [
+      PG_CPPFLAGS=`$PKG_CONFIG --cflags libpq 2>/dev/null`
+      PG_LDFLAGS=`$PKG_CONFIG --libs libpq 2>/dev/null`
+      pgsql_found=yes
+    ], [pgsql_found=no])
   fi
-  AC_MSG_CHECKING(for PostgreSQL)
-  for i in $pgsql_directory; do
-    if test -r $i/include/libpq-fe.h; then
-      PGSQL_DIR=$i
-      PGSQL_INC_DIR=$i/include
-    fi
-  done
-  if test -z "$PGSQL_DIR"; then
-    if test "$pgsql_fail" != "no"; then
-      tmp=""
-      for i in $pgsql_directory; do
-        tmp="$tmp $i/include"
-      done
-      AC_MSG_ERROR(cant find PostgreSQL header libpq-fe.h, rerun configure with --with-pgsql=/path/to/pgsql/prefix, 1)
+
+  dnl Manual detection if pkg-config fails or custom path given
+  if test "$pgsql_found" = "no"; then
+    if test "$with_pgsql" != "yes" && test -d "$with_pgsql"; then
+      pgsql_directory="$with_pgsql"
     else
-      AC_MSG_RESULT(no)
+      pgsql_directory="/usr /usr/local /usr/local/pgsql /usr/local/postgresql"
     fi
-  else
-    for i in lib lib/postgresql; do
-      str="$PGSQL_DIR/$i/libpq.*"
-      for j in `echo $str`; do
-        if test -r $j; then
-          PGSQL_LIB_DIR="$PGSQL_DIR/$i"
-          break 2
+
+    for i in $pgsql_directory; do
+      dnl Check common header locations
+      for incdir in "$i/include/postgresql" "$i/include/pgsql" "$i/include"; do
+        if test -r "$incdir/libpq-fe.h"; then
+          PGSQL_INC_DIR="$incdir"
+          break
         fi
       done
-    done
-    if test -z "$PGSQL_LIB_DIR"; then
-      if test "$pgsql_fail" != "no"; then
-        AC_MSG_ERROR(cant find PostgreSQL pq library, rerun configure with --with-pgsql=/path/to/pgsql/prefix, 1)
-      else
-        AC_MSG_RESULT(no)
+      if test -n "$PGSQL_INC_DIR"; then
+        dnl Find library
+        for libdir in "$i/lib" "$i/lib/postgresql" "$i/lib64" "$i/lib/x86_64-linux-gnu"; do
+          if test -r "$libdir/libpq.so" || test -r "$libdir/libpq.a"; then
+            PGSQL_LIB_DIR="$libdir"
+            break
+          fi
+        done
+        if test -n "$PGSQL_LIB_DIR"; then
+          pgsql_found=yes
+          PG_CPPFLAGS="-I${PGSQL_INC_DIR}"
+          PG_LDFLAGS="-L${PGSQL_LIB_DIR} -lpq"
+          break
+        fi
       fi
-    else
-      AC_MSG_RESULT(yes)
-      AC_DEFINE(WITH_PGSQL)
-      PG_LDFLAGS="${LDFLAGS} -L${PGSQL_LIB_DIR}"
-      PG_CPPFLAGS="${CPPFLAGS} -I${PGSQL_INC_DIR}"
-      DBTYPES="${DBTYPES} pgsql"
-      pgsql="yes"
+      PGSQL_INC_DIR=""
+      PGSQL_LIB_DIR=""
+    done
+  fi
+
+  if test "$pgsql_found" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([WITH_PGSQL], [1], [Define if PostgreSQL support is enabled])
+    DBTYPES="${DBTYPES} pgsql"
+    pgsql="yes"
+  else
+    AC_MSG_RESULT([no])
+    if test "$with_pgsql" = "yes"; then
+      AC_MSG_ERROR([PostgreSQL requested but not found. Install libpq-dev or use --with-pgsql=/path])
     fi
   fi
 fi
@@ -366,8 +381,8 @@ AC_ARG_WITH(p0f3-socket,
     [ p0f3_socket="/var/run/p0f.sock" ])
 AC_MSG_CHECKING(for p0f v3 socket path)
 AC_MSG_RESULT($p0f3_socket)
-AC_DEFINE_UNQUOTED(P0F3_SOCKET_PATH, "$p0f3_socket")
-AC_DEFINE(HAVE_P0F3_API)
+AC_DEFINE_UNQUOTED([P0F3_SOCKET_PATH], ["$p0f3_socket"], [Path to p0f v3 socket])
+AC_DEFINE([HAVE_P0F3_API], [1], [Define if p0f v3 API is available])
 
 AC_SUBST(DESTDIR)
 AC_SUBST(DBTYPES)
@@ -377,16 +392,22 @@ AC_SUBST(MY_LDFLAGS)
 AC_SUBST(MY_CPPFLAGS)
 
 dnl check for getopt_long
-AC_MSG_CHECKING(for getopt_long)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
+AC_MSG_CHECKING([for getopt_long])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <getopt.h>]], [[getopt_long(0,NULL,NULL,NULL,NULL);]])],[AC_MSG_RESULT(yes)
-AC_DEFINE(WITH_LONGOPTS)],[AC_MSG_RESULT(no)
-])
+#include <getopt.h>
+]], [[getopt_long(0,NULL,NULL,NULL,NULL);]])],
+  [AC_MSG_RESULT([yes])
+   AC_DEFINE([WITH_LONGOPTS], [1], [Define if getopt_long is available])],
+  [AC_MSG_RESULT([no])])
 
 dnl check for cpu endianess
-AC_C_BIGENDIAN(AC_DEFINE(CPU_BIGENDIAN), AC_DEFINE(CPU_LITTLEENDIAN), AC_MSG_ERROR(no no no you dont))
+AC_C_BIGENDIAN(
+  [AC_DEFINE([CPU_BIGENDIAN], [1], [Define if CPU is big-endian])],
+  [AC_DEFINE([CPU_LITTLEENDIAN], [1], [Define if CPU is little-endian])],
+  [AC_MSG_ERROR([Cannot determine endianness])])
 
 dnl checks for special files
 
@@ -402,12 +423,12 @@ AC_SUBST(U_CINCS)
 AC_SUBST(U_LDFLAGS)
 AC_SUBST(U_LIBS)
 
-AC_SUBST(sendername, $sendername)
-AC_SUBST(listenername, $listenername)
-AC_SUBST(targetname, $targetname)
-AC_DEFINE_UNQUOTED(SENDERNAME, "$sendername")
-AC_DEFINE_UNQUOTED(TARGETNAME, "$targetname")
-AC_DEFINE_UNQUOTED(LISTENERNAME, "$listenername")
+AC_SUBST([sendername], [$sendername])
+AC_SUBST([listenername], [$listenername])
+AC_SUBST([targetname], [$targetname])
+AC_DEFINE_UNQUOTED([SENDERNAME], ["$sendername"], [Name of sender binary])
+AC_DEFINE_UNQUOTED([TARGETNAME], ["$targetname"], [Name of main binary])
+AC_DEFINE_UNQUOTED([LISTENERNAME], ["$listenername"], [Name of listener binary])
 
 AC_CONFIG_FILES([Makefile
 		Makefile.inc

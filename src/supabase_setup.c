@@ -188,7 +188,7 @@ static int validate_url(const char *url) {
 /*
  * Save configuration to file
  */
-static int save_config(const char *url, const char *password) {
+static int save_config(const char *url, const char *password, const char *region) {
 	const char *path = NULL;
 	FILE *fp = NULL;
 
@@ -225,6 +225,7 @@ static int save_config(const char *url, const char *password) {
 	fprintf(fp, "\n");
 	fprintf(fp, "SUPABASE_URL=%s\n", url);
 	fprintf(fp, "SUPABASE_DB_PASSWORD=%s\n", password);
+	fprintf(fp, "SUPABASE_REGION=%s\n", region);
 
 	fclose(fp);
 
@@ -237,6 +238,7 @@ static int save_config(const char *url, const char *password) {
 int supabase_run_wizard(void) {
 	char url[MAX_INPUT_LEN];
 	char password[MAX_INPUT_LEN];
+	char region[MAX_INPUT_LEN];
 	char confirm[MAX_INPUT_LEN];
 	const char *config_file = NULL;
 
@@ -266,6 +268,11 @@ int supabase_run_wizard(void) {
 	printf("     • NOTE: This is NOT your Supabase account password\n");
 	printf("     • NOTE: This is NOT an API key\n");
 	printf("\n");
+	printf("  4. Your project's AWS REGION:\n");
+	printf("     • Go to: Project Settings → General\n");
+	printf("     • Look for 'Region' (e.g., West US (North California), East US (N. Virginia))\n");
+	printf("     • Common regions: us-west-1, us-west-2, us-east-1, eu-west-1\n");
+	printf("\n");
 	printf("The database tables will be created automatically on your first scan.\n");
 	printf("\n");
 	printf("Press Enter to continue (or Ctrl+C to cancel)...\n");
@@ -275,7 +282,7 @@ int supabase_run_wizard(void) {
 
 	printf("\n");
 	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-	printf("STEP 1 OF 2: Enter your Supabase Project URL\n");
+	printf("STEP 1 OF 3: Enter your Supabase Project URL\n");
 	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 	printf("\n");
 	printf("Where to find it:\n");
@@ -323,7 +330,60 @@ int supabase_run_wizard(void) {
 
 	printf("\n");
 	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-	printf("STEP 2 OF 2: Enter your Database Password\n");
+	printf("STEP 2 OF 3: Enter your Project's AWS Region\n");
+	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+	printf("\n");
+	printf("Where to find it:\n");
+	printf("  • Supabase Dashboard → Your Project → Settings → General\n");
+	printf("  • Look for 'Region' in the project information\n");
+	printf("\n");
+	printf("The region is needed to connect via Supabase's IPv4 connection pooler.\n");
+	printf("\n");
+	printf("Common regions (use the AWS region code, not the display name):\n");
+	printf("  • West US (North California)    -> us-west-1\n");
+	printf("  • West US (Oregon)              -> us-west-2\n");
+	printf("  • East US (N. Virginia)         -> us-east-1\n");
+	printf("  • East US (Ohio)                -> us-east-2\n");
+	printf("  • Europe (Ireland)              -> eu-west-1\n");
+	printf("  • Europe (Frankfurt)            -> eu-central-1\n");
+	printf("  • Asia Pacific (Singapore)      -> ap-southeast-1\n");
+	printf("  • Asia Pacific (Tokyo)          -> ap-northeast-1\n");
+	printf("  • Asia Pacific (Sydney)         -> ap-southeast-2\n");
+	printf("  • South America (Sao Paulo)     -> sa-east-1\n");
+	printf("\n");
+
+	/* Get region */
+	while (1) {
+		if (read_input("AWS Region (e.g., us-west-2): ", region, sizeof(region), 0) != 0) {
+			ERR("Failed to read input");
+			return -1;
+		}
+
+		if (strlen(region) == 0) {
+			printf("\nRegion cannot be empty. Please enter an AWS region.\n\n");
+			continue;
+		}
+
+		/* Trim whitespace */
+		while (strlen(region) > 0 && (region[strlen(region)-1] == ' ' || region[strlen(region)-1] == '\t')) {
+			region[strlen(region)-1] = '\0';
+		}
+
+		/* Basic validation */
+		if (strchr(region, '-') == NULL) {
+			printf("\n");
+			printf("✗ Invalid region format.\n");
+			printf("  Region should look like: us-west-2, eu-west-1, etc.\n\n");
+			continue;
+		}
+
+		printf("\n✓ Region looks valid!\n");
+		break;
+	}
+
+	printf("\n");
+	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+	printf("STEP 3 OF 3: Enter your Database Password\n");
 	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 	printf("\n");
 	printf("This is the password you chose when creating your Supabase project.\n");
@@ -381,7 +441,7 @@ int supabase_run_wizard(void) {
 	printf("Saving configuration...\n");
 	printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-	if (save_config(url, password) != 0) {
+	if (save_config(url, password, region) != 0) {
 		ERR("Failed to save configuration");
 		/* Clear sensitive data */
 		memset(password, 0, sizeof(password));
@@ -562,6 +622,15 @@ int supabase_load_config(void) {
 					ERR("Invalid SUPABASE_DB_PASSWORD in config");
 				} else {
 					DBG(M_CNF, "Loaded SUPABASE_DB_PASSWORD from config");
+				}
+			}
+		}
+		else if (strcmp(key, "SUPABASE_REGION") == 0) {
+			if (s->supabase_region == NULL) {
+				if (scan_setsupabaseregion(value) < 0) {
+					ERR("Invalid SUPABASE_REGION in %s: %s", path, value);
+				} else {
+					DBG(M_CNF, "Loaded SUPABASE_REGION from config");
 				}
 			}
 		}

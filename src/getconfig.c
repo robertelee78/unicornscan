@@ -101,6 +101,7 @@ int getconfig_argv(int argc, char ** argv) {
 #define OPT_SUPABASE_KEY	257
 #define OPT_SUPABASE_DB_PASSWORD	258
 #define OPT_SUPABASE_SETUP	259
+#define OPT_SUPABASE_REGION	260
 
 #define OPTS	\
 		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
@@ -150,6 +151,7 @@ int getconfig_argv(int argc, char ** argv) {
 		{"supabase-url",	1, NULL, OPT_SUPABASE_URL},
 		{"supabase-key",	1, NULL, OPT_SUPABASE_KEY},
 		{"supabase-db-password", 1, NULL, OPT_SUPABASE_DB_PASSWORD},
+		{"supabase-region",	1, NULL, OPT_SUPABASE_REGION},
 		{"supabase-setup",	0, NULL, OPT_SUPABASE_SETUP},
 		{NULL,			0, NULL,  0 }
 	};
@@ -423,6 +425,12 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+			case OPT_SUPABASE_REGION: /* Supabase AWS region */
+				if (scan_setsupabaseregion(optarg) < 0) {
+					usage();
+				}
+				break;
+
 			case OPT_SUPABASE_SETUP: /* Run interactive setup wizard */
 				if (supabase_run_wizard() == 0) {
 					uexit(0); /* Success - exit */
@@ -487,6 +495,21 @@ int getconfig_argv(int argc, char ** argv) {
 			if (scan_setsupabasedbpassword(env_pass) < 0) {
 				/* Don't fail - env var may be set for other tools */
 				VRB(0, "warning: SUPABASE_DB_PASSWORD environment variable is invalid, ignoring");
+			}
+		}
+	}
+
+	if (s->supabase_region == NULL) {
+		const char *env_region=NULL;
+
+		env_region=getenv("UNICORNSCAN_SUPABASE_REGION");
+		if (env_region == NULL) {
+			env_region=getenv("SUPABASE_REGION");
+		}
+		if (env_region != NULL && strlen(env_region) > 0) {
+			if (scan_setsupabaseregion(env_region) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_REGION environment variable is invalid, ignoring");
 			}
 		}
 	}
@@ -599,6 +622,7 @@ static void usage(void) {
 	"\t    --supabase-url   *Supabase project URL (env: UNICORNSCAN_SUPABASE_URL or SUPABASE_URL)\n"
 	"\t    --supabase-key   *Supabase API key (env: UNICORNSCAN_SUPABASE_KEY or SUPABASE_KEY)\n"
 	"\t    --supabase-db-password *Database password (env: UNICORNSCAN_SUPABASE_DB_PASSWORD)\n"
+	"\t    --supabase-region *AWS region for pooler (e.g., us-west-2) (env: SUPABASE_REGION)\n"
 	"*:\toptions with `*' require an argument following them\n\n"
 	"  address ranges are cidr like 1.2.3.4/8 for all of 1.?.?.?\n"
 	"  if you omit the cidr mask then /32 is implied\n"
