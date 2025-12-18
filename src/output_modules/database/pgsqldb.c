@@ -396,6 +396,13 @@ void pgsql_database_init(void) {
 		return;
 	}
 
+	/* Ensure settings pointer is valid */
+	if (s == NULL || s->ss == NULL) {
+		ERR("PostgreSQL module: settings not initialized");
+		pgsql_disable=1;
+		return;
+	}
+
 	DBG(M_MOD, "PostgreSQL module is enabled");
 
 	/*
@@ -511,8 +518,13 @@ void pgsql_database_init(void) {
 		}
 	}
 
-	escres=pgsql_escstr(s->profile);
-	strncpy(profile, escres, sizeof(profile) -1);
+	profile[0]='\0';
+	if (s->profile != NULL) {
+		escres=pgsql_escstr(s->profile);
+		if (escres != NULL) {
+			strncpy(profile, escres, sizeof(profile) -1);
+		}
+	}
 
 	dronestr[0]='\0';
 	if (s->drone_str != NULL) {
@@ -676,17 +688,29 @@ static int pgsql_dealwith_sworkunit(uint32_t wid, const send_workunit_t *w) {
 		ipopts=blank;
 	}
 
+	myaddr[0]='\0';
 	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->myaddr));
-	strncpy(myaddr, escret, sizeof(myaddr) -1);
+	if (escret != NULL) {
+		strncpy(myaddr, escret, sizeof(myaddr) -1);
+	}
 
+	mymask[0]='\0';
 	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->mymask));
-	strncpy(mymask, escret, sizeof(mymask) -1);
+	if (escret != NULL) {
+		strncpy(mymask, escret, sizeof(mymask) -1);
+	}
 
+	target[0]='\0';
 	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->target));
-	strncpy(target, escret, sizeof(target) -1);
+	if (escret != NULL) {
+		strncpy(target, escret, sizeof(target) -1);
+	}
 
+	targetmask[0]='\0';
 	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->targetmask));
-	strncpy(targetmask, escret, sizeof(targetmask) -1);
+	if (escret != NULL) {
+		strncpy(targetmask, escret, sizeof(targetmask) -1);
+	}
 
 	pstr=workunit_pstr_get(w);
 
