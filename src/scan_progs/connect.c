@@ -943,9 +943,19 @@ static size_t try_and_extract_tcp_data(const uint8_t *packet, size_t pk_len, con
 				uint32_t oldeseq=0;
 
 				oldeseq=c->recv_stseq + c->recv_len;
-				memcpy(nbuf, dptr, ret);
-				memcpy((nbuf + newsize) - (oldeseq - c->recv_stseq), c->recv_buf, c->recv_len);
-				xfree(c->recv_buf);
+
+				/* Bug fix: prevent buffer underflow when recv_len > newsize */
+				if (c->recv_len > newsize) {
+					ERR("TCP reassembly error: recv_len " STFMT " > newsize " STFMT ", keeping old buffer", c->recv_len, newsize);
+					xfree(nbuf);
+					nbuf=c->recv_buf;
+					newsize=c->recv_len;
+				}
+				else {
+					memcpy(nbuf, dptr, ret);
+					memcpy((nbuf + newsize) - (oldeseq - c->recv_stseq), c->recv_buf, c->recv_len);
+					xfree(c->recv_buf);
+				}
 			}
 			else {
 				if (newsize < c->recv_len) {
