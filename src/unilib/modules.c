@@ -68,12 +68,8 @@ int init_modules(void) {
 		char type[32];
 		int maj=0, min=0, bad=0;
 
-		/* ignore . dirs and files and non .la files, also skip .lai files */
+		/* ignore . dirs and files and non .so files */
 		if (de->d_name[0] == '.' || strstr(de->d_name, SHLIB_EXT) == NULL) {
-			continue;
-		}
-		/* Skip .lai (libtool archive info) files - they're not loadable */
-		if (strstr(de->d_name, ".lai") != NULL) {
 			continue;
 		}
 

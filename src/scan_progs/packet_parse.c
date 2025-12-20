@@ -254,19 +254,18 @@ static void decode_arp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	}
 
 	if (ISDBG(M_PKT) || GET_SNIFF()) {
-		char srcip[INET_ADDRSTRLEN], dstip[INET_ADDRSTRLEN], srcmac[32];
+		char srcip[32], srcmac[32];
 		struct in_addr ia;
 
 		ia.s_addr=a_u.a->sip;
-		inet_ntop(AF_INET, &ia, srcip, sizeof(srcip));
+		sprintf(srcip, "%s", inet_ntoa(ia));
 		ia.s_addr=a_u.a->dip;
-		inet_ntop(AF_INET, &ia, dstip, sizeof(dstip));
 		sprintf(srcmac, "%s", decode_6mac(a_u.a->smac));
 
 		INF("ARP : hw_type `%s' protocol `%s' hwsize %d protosize %d opcode `%s'",
 		str_hwtype(hwtype), str_hwproto(a_u.a->protocol), a_u.a->hwsize, a_u.a->protosize, str_opcode(opcode));
 		INF("ARP : SRC HW %s SRC IP -> %s DST HW %s DST IP %s",
-		srcmac, srcip, decode_6mac(a_u.a->dmac), dstip);
+		srcmac, srcip, decode_6mac(a_u.a->dmac), inet_ntoa(ia));
 	}
 
 	pk_len -= sizeof(struct myetherarphdr);
@@ -298,8 +297,6 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 
 	i_u.d=packet;
 	r_u.i.flags=0;
-
-	DBG(M_PKT, "decode_ip ENTRY: pk_layer=%d pk_len=%zu", pk_layer, pk_len);
 
 	if (pk_len < sizeof(struct myiphdr)) {
 		ERR("short ip packet");
@@ -365,14 +362,14 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 
 	if (ISDBG(M_PKT) || GET_SNIFF()) {
 		char frag_flags[32];
-		char src_addr[INET_ADDRSTRLEN], dst_addr[INET_ADDRSTRLEN];
+		char src_addr[32], dst_addr[32];
 		struct in_addr ia;
 
 		ia.s_addr=saddr;
-		inet_ntop(AF_INET, &ia, src_addr, sizeof(src_addr));
+		sprintf(src_addr, "%s", inet_ntoa(ia));
 
 		ia.s_addr=daddr;
-		inet_ntop(AF_INET, &ia, dst_addr, sizeof(dst_addr));
+		sprintf(dst_addr, "%s", inet_ntoa(ia));
 
 		CLEAR(frag_flags);
 		if (fragoff & IP_DF) {
@@ -420,8 +417,6 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	pk_len -= sizeof(struct myiphdr) + opt_len;
 	packet += sizeof(struct myiphdr) + opt_len;
 
-	DBG(M_PKT, "decode_ip: dispatching pk_len=%zu proto=%d pk_layer=%d", pk_len, i_u.i->protocol, pk_layer);
-
 	if (pk_len) {
 		switch (i_u.i->protocol) {
 			case IPPROTO_TCP:
@@ -463,8 +458,6 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	struct chksumv c[2];
 
 	t_u.d=packet;
-
-	DBG(M_PKT, "decode_tcp ENTRY: pk_layer=%d pk_len=%zu", pk_layer, pk_len);
 
 	if (pk_layer == 4) { /* this is inside an icmp error reflection, check that */
 		if (r_u.i.proto != IPPROTO_ICMP) {
@@ -509,8 +502,6 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 		uint32_t eackseq=0, high=0;
 
 		TCPHASHTRACK(eackseq, r_u.i.host_addr, sport, dport, s->ss->syn_key);
-		DBG(M_PKT, "RECV TCPHASHTRACK: eackseq=%08x host_addr=%08x sport=%u dport=%u syn_key=%08x actual_ackseq=%08x",
-			eackseq, r_u.i.host_addr, sport, dport, s->ss->syn_key, ackseq);
 
 		if (GET_LDOCONNECT()) {
 			DBG(M_PKT, "window size is %u or whatever", s->ss->window_size);
@@ -524,7 +515,7 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 			DBG(M_PKT, "packet within my %08x-%08x window, with %08x expecting %08x", eackseq, high, ackseq, eackseq);
 		}
 		else if (! GET_SNIFF() && ! GET_IGNORESEQ() && ! (GET_IGNORERSEQ() && t_u.t->rst)) {
-			DBG(M_PKT, "REJECTED: not my packet ackseq %08x expecting somewhere around %08x-%08x", ackseq, eackseq, high);
+			DBG(M_PKT, "not my packet ackseq %08x expecting somewhere around %08x-%08x", ackseq, eackseq, high);
 			return;
 		}
 	} /* layer 3 seq checking */

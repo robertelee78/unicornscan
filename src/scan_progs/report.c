@@ -126,7 +126,6 @@ int report_add(void *o, size_t o_len) {
 		ip_report_t *i;
 	} oc_u; /* output COPY union, used for inserting */
 	struct in_addr ia;
-	char addr_str[INET_ADDRSTRLEN];
 	uint64_t rkey=0;
 	void *dummy=NULL;
 	char *line=NULL;
@@ -186,8 +185,7 @@ int report_add(void *o, size_t o_len) {
 				}
 			}
 			else {
-				inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
-				DBG(M_RPT, "ignoring dup port open on %s:%d", addr_str, o_u.i->sport);
+				DBG(M_RPT, "ignoring dup port open on %s:%d", inet_ntoa(ia), o_u.i->sport);
 			}
 		}
 		else if (GET_PROCERRORS()) {
@@ -233,8 +231,7 @@ int report_add(void *o, size_t o_len) {
 				}
 			}
 			else {
-				inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
-				DBG(M_RPT, "ignoring dup error on %s:%d", addr_str, o_u.i->sport);
+				DBG(M_RPT, "ignoring dup error on %s:%d", inet_ntoa(ia), o_u.i->sport);
 			}
 		}
 	} /* IP report */
@@ -392,7 +389,6 @@ static char *fmtcat_ip4addr(int dodns, uint32_t addr) {
 	struct sockaddr_in tsin;
 	char *thost=NULL;
 	struct in_addr ia;
-	static char addr_str[INET_ADDRSTRLEN];
 
 	if (dodns == 1 && GET_DODNS()) {
 		tsin.sin_family=AF_INET;
@@ -411,8 +407,7 @@ static char *fmtcat_ip4addr(int dodns, uint32_t addr) {
 	 */
 
 	ia.s_addr=addr;
-	inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
-	return addr_str;
+	return inet_ntoa(ia);
 }
 
 static char *fmtcat(const char *fmt, const void *report) {
@@ -473,7 +468,6 @@ static char *fmtcat(const char *fmt, const void *report) {
 			 */
 			uint32_t taddr=0;
 			char ofmt[128], tmp[1024], *tptr=NULL;
-			char geoip_addr[INET_ADDRSTRLEN];
 			unsigned int noff=0;
 			struct in_addr ia;
 			int doname=0;
@@ -524,8 +518,7 @@ static char *fmtcat(const char *fmt, const void *report) {
 					}
 					strcat(ofmt, "s");
 #ifdef HAVE_LIBGEOIP
-					inet_ntop(AF_INET, &ia, geoip_addr, sizeof(geoip_addr));
-					tptr=GeoIP_country_code_by_addr(gi, geoip_addr);
+					tptr=GeoIP_country_code_by_addr(gi, inet_ntoa(ia));
 					snprintf(tmp, sizeof(tmp) -1, ofmt, tptr != NULL ? tptr : "??");
 					KEHSTR(tmp);
 #else

@@ -16,15 +16,14 @@
  * along with this program; if not, write to the Free Software        *
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.          *
  **********************************************************************/
-#define _GNU_SOURCE
+#define _GNU_SOURCE  /* Required for struct ucred on modern Linux */
 #include <config.h>
 
-#include <sys/socket.h>
+#include <sys/socket.h>  /* For struct ucred */
 #include <netdb.h>
 #include <errno.h>
 #include <netinet/tcp.h> /* TCP_NODELAY */
 #include <sys/un.h>
-#include <arpa/inet.h> /* inet_ntop, INET_ADDRSTRLEN */
 
 #ifdef WITH_SELINUX
 #include <selinux/selinux.h>
@@ -95,7 +94,6 @@ int socktrans_bind(const char *uri) {
 	int s_sock=-1;
 	struct sockaddr_in bsin;
 	struct sockaddr_un bsun;
-	char addr_str[INET_ADDRSTRLEN];
 
 	assert(uri != NULL);
 
@@ -106,8 +104,7 @@ int socktrans_bind(const char *uri) {
 		}
 
 		if (bind(s_sock, (const struct sockaddr *)&bsin, (socklen_t)sizeof(bsin)) == -1) {
-			inet_ntop(AF_INET, &bsin.sin_addr, addr_str, sizeof(addr_str));
-			ERR("bind() port %u addr %s fails: %s", ntohs(bsin.sin_port), addr_str, strerror(errno));
+			ERR("bind() port %u addr %s fails: %s", ntohs(bsin.sin_port), inet_ntoa(bsin.sin_addr), strerror(errno));
 			return -1;
 		}
 	}
@@ -250,15 +247,16 @@ static void accept_timeout(int signo) {
 
 static int socktrans_strtosin(const char *instr, struct sockaddr_in *isin) {
 	char host[512];
-	char port_str[16];
 	unsigned int port=0;
-	struct addrinfo hints, *res=NULL;
-	int gai_ret;
+	struct hostent *he=NULL;
+	union {
+		char *ptr;
+		struct in_addr *ia;
+	} h_u;
 
 	assert(instr != NULL && strlen(instr) > 0 && isin != NULL);
 
 	CLEAR(host);
-	CLEAR(port_str);
 
 	if (sscanf(instr, "%511[a-zA-Z0-9\\-_.]:%u", host, &port) != 2) {
 		return -1;
@@ -269,22 +267,21 @@ static int socktrans_strtosin(const char *instr, struct sockaddr_in *isin) {
 		return -1;
 	}
 
-	snprintf(port_str, sizeof(port_str), "%u", port);
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;       /* IPv4 only, matching original behavior */
-	hints.ai_socktype = SOCK_STREAM;
-
-	gai_ret = getaddrinfo(host, port_str, &hints, &res);
-	if (gai_ret != 0) {
-		ERR("unknown host `%s': %s", host, gai_strerror(gai_ret));
+	he=gethostbyname(host);
+	if (he == NULL) {
+		ERR("unknown host `%s'", host);
 		return -1;
 	}
 
-	/* Copy the first IPv4 result */
-	memcpy(isin, res->ai_addr, sizeof(struct sockaddr_in));
+	if (he->h_length != 4) {
+		ERR("unknown host address format");
+		return -1;
+	}
 
-	freeaddrinfo(res);
+	isin->sin_family=AF_INET;
+	isin->sin_port=ntohs((uint16_t)port);
+	h_u.ptr=he->h_addr_list[0];
+	memcpy(&isin->sin_addr.s_addr, &h_u.ia->s_addr, sizeof(isin->sin_addr.s_addr));
 
 	return 1;
 }

@@ -156,10 +156,10 @@ static void get_netroutes(void) {
 			struct in_addr ia;
 
 			ia.s_addr=dest;
-			inet_ntop(AF_INET, &ia, destnet, sizeof(destnet));
+			strcpy(destnet, inet_ntoa(ia));
 			mycidr=masktocidr(mask);
 			ia.s_addr=gw;
-			inet_ntop(AF_INET, &ia, gwstr, sizeof(gwstr));
+			strcpy(gwstr, inet_ntoa(ia));
 
 			if (flags & RTF_UP && mycidr > -1) {
 				union sock_u s_u;

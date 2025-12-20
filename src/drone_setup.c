@@ -174,26 +174,16 @@ int drone_setup(void) {
 							}
 							l_u.ptr=ptr;
 
-							/* Always get mtu and hwaddr from listener */
+							/* XXX ADD VIP */
 							s->vi[0]->mtu=l_u.l->mtu;
+							memcpy(&s->vi[0]->myaddr, &l_u.l->myaddr, sizeof(struct sockaddr_storage));
+							memcpy(&s->vi[0]->mymask, &l_u.l->mymask, sizeof(struct sockaddr_storage));
 							memcpy(s->vi[0]->hwaddr, l_u.l->hwaddr, THE_ONLY_SUPPORTED_HWADDR_LEN);
-							snprintf(s->vi[0]->hwaddr_s, sizeof(s->vi[0]->hwaddr_s) -1, "%02x:%02x:%02x:%02x:%02x:%02x", l_u.l->hwaddr[0], l_u.l->hwaddr[1], l_u.l->hwaddr[2], l_u.l->hwaddr[3], l_u.l->hwaddr[4], l_u.l->hwaddr[5]);
 
-							/*
-							 * Only update myaddr from listener if user didn't specify -s.
-							 * When -s is used (GET_OVERRIDE), we must preserve the user's
-							 * source address for phantom IP scanning to work.
-							 */
-							if (!GET_OVERRIDE()) {
-								memcpy(&s->vi[0]->myaddr, &l_u.l->myaddr, sizeof(struct sockaddr_storage));
-								memcpy(&s->vi[0]->mymask, &l_u.l->mymask, sizeof(struct sockaddr_storage));
-								snprintf(s->vi[0]->myaddr_s, sizeof(s->vi[0]->myaddr_s) -1, "%s", cidr_saddrstr((const struct sockaddr *)&l_u.l->myaddr));
-								DBG(M_DRN, "listener info gave me address `%s [%s]' with mtu %u", s->vi[0]->myaddr_s, s->vi[0]->hwaddr_s, s->vi[0]->mtu);
-							}
-							else {
-								/* Keep user's -s address AND mask for CIDR phantom IP scanning */
-								DBG(M_DRN, "keeping user-specified source address `%s [%s]' with mtu %u", s->vi[0]->myaddr_s, s->vi[0]->hwaddr_s, s->vi[0]->mtu);
-							}
+							snprintf(s->vi[0]->hwaddr_s, sizeof(s->vi[0]->hwaddr_s) -1, "%02x:%02x:%02x:%02x:%02x:%02x", l_u.l->hwaddr[0], l_u.l->hwaddr[1], l_u.l->hwaddr[2], l_u.l->hwaddr[3], l_u.l->hwaddr[4], l_u.l->hwaddr[5]);
+							snprintf(s->vi[0]->myaddr_s, sizeof(s->vi[0]->myaddr_s) -1, "%s", cidr_saddrstr((const struct sockaddr *)&l_u.l->myaddr));
+
+							DBG(M_DRN, "listener info gave me the following address information `%s [%s]' with mtu %u", s->vi[0]->myaddr_s, s->vi[0]->hwaddr_s, s->vi[0]->mtu);
 						}
 					}
 					else {

@@ -25,17 +25,15 @@ all: $(L_LIBNAME) @sendername@ @listenername@
 $(LS_LIBNAME): $(LS_OBJS) $(LS_HDRS)
 	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o $(LS_LIBNAME) $(LS_OBJS)
 
-# Build unisend with SEND-specific entry object (separate from unilisten to avoid parallel build race)
 @sendername@: $(S_OBJS) $(LS_LIBNAME) $(S_HDRS) ../unilib/libunilib.la ../parse/libparse.la $(ENTRY)
-	$(LIBTOOL) --mode=clean rm -f entry_send.lo
-	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) -DBUILD_IDENT_SEND=1 -c $(ENTRY) -o entry_send.lo
-	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -export-dynamic -o @sendername@ $(S_OBJS) $(C_OBJS) entry_send.lo $(G_LDPATH) $(LDFLAGS) $(G_LDADD) -lpcap
+	$(LIBTOOL) --mode=clean rm -f $(ENTRY:.c=.lo)
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) -DBUILD_IDENT_SEND=1 -c $(ENTRY)
+	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -export-dynamic -o @sendername@ $(S_OBJS) $(C_OBJS) $(ENTRY:.c=.lo) $(G_LDPATH) $(LDFLAGS) $(G_LDADD)
 
-# Build unilisten with RECV-specific entry object (separate from unisend to avoid parallel build race)
 @listenername@: $(L_OBJS) $(LS_LIBNAME) $(L_HDRS) ../unilib/libunilib.la ../parse/libparse.la $(ENTRY)
-	$(LIBTOOL) --mode=clean rm -f entry_recv.lo
-	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) -DBUILD_IDENT_RECV=1 -c $(ENTRY) -o entry_recv.lo
-	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -export-dynamic -o @listenername@ $(L_OBJS) $(C_OBJS) entry_recv.lo $(G_LDPATH) $(LDFLAGS) $(G_LDADD) -lpcap
+	$(LIBTOOL) --mode=clean rm -f $(ENTRY:.c=.lo)
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) -DBUILD_IDENT_RECV=1 -c $(ENTRY)
+	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -export-dynamic -o @listenername@ $(L_OBJS) $(C_OBJS) $(ENTRY:.c=.lo) $(G_LDPATH) $(LDFLAGS) $(G_LDADD) -lpcap
 
 testsd:
 	cd tests && @USE_MAKE@
@@ -53,6 +51,6 @@ uninstall:
 
 clean:
 	cd tests && @USE_MAKE@ clean
-	$(LIBTOOL) --mode=clean rm -rf $(S_OBJS) $(L_OBJS) $(LS_OBJS) @sendername@ @listenername@ $(LS_LIBNAME) $(ENTRY:.c=.lo) entry_send.lo entry_recv.lo
+	$(LIBTOOL) --mode=clean rm -rf $(S_OBJS) $(L_OBJS) $(LS_OBJS) @sendername@ @listenername@ $(LS_LIBNAME) $(ENTRY:.c=.lo)
 
 distclean: clean

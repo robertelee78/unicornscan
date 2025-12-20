@@ -80,8 +80,6 @@ typedef struct _PACKED_ recv_workunit_t {
 	uint32_t window_size;
 
 	uint32_t syn_key;
-	struct sockaddr_storage listen_addr;	/* address/network to filter responses for (phantom IP/CIDR when using -s) */
-	struct sockaddr_storage listen_mask;	/* netmask for listen_addr */
 	uint16_t pcap_len;
 } recv_workunit_t;
 

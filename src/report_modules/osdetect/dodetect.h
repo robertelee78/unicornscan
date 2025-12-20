@@ -19,14 +19,8 @@
 #ifndef _OS_DETECT_H
 # define _OS_DETECT_H
 
-/* Main OS detection function - hybrid p0f v3 + built-in */
 char *do_osdetect(const uint8_t *, size_t);
-
-/* Built-in fingerprint management */
 int   osd_add_fingerprint(const char *);
 char *osd_find_match(const fps_t *);
-
-/* P0F v3 integration cleanup */
-void  p0f3_cleanup(void);
 
 #endif

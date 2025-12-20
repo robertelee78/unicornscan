@@ -390,7 +390,6 @@ void send_packet(void) {
 					struct sockaddr_in sin;
 				} s_u;
 				struct in_addr ia;
-				char addr_str[INET_ADDRSTRLEN];
 
 				if (msg_len < sizeof(send_pri_workunit_t)) {
 					ERR("short pri workunit, ignoring");
@@ -411,13 +410,12 @@ void send_packet(void) {
 				open_link(SOCK_IP, &s_u.ss, NULL);
 
 				ia.s_addr=wk_u.p->dhost;
-				inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
 
 				DBG(M_WRK, "send %s to host seq %08x %u -> %s:%u flags %08x seq %u window size %u",
 					strtcpflgs(wk_u.p->flags),
 					wk_u.p->mseq,
 					wk_u.p->sport,
-					addr_str,
+					inet_ntoa(ia),
 					wk_u.p->dport,
 					wk_u.p->flags,
 					wk_u.p->tseq,
@@ -695,7 +693,6 @@ static void _send_packet(void) {
 				}
 				if (msg_type == MSG_WORKUNIT) {
 					struct in_addr ia;
-					char addr_str[INET_ADDRSTRLEN];
 
 					if (msg_len < sizeof(send_pri_workunit_t)) {
 						ERR("pri workunit too short");
@@ -707,13 +704,12 @@ static void _send_packet(void) {
 					}
 
 					ia.s_addr=w_u.w->dhost;
-					inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
 
 					DBG(M_WRK, "send %s to host seq %08x %u -> %s:%u flags %08x seq %u window size %u",
 						strtcpflgs(w_u.w->flags),
 						w_u.w->mseq,
 						w_u.w->sport,
-						addr_str,
+						inet_ntoa(ia),
 						w_u.w->dport,
 						w_u.w->flags,
 						w_u.w->tseq,
@@ -863,8 +859,6 @@ static void _send_packet(void) {
 		 *			BUILD TCP HEADER			*
 		 ****************************************************************/
 		TCPHASHTRACK(seq, target_u.sin->sin_addr.s_addr, rport, sl.local_port, s->ss->syn_key);
-		DBG(M_PKT, "SEND TCPHASHTRACK: seq=%08x target=%08x rport=%u local_port=%u syn_key=%08x",
-			seq, target_u.sin->sin_addr.s_addr, rport, sl.local_port, s->ss->syn_key);
 
 		makepkt_build_tcp(	(uint16_t)sl.local_port,
 					rport,
