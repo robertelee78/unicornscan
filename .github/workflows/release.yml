@@ -54,8 +54,7 @@ jobs:
             flex \
             bison \
             git \
-            pkg-config \
-            latex2man
+            pkg-config
 
       - name: Checkout code
         uses: actions/checkout@v4
