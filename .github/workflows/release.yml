@@ -46,7 +46,7 @@ jobs:
             automake \
             libtool \
             libpcap-dev \
-            libdnet-dev \
+            libdumbnet-dev \
             libltdl-dev \
             libpq-dev \
             flex \
