@@ -61,13 +61,6 @@ int scan_settrans(int);
 int scan_setpayload_grp(int);
 
 int scan_setverboseinc(void); /* kludge for getconfig.c */
-int scan_setspoofmac(const char *);
-
-/* Supabase cloud database integration */
-int scan_setsupabaseurl(const char *);
-int scan_setsupabasekey(const char *);
-int scan_setsupabasedbpassword(const char *);
-int scan_setsupabaseregion(const char *);
 
 char *scan_getgports(void);
 char *scan_getdesthosts(void);

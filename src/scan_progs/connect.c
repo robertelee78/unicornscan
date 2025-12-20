@@ -19,6 +19,7 @@
 #include <config.h>
 #include <errno.h>
 #include <ctype.h>
+#include <time.h>
 
 #include <scan_progs/scanopts.h>
 #include <scan_progs/scan_export.h>
@@ -187,7 +188,7 @@ static uint64_t get_connectionkey(const ip_report_t *r) {
 }
 
 void connect_do(void *pri_work, const ip_report_t *r) {
-	char shost_s[INET_ADDRSTRLEN], dhost_s[INET_ADDRSTRLEN];
+	char shost_s[32];
 	union {
 		void *ptr;
 		send_pri_workunit_t *w;
@@ -452,10 +453,9 @@ void connect_do(void *pri_work, const ip_report_t *r) {
 
 		if (GET_IMMEDIATE()) {
 			ia.s_addr=shost;
-			inet_ntop(AF_INET, &ia, shost_s, sizeof(shost_s));
+			snprintf(shost_s, sizeof(shost_s) -1, "%s", inet_ntoa(ia));
 			ia.s_addr=dhost;
-			inet_ntop(AF_INET, &ia, dhost_s, sizeof(dhost_s));
-			VRB(0, "connected %s:%u -> %s:%u", shost_s, sport, dhost_s, dport);
+			VRB(0, "connected %s:%u -> %s:%u", shost_s, sport, inet_ntoa(ia), dport);
 		}
 
 		s->stats.stream_connections_est++;
@@ -795,7 +795,7 @@ static int kill_connection(uint64_t key, void *cptr, void *pri_work) {
 		uint8_t *inc;
 	} w_u;
 	struct in_addr ia;
-	char shost_s[INET_ADDRSTRLEN], dhost_s[INET_ADDRSTRLEN];
+	char shost_s[32];
 
 	if (cptr == NULL) {
 		PANIC("state table has NULL entry");
@@ -808,12 +808,11 @@ static int kill_connection(uint64_t key, void *cptr, void *pri_work) {
 	k_u.state_key=key;
 
 	ia.s_addr=c_u.c->send_ip;
-	inet_ntop(AF_INET, &ia, shost_s, sizeof(shost_s));
+	snprintf(shost_s, sizeof(shost_s) -1, "%s", inet_ntoa(ia));
 	ia.s_addr=k_u.s.dhost;
-	inet_ntop(AF_INET, &ia, dhost_s, sizeof(dhost_s));
 
 	if (c_u.c->status != U_TCP_CLOSE) {
-		DBG(M_CON, "%s:%u -> %s:%u hanging in %s", shost_s, k_u.s.dport, dhost_s, k_u.s.sport, strconnstatus(c_u.c->status));
+		DBG(M_CON, "%s:%u -> %s:%u hanging in %s", shost_s, k_u.s.dport, inet_ntoa(ia), k_u.s.sport, strconnstatus(c_u.c->status));
 
 		w_u.ptr=xmalloc(sizeof(send_pri_workunit_t));
 		w_u.w->magic=PRI_4SEND_MAGIC;

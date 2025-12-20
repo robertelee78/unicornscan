@@ -21,10 +21,5 @@
 
 int util_getheadersize(pcap_t * /* pdev */, char * /* errorbuf pcap size */);
 int util_preparepcap  (pcap_t * /* pdev */, char * /* errorbuf pcap size */);
-int util_try_set_datalink_ethernet(pcap_t * /* pdev */);
-int util_get_radiotap_len(const uint8_t * /* packet */, size_t /* caplen */);
-
-/* Special return value for radiotap (variable-length header) */
-#define PCAP_HEADER_RADIOTAP	(-2)
 
 #endif

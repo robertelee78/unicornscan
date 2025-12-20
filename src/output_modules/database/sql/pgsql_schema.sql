@@ -1,27 +1,16 @@
--- Unicornscan PostgreSQL Schema v2
--- Includes JSONB columns for extensible metadata
-
-drop table if exists "uni_sworkunits";
-drop table if exists "uni_lworkunits";
-drop table if exists "uni_workunitstats";
-drop table if exists "uni_output";
-drop table if exists "uni_ipreportdata";
-drop table if exists "uni_ippackets";
-drop table if exists "uni_arppackets";
-drop table if exists "uni_ipreport";
-drop sequence if exists "uni_ipreport_id_seq";
-drop table if exists "uni_arpreport";
-drop sequence if exists "uni_arpreport_id_seq";
-drop table if exists "uni_scans";
-drop sequence if exists "uni_scans_id_seq";
-drop table if exists "uni_schema_version";
-
--- Schema version tracking
-create table "uni_schema_version" (
-	"version"	int4 not null,
-	"applied_at"	timestamptz default now(),
-	primary key ("version")
-);
+drop table "uni_sworkunits";
+drop table "uni_lworkunits";
+drop table "uni_workunitstats";
+drop table "uni_output";
+drop table "uni_ipreportdata";
+drop table "uni_ippackets";
+drop table "uni_arppackets";
+drop table "uni_ipreport";
+drop sequence "uni_ipreport_id_seq";
+drop table "uni_arpreport";
+drop sequence "uni_arpreport_id_seq";
+drop table "uni_scans";
+drop sequence "uni_scans_id_seq";
 
 create sequence "uni_scans_id_seq";
 -- MASTER INFORMATION
@@ -45,7 +34,6 @@ create table "uni_scans" (
 	"tickrate"	int4 not null,
 	"num_hosts"	double precision not null,
 	"num_packets"	double precision not null,
-	"scan_metadata"	jsonb default '{}'::jsonb,
 	primary key("scans_id")
 );
 
@@ -157,7 +145,6 @@ create table "uni_ipreport" (
 	"window_size"	int4 not null,
 	"t_tstamp"	int8 not null,
 	"m_tstamp"	int8 not null,
-	"extra_data"	jsonb default '{}'::jsonb,
 	primary key ("ipreport_id")
 );
 
@@ -178,7 +165,6 @@ create table "uni_arpreport" (
 	"hwaddr"	macaddr not null,
 	"tstamp"	int8 not null,
 	"utstamp"	int8 not null,
-	"extra_data"	jsonb default '{}'::jsonb,
 	primary key ("arpreport_id")
 );
 
@@ -219,102 +205,3 @@ alter table "uni_arppackets"
 	add constraint uni_arppackets_uni_arpreport_FK
 	foreign key("arpreport_id")
 	references "uni_arpreport"("arpreport_id");
-
--- Additional indexes for common query patterns
--- Single-column indexes
-create index uni_ipreport_host_addr_idx on uni_ipreport("host_addr");
-create index uni_ipreport_dport_idx on uni_ipreport("dport");
-create index uni_ipreport_sport_idx on uni_ipreport("sport");
-create index uni_scans_s_time_idx on uni_scans("s_time");
-
--- Composite indexes for common query patterns
-create index uni_ipreport_scan_host_idx on uni_ipreport("scans_id", "host_addr");
-create index uni_ipreport_scan_dport_idx on uni_ipreport("scans_id", "dport");
-
--- GIN indexes for JSONB columns (efficient for containment queries)
-create index uni_scans_metadata_gin on uni_scans using gin("scan_metadata");
-create index uni_ipreport_extra_gin on uni_ipreport using gin("extra_data");
-create index uni_arpreport_extra_gin on uni_arpreport using gin("extra_data");
-
--- ============================================
--- CONVENIENCE VIEWS
--- ============================================
-
--- v_open_ports: Human-readable port scan results
-create or replace view v_open_ports as
-select
-    s.scans_id,
-    to_timestamp(s.s_time) as scan_time,
-    s.profile,
-    i.host_addr,
-    i.dport as port,
-    case i.proto
-        when 6 then 'TCP'
-        when 17 then 'UDP'
-        when 1 then 'ICMP'
-        else 'OTHER(' || i.proto || ')'
-    end as protocol,
-    i.ttl,
-    to_timestamp(i.tstamp) as response_time,
-    i.extra_data
-from uni_scans s
-join uni_ipreport i on s.scans_id = i.scans_id
-order by s.s_time desc, i.host_addr, i.dport;
-
--- v_scan_summary: Aggregate statistics per scan
-create or replace view v_scan_summary as
-select
-    s.scans_id,
-    to_timestamp(s.s_time) as started,
-    to_timestamp(nullif(s.e_time, 0)) as completed,
-    s.profile,
-    s."user" as scan_user,
-    s.num_hosts as target_hosts,
-    s.num_packets as packets_sent,
-    count(distinct i.host_addr) as hosts_responded,
-    count(i.ipreport_id) as total_responses,
-    count(distinct i.dport) as unique_ports,
-    s.scan_metadata
-from uni_scans s
-left join uni_ipreport i on s.scans_id = i.scans_id
-group by s.scans_id, s.s_time, s.e_time, s.profile, s."user",
-         s.num_hosts, s.num_packets, s.scan_metadata;
-
--- v_recent_scans: Last 50 scans with key metrics
-create or replace view v_recent_scans as
-select * from v_scan_summary
-order by started desc
-limit 50;
-
--- v_host_history: All results for a given host across all scans
-create or replace view v_host_history as
-select
-    i.host_addr,
-    s.scans_id,
-    to_timestamp(s.s_time) as scan_time,
-    s.profile,
-    i.dport as port,
-    i.proto,
-    i.ttl,
-    i.sport as source_port,
-    i.extra_data
-from uni_ipreport i
-join uni_scans s on i.scans_id = s.scans_id
-order by i.host_addr, s.s_time desc, i.dport;
-
--- v_arp_results: Human-readable ARP scan results
-create or replace view v_arp_results as
-select
-    s.scans_id,
-    to_timestamp(s.s_time) as scan_time,
-    s.profile,
-    a.host_addr as ip_address,
-    a.hwaddr as mac_address,
-    to_timestamp(a.tstamp) as response_time,
-    a.extra_data
-from uni_scans s
-join uni_arpreport a on s.scans_id = a.scans_id
-order by s.s_time desc, a.host_addr;
-
--- Record schema version
-insert into uni_schema_version (version) values (2);

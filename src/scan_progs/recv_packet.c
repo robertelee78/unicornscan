@@ -38,7 +38,6 @@
 #include <unilib/modules.h>
 #include <unilib/drone.h>
 #include <unilib/socktrans.h>
-#include <unilib/cidr.h>
 #include <scan_progs/recv_packet.h>
 #include <scan_progs/workunits.h>
 #include <scan_progs/portfunc.h>
@@ -67,12 +66,6 @@ static void extract_pcapfilter(const uint8_t *, size_t);
 pcap_dumper_t *pdump;
 static pcap_t *pdev;
 static int pcap_fd;
-
-/* Listen address/mask from workunit - this is the IP/CIDR to filter responses for */
-static struct sockaddr_storage listen_addr;
-static struct sockaddr_storage listen_mask;
-static char listen_addr_s[64];
-static unsigned int listen_cidr;
 
 
 void *r_queue=NULL, *p_queue=NULL;
@@ -169,11 +162,7 @@ void recv_packet(void) {
 	}
 
 	if (s->pcap_readfile == NULL) {
-		/*
-		 * Use 100ms pcap timeout for better packet capture timing.
-		 * With timeout=0, pcap_dispatch can miss packets in kernel buffers.
-		 */
-		pdev=pcap_open_live(s->interface_str, /* XXX haha */ s->vi[0]->mtu + 64, (GET_PROMISC() ? 1 : 0), 100, errbuf);
+		pdev=pcap_open_live(s->interface_str, /* XXX haha */ s->vi[0]->mtu + 64, (GET_PROMISC() ? 1 : 0), 0, errbuf);
 		if (pdev == NULL) {
 			ERR("pcap open live: %s", errbuf);
 
@@ -182,15 +171,6 @@ void recv_packet(void) {
 				terminate("cant send message ready error");
 			}
 			terminate("informed parent, exiting");
-		}
-
-		/*
-		 * For WiFi interfaces, try to set cooked Ethernet mode (DLT_EN10MB).
-		 * This presents frames as standard Ethernet regardless of the underlying
-		 * wireless protocol, which is much easier to parse than raw 802.11.
-		 */
-		if (util_try_set_datalink_ethernet(pdev)) {
-			VRB(1, "set WiFi interface to Ethernet cooked mode");
 		}
 	}
 	else {
@@ -324,23 +304,11 @@ void recv_packet(void) {
 
 		s->ss->syn_key=wk_u.r->syn_key;
 
-		/* Store listen address/mask for pcap filter - this is the phantom IP/CIDR when using -s */
-		memcpy(&listen_addr, &wk_u.r->listen_addr, sizeof(struct sockaddr_storage));
-		memcpy(&listen_mask, &wk_u.r->listen_mask, sizeof(struct sockaddr_storage));
-		snprintf(listen_addr_s, sizeof(listen_addr_s) -1, "%s", cidr_saddrstr((const struct sockaddr *)&listen_addr));
-		listen_cidr=cidr_getmask((const struct sockaddr *)&listen_mask);
-		DBG(M_WRK, "listen address for filtering: %s/%u", listen_addr_s, listen_cidr);
-
-		DBG(M_IPC, "workunit sizes: msg_len=%zu sizeof(recv_workunit_t)=%zu pcap_len=%u expected_pcap=%zu",
-			msg_len, sizeof(recv_workunit_t), wk_u.r->pcap_len, msg_len - sizeof(recv_workunit_t));
-
 		if (wk_u.r->pcap_len) {
 			if ((msg_len - sizeof(recv_workunit_t)) == wk_u.r->pcap_len) {
 				extract_pcapfilter(wk_u.cr + sizeof(recv_workunit_t), wk_u.r->pcap_len);
 			}
 			else {
-				ERR("pcap option length mismatch: msg_len=%zu sizeof(recv_workunit_t)=%zu pcap_len=%u expected=%zu",
-					msg_len, sizeof(recv_workunit_t), wk_u.r->pcap_len, msg_len - sizeof(recv_workunit_t));
 				terminate("pcap option length illegal");
 			}
 		}
@@ -420,24 +388,18 @@ void recv_packet(void) {
 			terminate("cant send message ready");
 		}
 
-		DBG(M_CLD, "entering main loop: lc_s=%d pcap_fd=%d", lc_s, pcap_fd);
-
 		while (1) {
 			spdf[0].fd=lc_s;
 			spdf[1].fd=pcap_fd;
 
-			/*
-			 * Use short timeout (100ms) instead of blocking forever.
-			 * pcap_get_selectable_fd() doesn't work reliably with poll()
-			 * on all systems/drivers due to pcap's internal buffering.
-			 * We always call pcap_dispatch() to check for packets.
-			 */
-			if (xpoll(&spdf[0], 2, 100) < 0) {
+			/* if pdev is a socket  ( ! -1 ) */
+			if (xpoll(&spdf[0], 2, -1) < 0) {
 				ERR("xpoll fails: %s", strerror(errno));
 			}
 
-			/* Always try to dispatch packets - don't rely on poll() for pcap */
-			pcap_dispatch(pdev, 10, parse_packet, NULL);
+			if (spdf[1].rw & XPOLL_READABLE) {
+				pcap_dispatch(pdev, 1, parse_packet, NULL);
+			}
 
 			/* no packets, better drain the queue */
 			drain_pqueue();
@@ -497,6 +459,7 @@ void recv_packet(void) {
 
 static char *get_pcapfilterstr(void) {
 	static char base_filter[128], addr_filter[128], pfilter[512];
+	uint32_t foct=0;
 
 	CLEAR(base_filter); CLEAR(addr_filter); CLEAR(pfilter);
 
@@ -529,29 +492,17 @@ static char *get_pcapfilterstr(void) {
 	}
 
 	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
-		/*
-		 * Use listen_addr/mask from the workunit for filtering. This is the address
-		 * we're sending packets FROM, which is where responses will be destined TO.
-		 * When using -s (phantom IP), this is the phantom address/network.
-		 * When not using -s, this matches the real interface address.
-		 *
-		 * For CIDR blocks (-s 10.0.0.0/24), responses can come to ANY IP in the
-		 * block since cidr_randhost() picks random source IPs. We must use
-		 * pcap's network filter syntax to match the entire block.
-		 *
-		 * We exclude packets from our real interface IP to avoid seeing our own
-		 * outbound packets in non-phantom mode.
-		 */
-		if (listen_cidr > 0 && listen_cidr < 32) {
-			/* CIDR network block - use dst net syntax for pcap BPF */
-			snprintf(addr_filter, sizeof(addr_filter) -1, "dst net %s/%u and ! src %s", listen_addr_s, listen_cidr, s->vi[0]->myaddr_s);
-			DBG(M_PKT, "filtering for dst net %s/%u", listen_addr_s, listen_cidr);
+#if 0
+		foct=(htonl(s->vi[0]->myaddr.sin_addr.s_addr) >> 24);
+		if (foct == 0x7f) {
+			snprintf(addr_filter, sizeof(addr_filter) -1, "dst %s", s->vi[0]->myaddr_s);
 		}
-		else {
-			/* Single host (/32) or unknown mask - use simple dst filter */
-			snprintf(addr_filter, sizeof(addr_filter) -1, "dst %s and ! src %s", listen_addr_s, s->vi[0]->myaddr_s);
-			DBG(M_PKT, "filtering for dst %s", listen_addr_s);
-		}
+#else 
+# warning FIXTHIS isloopback check
+#endif
+//		else {
+			snprintf(addr_filter, sizeof(addr_filter) -1, "dst %s and ! src %s", s->vi[0]->myaddr_s, s->vi[0]->myaddr_s);
+//		}
 	}
 
 	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {

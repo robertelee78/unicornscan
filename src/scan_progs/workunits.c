@@ -34,8 +34,6 @@
 #include <unilib/route.h>
 #include <unilib/modules.h>
 
-#include <arpa/inet.h>
-
 #include <scan_progs/portfunc.h>
 #include <scan_progs/workunits.h>
 
@@ -621,13 +619,8 @@ static void balance_recv_workunits(void *wptr) {
 	assert(w_u.w->r != NULL);
 
 	/*
-	 * Pass the listen address/mask to the listener so it can filter for responses.
-	 * When using -s (phantom IP/CIDR), this will be the phantom address/network.
-	 * Otherwise it's the real interface address.
+	 * XXX
 	 */
-	memcpy(&w_u.w->r->listen_addr, &s->vi[0]->myaddr, sizeof(struct sockaddr_storage));
-	memcpy(&w_u.w->r->listen_mask, &s->vi[0]->mymask, sizeof(struct sockaddr_storage));
-	DBG(M_WRK, "listen_addr=`%s'", cidr_saddrstr((const struct sockaddr *)&w_u.w->r->listen_addr));
 
 	w_u.w->r->ret_layers=s->ss->ret_layers;
 
@@ -857,9 +850,9 @@ char *strworkunit(const void *ptr, size_t wul) {
 				return workunitdesc;
 			}
 			ia1.s_addr=w_u.p->shost;
-			inet_ntop(AF_INET, &ia1, myaddr, sizeof(myaddr));
+			snprintf(myaddr, sizeof(myaddr) -1, "%s", inet_ntoa(ia1));
 			ia2.s_addr=w_u.p->dhost;
-			inet_ntop(AF_INET, &ia2, target, sizeof(target));
+			snprintf(target, sizeof(target) -1, "%s", inet_ntoa(ia2));
 			snprintf(workunitdesc, sizeof(workunitdesc) -1,
 			"PRI SEND: dhost %s dport %u sport %u shost %s flags %s mseq %08x tseq %08x"
 			" m_tstamp %08x t_tstamp %08x window_size %u doff %u",
