@@ -71,9 +71,15 @@ jobs:
 
       - name: Build .deb package
         run: |
-          set -x
-          echo "=== Starting dpkg-buildpackage ==="
-          dpkg-buildpackage -us -uc -b -d 2>&1 || { echo "Build failed with exit code $?"; exit 1; }
+          set -ex
+          echo "=== PWD and files ==="
+          pwd
+          ls -la
+          echo "=== Verify debian/rules is executable ==="
+          chmod +x debian/rules
+          ls -la debian/rules
+          echo "=== Running dpkg-buildpackage ==="
+          dpkg-buildpackage -us -uc -b -d 2>&1
           echo "=== Build completed ==="
           mkdir -p artifacts
           mv ../*.deb artifacts/
