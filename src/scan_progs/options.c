@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <ctype.h>
+#include <time.h>
 
 #include <settings.h>
 

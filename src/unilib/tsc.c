@@ -18,6 +18,7 @@
  **********************************************************************/
 #include <config.h>
 
+#include <time.h>
 #include <settings.h>
 #include <unilib/xdelay.h>
 

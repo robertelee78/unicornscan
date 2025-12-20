@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <time.h>
 
 #include <settings.h>
 #include <getconfig.h>
