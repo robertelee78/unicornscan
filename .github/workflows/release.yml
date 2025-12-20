@@ -69,26 +69,39 @@ jobs:
           echo "=== debhelper version ==="
           dpkg -l debhelper | tail -1
 
-      - name: Build .deb package
+      - name: Configure build
         run: |
           set -ex
-          echo "=== PWD and files ==="
-          pwd
-          ls -la
-          echo "=== Verify debian/rules is executable ==="
           chmod +x debian/rules
-          ls -la debian/rules
-          echo "=== Running dpkg-buildpackage ==="
-          dpkg-buildpackage -us -uc -b -d 2>&1
-          echo "=== Build completed ==="
+          autoreconf -fiv
+          ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-pgsql
+
+      - name: Build
+        run: |
+          set -ex
+          make -j$(nproc)
+
+      - name: Create package
+        run: |
+          set -ex
+          make DESTDIR=$(pwd)/debian/unicornscan install
+          mkdir -p debian/unicornscan/DEBIAN
+          # Create control file for dpkg-deb
+          cat > debian/unicornscan/DEBIAN/control << 'CTRL'
+          Package: unicornscan
+          Version: 0.4.8
+          Architecture: amd64
+          Maintainer: Robert Lee <robert@loveathome.us>
+          Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5
+          Section: net
+          Priority: optional
+          Description: Asynchronous stateless TCP/UDP network scanner
+          CTRL
+          # Remove leading spaces from heredoc
+          sed -i 's/^          //' debian/unicornscan/DEBIAN/control
+          dpkg-deb --build debian/unicornscan
           mkdir -p artifacts
-          mv ../*.deb artifacts/
-          # Rename to include distro
-          cd artifacts
-          for f in *.deb; do
-            newname="${f%.deb}_${{ matrix.distro }}.deb"
-            mv "$f" "$newname"
-          done
+          mv debian/unicornscan.deb artifacts/unicornscan_0.4.8_${{ matrix.distro }}.deb
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
