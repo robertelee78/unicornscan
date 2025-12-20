@@ -44,6 +44,16 @@ int util_getheadersize(pcap_t *pdev, char *errorbuf) {
 #endif
 		case DLT_EN10MB:
 			return 14;
+#ifdef DLT_LINUX_SLL
+		case DLT_LINUX_SLL:
+			/* Linux "cooked" capture - used when capturing on "any" interface */
+			return 16;
+#endif
+#ifdef DLT_LINUX_SLL2
+		case DLT_LINUX_SLL2:
+			/* Linux "cooked" capture v2 - newer format */
+			return 20;
+#endif
 #ifdef DLT_LOOP /* NetBSD doesnt have this */
 		case DLT_LOOP:
 			return 8;
@@ -143,3 +153,197 @@ int util_preparepcap(pcap_t *pdev, char *errorbuf) {
 	return 1;
 }
 #endif
+
+/*
+ * Disable NIC offload features that interfere with accurate packet capture.
+ * GRO/LRO/TSO/GSO cause the kernel to coalesce packets, making IP tot_len
+ * larger than the actual captured data - which breaks packet parsing.
+ *
+ * Uses SIOCETHTOOL ioctl to disable these features.
+ * Reference: https://github.com/torvalds/linux/blob/master/net/ethtool/ioctl.c
+ *
+ * Returns: bitmask of features that were disabled, 0 if none needed disabling,
+ *          or -1 on error (errorbuf contains message).
+ */
+#if defined(__linux__)
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+#include <net/if.h>
+
+/* Helper to get/set a single ethtool feature */
+static int ethtool_get_feature(int fd, const char *ifname, uint32_t cmd) {
+	struct ifreq ifr;
+	struct ethtool_value eval;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
+
+	eval.cmd = cmd;
+	eval.data = 0;
+	ifr.ifr_data = (void *)&eval;
+
+	if (ioctl(fd, SIOCETHTOOL, &ifr) < 0) {
+		return -1;  /* Feature not supported or error */
+	}
+	return eval.data;
+}
+
+static int ethtool_set_feature(int fd, const char *ifname, uint32_t cmd, uint32_t value) {
+	struct ifreq ifr;
+	struct ethtool_value eval;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
+
+	eval.cmd = cmd;
+	eval.data = value;
+	ifr.ifr_data = (void *)&eval;
+
+	return ioctl(fd, SIOCETHTOOL, &ifr);
+}
+
+int util_disable_offload(const char *interface, char *errorbuf) {
+	int fd, ret;
+	int disabled_mask = 0;
+	int feature_val;
+
+	(void)ret;  /* May be unused depending on ifdefs */
+	(void)feature_val;
+
+	if (interface == NULL || strlen(interface) == 0) {
+		snprintf(errorbuf, PCAP_ERRBUF_SIZE - 1, "No interface specified");
+		return -1;
+	}
+
+	/* Skip for loopback and special interfaces */
+	if (strcmp(interface, "lo") == 0 || strcmp(interface, "any") == 0) {
+		return 0;  /* Nothing to disable */
+	}
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		snprintf(errorbuf, PCAP_ERRBUF_SIZE - 1, "Cannot create socket for ethtool: %s", strerror(errno));
+		return -1;
+	}
+
+	/* Check and disable GRO (Generic Receive Offload) */
+#ifdef ETHTOOL_GGRO
+	feature_val = ethtool_get_feature(fd, interface, ETHTOOL_GGRO);
+	if (feature_val > 0) {
+		ret = ethtool_set_feature(fd, interface, ETHTOOL_SGRO, 0);
+		if (ret == 0) {
+			disabled_mask |= OFFLOAD_GRO;
+		}
+	}
+#endif
+
+	/* Check and disable LRO (Large Receive Offload) - via flags */
+#ifdef ETHTOOL_GFLAGS
+	feature_val = ethtool_get_feature(fd, interface, ETHTOOL_GFLAGS);
+	if (feature_val >= 0 && (feature_val & ETH_FLAG_LRO)) {
+		ret = ethtool_set_feature(fd, interface, ETHTOOL_SFLAGS, feature_val & ~ETH_FLAG_LRO);
+		if (ret == 0) {
+			disabled_mask |= OFFLOAD_LRO;
+		}
+	}
+#endif
+
+	/* Check and disable TSO (TCP Segmentation Offload) */
+#ifdef ETHTOOL_GTSO
+	feature_val = ethtool_get_feature(fd, interface, ETHTOOL_GTSO);
+	if (feature_val > 0) {
+		ret = ethtool_set_feature(fd, interface, ETHTOOL_STSO, 0);
+		if (ret == 0) {
+			disabled_mask |= OFFLOAD_TSO;
+		}
+	}
+#endif
+
+	/* Check and disable GSO (Generic Segmentation Offload) */
+#ifdef ETHTOOL_GGSO
+	feature_val = ethtool_get_feature(fd, interface, ETHTOOL_GGSO);
+	if (feature_val > 0) {
+		ret = ethtool_set_feature(fd, interface, ETHTOOL_SGSO, 0);
+		if (ret == 0) {
+			disabled_mask |= OFFLOAD_GSO;
+		}
+	}
+#endif
+
+	close(fd);
+
+	if (disabled_mask > 0) {
+		/* Build message about what was disabled */
+		char features[128] = "";
+		if (disabled_mask & OFFLOAD_GRO) strcat(features, "GRO ");
+		if (disabled_mask & OFFLOAD_LRO) strcat(features, "LRO ");
+		if (disabled_mask & OFFLOAD_TSO) strcat(features, "TSO ");
+		if (disabled_mask & OFFLOAD_GSO) strcat(features, "GSO ");
+		snprintf(errorbuf, PCAP_ERRBUF_SIZE - 1, "Disabled offload features on %s: %s", interface, features);
+	} else {
+		errorbuf[0] = '\0';
+	}
+
+	return disabled_mask;
+}
+
+int util_restore_offload(const char *interface, int features_mask) {
+	int fd, ret = 0;
+
+	if (features_mask == 0 || interface == NULL) {
+		return 0;
+	}
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		return -1;
+	}
+
+#ifdef ETHTOOL_SGRO
+	if (features_mask & OFFLOAD_GRO) {
+		ethtool_set_feature(fd, interface, ETHTOOL_SGRO, 1);
+	}
+#endif
+
+#ifdef ETHTOOL_SFLAGS
+	if (features_mask & OFFLOAD_LRO) {
+		int flags = ethtool_get_feature(fd, interface, ETHTOOL_GFLAGS);
+		if (flags >= 0) {
+			ethtool_set_feature(fd, interface, ETHTOOL_SFLAGS, flags | ETH_FLAG_LRO);
+		}
+	}
+#endif
+
+#ifdef ETHTOOL_STSO
+	if (features_mask & OFFLOAD_TSO) {
+		ethtool_set_feature(fd, interface, ETHTOOL_STSO, 1);
+	}
+#endif
+
+#ifdef ETHTOOL_SGSO
+	if (features_mask & OFFLOAD_GSO) {
+		ethtool_set_feature(fd, interface, ETHTOOL_SGSO, 1);
+	}
+#endif
+
+	close(fd);
+	return ret;
+}
+
+#else /* Non-Linux systems */
+
+int util_disable_offload(const char *interface, char *errorbuf) {
+	/* Offload control not implemented for this platform */
+	if (interface && errorbuf) {
+		errorbuf[0] = '\0';
+	}
+	return 0;  /* Assume no offload or not controllable */
+}
+
+int util_restore_offload(const char *interface, int features_mask) {
+	(void)interface;
+	(void)features_mask;
+	return 0;
+}
+
+#endif /* __linux__ */

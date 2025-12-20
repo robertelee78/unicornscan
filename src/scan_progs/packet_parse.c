@@ -58,6 +58,100 @@ static const uint8_t *trailgarbage=NULL, *p_ptr=NULL;
 static size_t trailgarbage_len=0, p_len=0;
 static ip_pseudo_t ipph;
 
+/* Statistics tracking for malformed packets */
+#define MALFORMED_TOP_HOSTS 10
+#define MALFORMED_RATE_LIMIT_INTERVAL 5  /* seconds between rate-limited messages */
+
+typedef struct malformed_host_stats {
+	uint32_t addr;      /* IP address in network order */
+	uint32_t count;     /* Number of malformed packets from this host */
+} malformed_host_stats_t;
+
+static struct {
+	uint32_t total_count;                              /* Total malformed packets */
+	uint32_t bad_iplen_count;                          /* Packets with bad IP length */
+	uint32_t bad_fragment_count;                       /* Fragmented packets ignored */
+	malformed_host_stats_t top_hosts[MALFORMED_TOP_HOSTS];  /* Top offending hosts */
+	time_t last_ratelimit_log;                         /* Last time we logged (rate limiting) */
+	uint32_t since_last_log;                           /* Count since last rate-limited log */
+} malformed_stats = {0};
+
+/* Update malformed packet statistics */
+static void update_malformed_stats(uint32_t saddr) {
+	int i, min_idx = 0;
+	uint32_t min_count = UINT32_MAX;
+
+	malformed_stats.total_count++;
+
+	/* Find if this host is already tracked, or find slot with minimum count */
+	for (i = 0; i < MALFORMED_TOP_HOSTS; i++) {
+		if (malformed_stats.top_hosts[i].addr == saddr) {
+			malformed_stats.top_hosts[i].count++;
+			return;
+		}
+		if (malformed_stats.top_hosts[i].count < min_count) {
+			min_count = malformed_stats.top_hosts[i].count;
+			min_idx = i;
+		}
+	}
+
+	/* New host - replace minimum if this is first occurrence or slot is empty */
+	if (min_count == 0) {
+		malformed_stats.top_hosts[min_idx].addr = saddr;
+		malformed_stats.top_hosts[min_idx].count = 1;
+	}
+}
+
+/* Check if we should log based on rate limiting (for -v mode) */
+static int should_ratelimit_log(void) {
+	time_t now = time(NULL);
+
+	malformed_stats.since_last_log++;
+
+	if (now - malformed_stats.last_ratelimit_log >= MALFORMED_RATE_LIMIT_INTERVAL) {
+		malformed_stats.last_ratelimit_log = now;
+		return 1;  /* OK to log */
+	}
+	return 0;  /* Rate limited */
+}
+
+/* Print packet parsing statistics summary */
+void packet_parse_print_stats(void) {
+	int i;
+	char addr_str[INET_ADDRSTRLEN];
+	struct in_addr ia;
+
+	if (malformed_stats.total_count == 0) {
+		return;  /* Nothing to report */
+	}
+
+	INF("Packet parsing notes:");
+	INF("  Total packets with issues: %u", malformed_stats.total_count);
+
+	if (malformed_stats.bad_iplen_count > 0) {
+		INF("    Truncated (GRO/LRO/snaplen): %u", malformed_stats.bad_iplen_count);
+		INF("      (Hint: disable with 'ethtool -K <iface> gro off lro off')");
+	}
+	if (malformed_stats.bad_fragment_count > 0) {
+		INF("    Ignored fragments: %u", malformed_stats.bad_fragment_count);
+	}
+
+	/* Print top sources */
+	INF("  Top sources:");
+	for (i = 0; i < MALFORMED_TOP_HOSTS; i++) {
+		if (malformed_stats.top_hosts[i].count > 0) {
+			ia.s_addr = malformed_stats.top_hosts[i].addr;
+			inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
+			INF("    %s: %u packets", addr_str, malformed_stats.top_hosts[i].count);
+		}
+	}
+}
+
+/* Reset statistics (for multiple scan runs) */
+void packet_parse_reset_stats(void) {
+	memset(&malformed_stats, 0, sizeof(malformed_stats));
+}
+
 static void packet_init(const uint8_t *packet, size_t pk_len) {
 	p_ptr=packet;
 	p_len=pk_len;
@@ -329,17 +423,69 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	opt_len=(i_u.i->ihl - (sizeof(struct myiphdr) / 4)) * 4;
 
 	if (fragoff & IP_OFFMASK) {
-		ERR("likely bad: (is DF set? perhaps we need it) ignoring fragmented packet");
+		/* Track fragmented packet statistics */
+		malformed_stats.bad_fragment_count++;
+		update_malformed_stats(saddr);
+
+		/* Verbosity-based logging:
+		 *   -vv or more: show every message
+		 *   -v: rate-limited messages
+		 *   no -v: silent (summary at end)
+		 */
+		if (s->verbose >= 2) {
+			char src_addr[INET_ADDRSTRLEN];
+			struct in_addr ia;
+			ia.s_addr = saddr;
+			inet_ntop(AF_INET, &ia, src_addr, sizeof(src_addr));
+			ERR("ignoring fragmented packet from %s", src_addr);
+		} else if (s->verbose == 1 && should_ratelimit_log()) {
+			char src_addr[INET_ADDRSTRLEN];
+			struct in_addr ia;
+			ia.s_addr = saddr;
+			inet_ntop(AF_INET, &ia, src_addr, sizeof(src_addr));
+			ERR("ignoring fragmented packet from %s (%u since last log)",
+			    src_addr, malformed_stats.since_last_log);
+			malformed_stats.since_last_log = 0;
+		}
 		return;
 	}
 
 	if (totlen > pk_len && pk_layer == 1) {
-		/* this packet has an incorrect ip packet length, stop processing */
-		ERR("likely bad: packet has incorrect ip length, skipping it [ip total length claims %u and we have " STFMT, totlen, pk_len);
+		/*
+		 * IP header claims more data than we captured. This should not happen
+		 * if offload features (GRO/LRO/TSO) were properly disabled at startup.
+		 *
+		 * If you see this error, offload was not disabled. This can happen in:
+		 *   - VMs where guest can't control host NIC settings
+		 *   - Containers without NET_ADMIN capability
+		 *   - Reading from pcap files captured with offload enabled
+		 *
+		 * These packets cannot be reliably parsed - reject them.
+		 */
+		malformed_stats.bad_iplen_count++;
+		update_malformed_stats(saddr);
+
+		if (s->verbose >= 2) {
+			char src_addr[INET_ADDRSTRLEN];
+			struct in_addr ia;
+			ia.s_addr = saddr;
+			inet_ntop(AF_INET, &ia, src_addr, sizeof(src_addr));
+			ERR("truncated packet from %s: claims %u bytes, have " STFMT " (offload not disabled?)",
+			    src_addr, totlen, pk_len);
+		} else if (s->verbose == 1 && should_ratelimit_log()) {
+			char src_addr[INET_ADDRSTRLEN];
+			struct in_addr ia;
+			ia.s_addr = saddr;
+			inet_ntop(AF_INET, &ia, src_addr, sizeof(src_addr));
+			ERR("truncated packets from %s (%u skipped) - offload not disabled?",
+			    src_addr, malformed_stats.since_last_log);
+			malformed_stats.since_last_log = 0;
+		}
 		return;
 	}
 	else if (pk_layer == 3 && totlen > pk_len) {
-		totlen=pk_len;
+		/* ICMP embedded packets may be truncated - this is expected */
+		totlen = pk_len;
 	}
 
 	if (pk_len > totlen) {
