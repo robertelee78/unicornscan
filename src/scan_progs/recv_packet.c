@@ -170,6 +170,23 @@ void recv_packet(void) {
 
 	if (s->pcap_readfile == NULL) {
 		/*
+		 * Disable NIC offload features (GRO/LRO/TSO/GSO) that interfere with
+		 * accurate packet capture. These features coalesce packets in the kernel,
+		 * making IP tot_len larger than what we actually capture.
+		 */
+		int offload_mask = util_disable_offload(s->interface_str, errbuf);
+		if (offload_mask > 0) {
+			INF("%s", errbuf);  /* Log what was disabled */
+		} else if (offload_mask < 0) {
+			/* Failed to control offload - warn but continue */
+			VRB(0, "Warning: Could not check/disable offload on %s: %s",
+			    s->interface_str, errbuf);
+			VRB(0, "If you see 'truncated packet' errors, manually run:");
+			VRB(0, "  ethtool -K %s gro off lro off tso off gso off",
+			    s->interface_str);
+		}
+
+		/*
 		 * Use 100ms pcap timeout for better packet capture timing.
 		 * With timeout=0, pcap_dispatch can miss packets in kernel buffers.
 		 */
@@ -480,6 +497,9 @@ void recv_packet(void) {
 		}
 
 	} while (worktodo);
+
+	/* Print packet parsing statistics summary */
+	packet_parse_print_stats();
 
 	pcap_close(pdev);
 	if (s->pcap_dumpfile) {

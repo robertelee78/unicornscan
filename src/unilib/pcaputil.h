@@ -24,6 +24,25 @@ int util_preparepcap  (pcap_t * /* pdev */, char * /* errorbuf pcap size */);
 int util_try_set_datalink_ethernet(pcap_t * /* pdev */);
 int util_get_radiotap_len(const uint8_t * /* packet */, size_t /* caplen */);
 
+/*
+ * Disable NIC offload features that interfere with packet capture.
+ * GRO/LRO/TSO cause packets to be coalesced, making tot_len > caplen.
+ * Returns: bitmask of features that were disabled (for restoration), or -1 on error.
+ */
+int util_disable_offload(const char * /* interface */, char * /* errorbuf */);
+
+/*
+ * Restore previously disabled offload features.
+ * Takes the bitmask returned by util_disable_offload.
+ */
+int util_restore_offload(const char * /* interface */, int /* features_mask */);
+
+/* Offload feature flags (returned by util_disable_offload) */
+#define OFFLOAD_GRO	(1 << 0)
+#define OFFLOAD_LRO	(1 << 1)
+#define OFFLOAD_TSO	(1 << 2)
+#define OFFLOAD_GSO	(1 << 3)
+
 /* Special return value for radiotap (variable-length header) */
 #define PCAP_HEADER_RADIOTAP	(-2)
 

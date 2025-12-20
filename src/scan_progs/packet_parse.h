@@ -26,4 +26,8 @@ void parse_packet(uint8_t *, const struct pcap_pkthdr * /* phdr */, const uint8_
 void decode_tcpopts(const uint8_t * /* data */, size_t /* len */);
 void decode_ipopts (const uint8_t * /* data */, size_t /* len */);
 
+/* Statistics for malformed/skipped packets */
+void packet_parse_print_stats(void);
+void packet_parse_reset_stats(void);
+
 #endif
