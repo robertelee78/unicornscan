@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <ctype.h>
+#include <time.h>
 
 #include <scan_progs/scanopts.h>
 #include <scan_progs/scan_export.h>
