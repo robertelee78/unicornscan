@@ -1,0 +1,34 @@
+Source: unicornscan
+Section: net
+Priority: optional
+Maintainer: Robert Lee <robert@loveathome.us>
+Build-Depends: debhelper-compat (= 13),
+               autoconf,
+               automake,
+               libtool,
+               libpcap-dev,
+               libdnet-dev,
+               libltdl-dev,
+               libpq-dev,
+               flex,
+               bison
+Standards-Version: 4.6.0
+Homepage: https://github.com/robertelee78/unicornscan
+Rules-Requires-Root: no
+
+Package: unicornscan
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Asynchronous stateless TCP/UDP network scanner
+ Unicornscan is an asynchronous network scanner designed for
+ scalable, accurate, and flexible port scanning. It separates
+ the sending and receiving of packets into separate processes
+ for maximum performance.
+ .
+ Features include:
+  - Asynchronous stateless TCP scanning with full banner grabbing
+  - Asynchronous UDP scanning with custom payloads
+  - ARP scanning for local network discovery
+  - OS fingerprinting via p0f v3 integration
+  - PostgreSQL/Supabase database export
+  - Configurable packet rates up to millions of PPS
