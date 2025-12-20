@@ -113,9 +113,80 @@ jobs:
           name: unicornscan-${{ matrix.distro }}
           path: artifacts/*.deb
 
+  build-rpm:
+    name: Build .rpm (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: fedora-40
+            container: fedora:40
+          - distro: fedora-41
+            container: fedora:41
+          - distro: rocky-9
+            container: rockylinux:9
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install build dependencies (Fedora)
+        if: startsWith(matrix.distro, 'fedora')
+        run: |
+          dnf install -y rpm-build rpmdevtools autoconf automake libtool \
+            libtool-ltdl-devel libpcap-devel libdnet-devel postgresql-devel \
+            flex bison gcc make git
+
+      - name: Install build dependencies (Rocky)
+        if: startsWith(matrix.distro, 'rocky')
+        run: |
+          dnf install -y epel-release
+          dnf config-manager --set-enabled crb
+          dnf install -y rpm-build rpmdevtools autoconf automake libtool \
+            libtool-ltdl-devel libpcap-devel libdnet-devel postgresql-devel \
+            flex bison gcc make git
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup RPM build environment
+        run: rpmdev-setuptree
+
+      - name: Create source tarball
+        run: |
+          mkdir -p /tmp/unicornscan-0.4.8
+          cp -r . /tmp/unicornscan-0.4.8/
+          cd /tmp
+          tar czf ~/rpmbuild/SOURCES/unicornscan-0.4.8.tar.gz unicornscan-0.4.8
+
+      - name: Copy spec file
+        run: cp rpm/unicornscan.spec ~/rpmbuild/SPECS/
+
+      - name: Build RPM
+        run: |
+          cd ~/rpmbuild/SPECS
+          rpmbuild -ba unicornscan.spec
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp ~/rpmbuild/RPMS/x86_64/*.rpm artifacts/
+          # Rename to include distro
+          for f in artifacts/*.rpm; do
+            newname=$(echo "$f" | sed "s/\.x86_64\.rpm/_${{ matrix.distro }}.x86_64.rpm/")
+            mv "$f" "$newname"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unicornscan-${{ matrix.distro }}
+          path: artifacts/*.rpm
+
   release:
     name: Create Release
-    needs: build-deb
+    needs: [build-deb, build-rpm]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -135,7 +206,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/*.deb
+          files: |
+            artifacts/*.deb
+            artifacts/*.rpm
           generate_release_notes: true
           draft: false
           prerelease: false
