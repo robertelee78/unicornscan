@@ -36,9 +36,11 @@ jobs:
 
     steps:
       - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update
-          apt-get install -y \
+          apt-get install -y --no-install-recommends \
             build-essential \
             debhelper \
             devscripts \
@@ -69,7 +71,10 @@ jobs:
 
       - name: Build .deb package
         run: |
-          dpkg-buildpackage -us -uc -b -d
+          set -x
+          echo "=== Starting dpkg-buildpackage ==="
+          dpkg-buildpackage -us -uc -b -d 2>&1 || { echo "Build failed with exit code $?"; exit 1; }
+          echo "=== Build completed ==="
           mkdir -p artifacts
           mv ../*.deb artifacts/
           # Rename to include distro
