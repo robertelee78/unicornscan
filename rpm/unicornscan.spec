@@ -44,6 +44,8 @@ Features include:
 
 %build
 autoreconf -fi
+# Legacy C code has format string warnings - downgrade to warning only
+export CFLAGS="${CFLAGS} -Wno-error=format-security -Wno-error=format-truncation"
 %configure --with-pgsql
 make %{?_smp_mflags}
 
