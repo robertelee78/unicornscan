@@ -17,7 +17,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.          *
  **********************************************************************/
 #include <config.h>
-#include <time.h>
 
 #include <settings.h>
 #include <unilib/xdelay.h>
@@ -31,7 +30,7 @@ int tsc_supported(void) {
 	return 1;
 }
 
-static tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	uint32_t lo, hi;
 	asm volatile (	"pause\n"
 			"nop\n"
@@ -53,7 +52,7 @@ int tsc_supported(void) {
 	 * by Matteo Frigo
 	 */
 
-static tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	uint32_t tbl, tbu0, tbu1;
 
 	asm volatile("nop");
@@ -76,7 +75,7 @@ int tsc_supported(void) {
 	return 1;
 }
 
-static tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	tsc_t j;
 
 	asm volatile (
@@ -97,7 +96,7 @@ int tsc_supported(void) {
 	return 1;
 }
 
-static tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	uint32_t j;
 
 	/*
@@ -121,7 +120,7 @@ static tsc_t get_tsc(void) {
 
 /* illegal instruction on my test box */
 
-static tsc_t get_tsc(void) {
+inline tsc_t get_tsc(void) {
 	volatile tsc_t ret=0;
 
 	/* read coprocessor register 9 (count/timer) */
@@ -145,7 +144,7 @@ int tsc_supported(void) {
 	return 0;
 }
 
-static tsc_t get_tsc(void) {
+static inline tsc_t get_tsc(void) {
 	PANIC("Your CPU is not supported by the `tsc' delay, use -d2 or -d3 or edit your config file to use gtod or sleep");
 }
 

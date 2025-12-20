@@ -3,7 +3,7 @@ include ../../../Makefile.inc
 G_LDPATH=-L$(BUILD_DIR)/src/unilib -L$(BUILD_DIR)/src/scan_progs -L$(BUILD_DIR)/src/parse -L$(BUILD_DIR)/src/scan_progs
 CFLAGS += -DMODULE=1
 
-SRCS=dodetect.c module.c
+SRCS=dodetect.c module.c p0f3_parse.c
 OBJS=$(SRCS:.c=.lo)
 LIBNAME=osdetect.la
 

@@ -20,7 +20,6 @@
 
 #include <errno.h>
 #include <signal.h>
-#include <time.h>
 
 #include <settings.h>
 #include <getconfig.h>
@@ -169,7 +168,10 @@ int main(int argc, char **argv) {
 	else {
 		/* let the listener tell us then, the user didnt request a specific address */
 		strcpy(s->vi[0]->myaddr_s, "0.0.0.0");
-		strcpy(s->vi[0]->hwaddr_s, "00:00:00:00:00:00");
+		/* preserve hwaddr if already set by -H option */
+		if (strlen(s->vi[0]->hwaddr_s) == 0) {
+			strcpy(s->vi[0]->hwaddr_s, "00:00:00:00:00:00");
+		}
 	}
 
 	s->vi[0]->mtu=0; /* the listener will to tell us this */

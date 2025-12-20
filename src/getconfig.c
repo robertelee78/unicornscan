@@ -45,6 +45,7 @@
 #include <getopt.h>
 #endif
 
+#include <supabase_setup.h>
 
 #include <compile.h>
 
@@ -95,8 +96,15 @@ int getconfig_argv(int argc, char ** argv) {
 	int ch=0;
 	char conffile[512];
 
+/* Long-only option values (must be >= 256 to not conflict with short opts) */
+#define OPT_SUPABASE_URL	256
+#define OPT_SUPABASE_KEY	257
+#define OPT_SUPABASE_DB_PASSWORD	258
+#define OPT_SUPABASE_SETUP	259
+#define OPT_SUPABASE_REGION	260
+
 #define OPTS	\
-		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H" "i:" "I" "j:" "l:" "L:" "m:" "M:" "o:" "p:" "P:" "q:" "Q" \
+		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
 		"r:" "R:" "s:" "S" "t:" "T:" "u:" "U" "w:" "W:" "v" "V" "z" "Z:"
 
 #ifdef WITH_LONGOPTS
@@ -111,7 +119,7 @@ int getconfig_argv(int argc, char ** argv) {
 		{"try-frags",		0, NULL, 'F'},
 		{"payload-group",	1, NULL, 'G'},
 		{"help",		0, NULL, 'h'},
-		{"do-dns",		0, NULL, 'H'},
+		{"hardware-address",	1, NULL, 'H'},
 		{"interface",		1, NULL, 'i'},
 		{"immediate",		0, NULL, 'I'},
 		{"ignore-seq",		1, NULL, 'j'},
@@ -119,6 +127,7 @@ int getconfig_argv(int argc, char ** argv) {
 		{"packet-timeout",	1, NULL, 'L'},
 		{"mode",		1, NULL, 'm'},
 		{"module-dir",		1, NULL, 'M'},
+		{"do-dns",		0, NULL, 'N'},
 		{"format",		1, NULL, 'o'},
 		{"ports",		1, NULL, 'p'},
 		{"pcap-filter",		1, NULL, 'P'},
@@ -138,6 +147,12 @@ int getconfig_argv(int argc, char ** argv) {
 		{"version",		0, NULL, 'V'},
 		{"sniff",		0, NULL, 'z'},
 		{"drone-str",		1, NULL, 'Z'},
+		/* Supabase cloud database integration (long-only options) */
+		{"supabase-url",	1, NULL, OPT_SUPABASE_URL},
+		{"supabase-key",	1, NULL, OPT_SUPABASE_KEY},
+		{"supabase-db-password", 1, NULL, OPT_SUPABASE_DB_PASSWORD},
+		{"supabase-region",	1, NULL, OPT_SUPABASE_REGION},
+		{"supabase-setup",	0, NULL, OPT_SUPABASE_SETUP},
 		{NULL,			0, NULL,  0 }
 	};
 #endif /* LONG OPTION SUPPORT */
@@ -147,6 +162,14 @@ int getconfig_argv(int argc, char ** argv) {
 	snprintf(conffile, sizeof(conffile) -1, CONF_FILE, s->profile);
 	if (readconf(conffile) < 0) {
 		return -1;
+	}
+
+	/*
+	 * Load saved Supabase configuration from ~/.unicornscan/supabase.conf
+	 * This provides lowest priority - CLI args and env vars can override
+	 */
+	if (supabase_load_config() < 0) {
+		VRB(0, "warning: failed to load Supabase configuration file");
 	}
 
 #ifdef WITH_LONGOPTS
@@ -213,8 +236,8 @@ int getconfig_argv(int argc, char ** argv) {
 				usage();
 				break;
 
-			case 'H': /* resolve ip addresses into names during reporting phase */
-				if (scan_setdodns(1) < 0) {
+			case 'H': /* spoof hardware (MAC) address */
+				if (scan_setspoofmac(optarg) < 0) {
 					usage();
 				}
 				break;
@@ -262,6 +285,12 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+
+			case 'N': /* resolve ip addresses into names during reporting phase */
+				if (scan_setdodns(1) < 0) {
+					usage();
+				}
+				break;
 			case 'o': /* report format string */
 				if (scan_setformat(optarg) < 0) {
 					usage();
@@ -378,6 +407,38 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+			case OPT_SUPABASE_URL: /* Supabase project URL */
+				if (scan_setsupabaseurl(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_SUPABASE_KEY: /* Supabase API key */
+				if (scan_setsupabasekey(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_SUPABASE_DB_PASSWORD: /* Supabase database password */
+				if (scan_setsupabasedbpassword(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_SUPABASE_REGION: /* Supabase AWS region */
+				if (scan_setsupabaseregion(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_SUPABASE_SETUP: /* Run interactive setup wizard */
+				if (supabase_run_wizard() == 0) {
+					uexit(0); /* Success - exit */
+				} else {
+					uexit(1); /* Error - exit with failure */
+				}
+				break;
+
 			default:
 				usage();
 				break;
@@ -387,6 +448,70 @@ int getconfig_argv(int argc, char ** argv) {
 	/* its not set if its null, so set it, otherwise it is */
 	if (s->mod_dir == NULL) {
 		scan_setmoddir(MODULE_DIR);
+	}
+
+	/*
+	 * Supabase environment variable fallback
+	 * Priority: CLI flags > UNICORNSCAN_SUPABASE_* > SUPABASE_*
+	 */
+	if (s->supabase_url == NULL) {
+		const char *env_url=NULL;
+
+		env_url=getenv("UNICORNSCAN_SUPABASE_URL");
+		if (env_url == NULL) {
+			env_url=getenv("SUPABASE_URL");
+		}
+		if (env_url != NULL && strlen(env_url) > 0) {
+			if (scan_setsupabaseurl(env_url) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_URL environment variable is invalid, ignoring");
+			}
+		}
+	}
+
+	if (s->supabase_key == NULL) {
+		const char *env_key=NULL;
+
+		env_key=getenv("UNICORNSCAN_SUPABASE_KEY");
+		if (env_key == NULL) {
+			env_key=getenv("SUPABASE_KEY");
+		}
+		if (env_key != NULL && strlen(env_key) > 0) {
+			if (scan_setsupabasekey(env_key) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_KEY environment variable is invalid, ignoring");
+			}
+		}
+	}
+
+	if (s->supabase_db_password == NULL) {
+		const char *env_pass=NULL;
+
+		env_pass=getenv("UNICORNSCAN_SUPABASE_DB_PASSWORD");
+		if (env_pass == NULL) {
+			env_pass=getenv("SUPABASE_DB_PASSWORD");
+		}
+		if (env_pass != NULL && strlen(env_pass) > 0) {
+			if (scan_setsupabasedbpassword(env_pass) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_DB_PASSWORD environment variable is invalid, ignoring");
+			}
+		}
+	}
+
+	if (s->supabase_region == NULL) {
+		const char *env_region=NULL;
+
+		env_region=getenv("UNICORNSCAN_SUPABASE_REGION");
+		if (env_region == NULL) {
+			env_region=getenv("SUPABASE_REGION");
+		}
+		if (env_region != NULL && strlen(env_region) > 0) {
+			if (scan_setsupabaseregion(env_region) < 0) {
+				/* Don't fail - env var may be set for other tools */
+				VRB(0, "warning: SUPABASE_REGION environment variable is invalid, ignoring");
+			}
+		}
 	}
 
 	s->argv_ext=fifo_init();
@@ -461,7 +586,7 @@ static void usage(void) {
 	"\t-F, --try-frags       \n"
 	"\t-G, --payload-group	*payload group (numeric) for tcp/udp type payload selection (default all)\n"
 	"\t-h, --help            help\n"
-	"\t-H, --do-dns          resolve hostnames during the reporting phase\n"
+	"\t-H, --hardware-address *spoof source MAC address (XX:XX:XX:XX:XX:XX format)\n"
 	"\t-i, --interface      *interface name, like eth0 or fxp1, not normally required\n"
 	"\t-I, --immediate       immediate mode, display things as we find them\n"
 	"\t-j, --ignore-seq     *ignore `A'll, 'R'eset sequence numbers for tcp header validation\n"
@@ -471,6 +596,7 @@ static void usage(void) {
 	"\t                       for -mT you can also specify tcp flags following the T like -mTsFpU for example\n"
 	"\t                       that would send tcp syn packets with (NO Syn|FIN|NO Push|URG)\n"
 	"\t-M, --module-dir     *directory modules are found at (defaults to %s)\n"
+	"\t-N, --do-dns          resolve hostnames during the reporting phase\n"
 	"\t-o, --format         *format of what to display for replies, see man page for format specification\n"
 	"\t-p, --ports           global ports to scan, if not specified in target options\n"
 	"\t-P, --pcap-filter    *extra pcap filter string for reciever\n"
@@ -486,11 +612,17 @@ static void usage(void) {
 	"\t-U, --no-openclosed	 dont say open or closed\n"
 	"\t-w, --safefile       *write pcap file of recieved packets\n"
 	"\t-W, --fingerprint    *OS fingerprint 0=cisco(def) 1=openbsd 2=WindowsXP 3=p0fsendsyn 4=FreeBSD 5=nmap\n"
-	"\t                      6=linux 7:strangetcp\n"
+	"\t                      6=linux 7=strangetcp 8=Win10/11 9=Linux5/6 10=macOS 11=Android\n"
 	"\t-v, --verbose         verbose (each time more verbose so -vvvvv is really verbose)\n"
 	"\t-V, --version         display version\n"
 	"\t-z, --sniff           sniff alike\n"
 	"\t-Z, --drone-str      *drone String\n"
+	"\n\tSupabase Cloud Database:\n"
+	"\t    --supabase-setup  Interactive setup wizard (saves config to ~/.unicornscan/)\n"
+	"\t    --supabase-url   *Supabase project URL (env: UNICORNSCAN_SUPABASE_URL or SUPABASE_URL)\n"
+	"\t    --supabase-key   *Supabase API key (env: UNICORNSCAN_SUPABASE_KEY or SUPABASE_KEY)\n"
+	"\t    --supabase-db-password *Database password (env: UNICORNSCAN_SUPABASE_DB_PASSWORD)\n"
+	"\t    --supabase-region *AWS region for pooler (e.g., us-west-2) (env: SUPABASE_REGION)\n"
 	"*:\toptions with `*' require an argument following them\n\n"
 	"  address ranges are cidr like 1.2.3.4/8 for all of 1.?.?.?\n"
 	"  if you omit the cidr mask then /32 is implied\n"
