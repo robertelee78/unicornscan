@@ -53,7 +53,8 @@ jobs:
             libpq-dev \
             flex \
             bison \
-            git
+            git \
+            pkg-config
 
       - name: Checkout code
         uses: actions/checkout@v4

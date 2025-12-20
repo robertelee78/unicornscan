@@ -8,7 +8,7 @@ G_LDADD=-lscan -lunilib -lltdl $(LDFLAGS)
 all: $(PROGS)
 
 fantaip: fantaip.lo
-	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o fantaip fantaip.lo $(G_LDPATH) $(G_LDADD) -lpcap -ldnet
+	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o fantaip fantaip.lo $(G_LDPATH) $(G_LDADD) -lpcap @DNETLIBS@
 
 unibrow: unibrow.lo
 	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o unibrow unibrow.lo $(G_LDPATH) $(G_LDADD) -lpcap

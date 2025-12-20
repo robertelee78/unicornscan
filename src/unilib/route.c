@@ -200,6 +200,10 @@ static void get_netroutes(void) {
 
 #else /* then use dnet , no proc net routes */
 
+#ifdef HAVE_DUMBNET_H
+#include <dumbnet.h>
+#else
 #include <dnet.h>
+#endif
 
 #endif

@@ -91,7 +91,7 @@ AC_SUBST(RANDOM_DEVICE)
 ])
 
 AC_DEFUN([AC_UNI_LIBDNET], [
-AC_MSG_CHECKING(for libdnet)
+AC_MSG_CHECKING(for libdnet/libdumbnet)
 default_libdnet_directories="/usr /usr/local"
 lookin=$default_libdnet_directories
 AC_ARG_WITH(libdnet,
@@ -116,11 +116,49 @@ if test "$lookin"; then
 		if test -x "$g/bin/dnet-config"; then
 			DNETLIBS=`$g/bin/dnet-config --libs`
 			DNETCFLG=`$g/bin/dnet-config --cflags`
-			AC_MSG_RESULT(yes, found inside $g)
+			AC_MSG_RESULT(yes, found dnet-config inside $g)
+			good=yes
+			break
+		elif test -x "$g/bin/dumbnet-config"; then
+			DNETLIBS=`$g/bin/dumbnet-config --libs`
+			DNETCFLG=`$g/bin/dumbnet-config --cflags`
+			AC_MSG_RESULT(yes, found dumbnet-config inside $g)
 			good=yes
 			break
 		fi
 	done
+fi
+dnl Try pkg-config as fallback (Debian/Ubuntu use libdumbnet)
+if test $good = "no"; then
+	PKG_CHECK_MODULES([DNET], [libdumbnet], [
+		DNETLIBS="$DNET_LIBS"
+		DNETCFLG="$DNET_CFLAGS"
+		AC_MSG_RESULT(yes, via pkg-config libdumbnet)
+		good=yes
+	], [
+		PKG_CHECK_MODULES([DNET], [libdnet], [
+			DNETLIBS="$DNET_LIBS"
+			DNETCFLG="$DNET_CFLAGS"
+			AC_MSG_RESULT(yes, via pkg-config libdnet)
+			good=yes
+		], [good=no])
+	])
+fi
+dnl Final fallback: try linking directly
+if test $good = "no"; then
+	AC_CHECK_LIB([dumbnet], [eth_open], [
+		DNETLIBS="-ldumbnet"
+		DNETCFLG=""
+		AC_MSG_RESULT(yes, libdumbnet found)
+		good=yes
+	], [
+		AC_CHECK_LIB([dnet], [eth_open], [
+			DNETLIBS="-ldnet"
+			DNETCFLG=""
+			AC_MSG_RESULT(yes, libdnet found)
+			good=yes
+		], [good=no])
+	])
 fi
 if test $good = "no"; then
 	NEED_AUX_LIBS="${NEED_AUX_LIBS} libdnet"
@@ -128,6 +166,14 @@ if test $good = "no"; then
 	DNETCFLG=""
 	AC_MSG_RESULT(no, using supplied version)
 fi
+dnl Check for dumbnet.h vs dnet.h header
+AC_CHECK_HEADERS([dumbnet.h], [
+	AC_DEFINE([HAVE_DUMBNET_H], [1], [Define if dumbnet.h is available])
+], [
+	AC_CHECK_HEADERS([dnet.h], [], [
+		AC_MSG_WARN([Neither dnet.h nor dumbnet.h found])
+	])
+])
 AC_SUBST(DNETCFLG)
 AC_SUBST(DNETLIBS)
 ])

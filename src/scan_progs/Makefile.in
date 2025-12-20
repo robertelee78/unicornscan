@@ -18,7 +18,7 @@ ENTRY=entry.c
 
 G_HDRS=packets.h scan_export.h
 G_LDPATH=-L$(BUILD_DIR)/src/unilib -L$(BUILD_DIR)/src/parse -L$(BUILD_DIR)/src/scan_progs
-G_LDADD=-lscan -lparse -lunilib -lltdl -ldnet -luext
+G_LDADD=-lscan -lparse -lunilib -lltdl @DNETLIBS@ -luext
 
 all: $(L_LIBNAME) @sendername@ @listenername@
 
