@@ -45,9 +45,11 @@ Features include:
 %build
 autoreconf -fi
 # Legacy C code has warnings that GCC 14+ treats as errors - disable all Werror
-export CFLAGS="${CFLAGS} -Wno-error"
+# Use optflags as base to ensure proper optimization flags on all distros
+export CFLAGS="%{optflags} -Wno-error"
 %configure --with-pgsql
-make %{?_smp_mflags}
+# Disable parallel make due to dependency ordering issues in legacy Makefiles
+make
 
 %install
 rm -rf %{buildroot}
