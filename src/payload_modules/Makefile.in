@@ -1,11 +1,16 @@
 include ../../Makefile.inc
 
-SRCS=ntalk.c rdns.c sip.c upnp.c http.c httpexp.c
+SRCS=ntalk.c rdns.c sip.c upnp.c http.c httpexp.c dhcp.c stun.c nbns.c
 
 OBJS=$(SRCS:.c=.lo)
 SHLIBS=$(OBJS:.lo=.la)
 
 CFLAGS += -DMODULE=1 -I./libunirainbow -L./libunirainbow
+
+# Ensure libunirainbow is built before any .lo files (order-only prerequisite)
+$(OBJS): | libunirainbowd
+
+.PHONY: libunirainbowd
 
 %.la: %.lo
 	$(LIBTOOL) --mode=link $(CC) $(MODCLFLAGS) $(CFLAGS) -o $@ $< -lunirainbow

@@ -20,7 +20,6 @@
 
 #include <errno.h>
 #include <ctype.h>
-#include <time.h>
 
 #include <settings.h>
 
@@ -793,6 +792,151 @@ int scan_setverboseinc(void) { /* kludge for getconfig.c */
 	}
 
 	++s->verbose;
+
+	return 1;
+}
+
+int scan_setspoofmac(const char *mac) {
+	unsigned int a, b, c, d, e, f;
+
+	if (mac == NULL || strlen(mac) < 1) {
+		ERR("MAC address is empty");
+		return -1;
+	}
+
+	/* Validate and parse MAC address format XX:XX:XX:XX:XX:XX */
+	if (sscanf(mac, "%x:%x:%x:%x:%x:%x", &a, &b, &c, &d, &e, &f) != 6) {
+		ERR("invalid MAC address format `%s' (expected XX:XX:XX:XX:XX:XX)", mac);
+		return -1;
+	}
+
+	/* Validate each octet is in range */
+	if (a > 255 || b > 255 || c > 255 || d > 255 || e > 255 || f > 255) {
+		ERR("MAC address octet out of range in `%s'", mac);
+		return -1;
+	}
+
+	/* Store in hwaddr_s for later use by child process */
+	snprintf(s->vi[0]->hwaddr_s, sizeof(s->vi[0]->hwaddr_s) - 1,
+		"%02x:%02x:%02x:%02x:%02x:%02x", a, b, c, d, e, f);
+
+	/* Also populate the binary hwaddr array */
+	s->vi[0]->hwaddr[0] = (uint8_t)a;
+	s->vi[0]->hwaddr[1] = (uint8_t)b;
+	s->vi[0]->hwaddr[2] = (uint8_t)c;
+	s->vi[0]->hwaddr[3] = (uint8_t)d;
+	s->vi[0]->hwaddr[4] = (uint8_t)e;
+	s->vi[0]->hwaddr[5] = (uint8_t)f;
+
+	return 1;
+}
+
+int scan_setsupabaseurl(const char *url) {
+	size_t len;
+
+	if (url == NULL || (len = strlen(url)) < 1) {
+		ERR("Supabase URL is empty");
+		return -1;
+	}
+
+	/* URL must start with https:// (Supabase requires secure connections) */
+	if (strncmp(url, "https://", 8) != 0) {
+		ERR("Supabase URL must start with https:// (got `%s')", url);
+		return -1;
+	}
+
+	/* Basic sanity check: should be at least https://x.supabase.co length */
+	if (len < 20) {
+		ERR("Supabase URL appears too short to be valid: `%s'", url);
+		return -1;
+	}
+
+	/* Validate Supabase domain */
+	if (strstr(url, ".supabase.co") == NULL) {
+		ERR("Supabase URL must contain .supabase.co domain: `%s'", url);
+		return -1;
+	}
+
+	if (s->supabase_url != NULL) {
+		xfree(s->supabase_url);
+	}
+
+	s->supabase_url = xstrdup(url);
+
+	return 1;
+}
+
+int scan_setsupabasekey(const char *key) {
+	size_t len;
+
+	if (key == NULL || (len = strlen(key)) < 1) {
+		ERR("Supabase API key is empty");
+		return -1;
+	}
+
+	/* Supabase keys are JWTs, typically start with eyJ and are 200+ chars */
+	if (len < 100) {
+		ERR("Supabase API key appears too short (expected JWT format): length %zu", len);
+		return -1;
+	}
+
+	if (s->supabase_key != NULL) {
+		xfree(s->supabase_key);
+	}
+
+	s->supabase_key = xstrdup(key);
+
+	return 1;
+}
+
+int scan_setsupabasedbpassword(const char *password) {
+	size_t len;
+
+	if (password == NULL || (len = strlen(password)) < 1) {
+		ERR("Supabase database password is empty");
+		return -1;
+	}
+
+	/* Database passwords should be at least 6 characters */
+	if (len < 6) {
+		ERR("Supabase database password appears too short: length %zu", len);
+		return -1;
+	}
+
+	if (s->supabase_db_password != NULL) {
+		xfree(s->supabase_db_password);
+	}
+
+	s->supabase_db_password = xstrdup(password);
+
+	return 1;
+}
+
+int scan_setsupabaseregion(const char *region) {
+	size_t len;
+
+	if (region == NULL || (len = strlen(region)) < 1) {
+		ERR("Supabase region is empty");
+		return -1;
+	}
+
+	/* Region should be AWS-style like "us-west-2", "us-east-1", "eu-west-1" */
+	if (len < 5 || len > 20) {
+		ERR("Supabase region `%s' appears invalid (expected AWS region format like us-west-2)", region);
+		return -1;
+	}
+
+	/* Basic format check: should contain at least one hyphen */
+	if (strchr(region, '-') == NULL) {
+		ERR("Supabase region `%s' appears invalid (expected format like us-west-2)", region);
+		return -1;
+	}
+
+	if (s->supabase_region != NULL) {
+		xfree(s->supabase_region);
+	}
+
+	s->supabase_region = xstrdup(region);
 
 	return 1;
 }

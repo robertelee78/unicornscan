@@ -1,349 +1,332 @@
-/**********************************************************************
- * Copyright (C) (2006) (Jack Louis) <jack@rapturesecurity.org>       *
- *                                                                    *
- * This program is free software; you can redistribute it and/or      *
- * modify it under the terms of the GNU General Public License        *
- * as published by the Free Software Foundation; either               *
- * version 2 of the License, or (at your option) any later            *
- * version.                                                           *
- *                                                                    *
- * This program is distributed in the hope that it will be useful,    *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of     *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the      *
- * GNU General Public License for more details.                       *
- *                                                                    *
- * You should have received a copy of the GNU General Public License  *
- * along with this program; if not, write to the Free Software        *
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.          *
- **********************************************************************/
+/* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
-/*
- * you have selinux, or you dont. its not that complex
- * only enable this if you _always use_ selinux, you will know
- * if you do, otherwise comment this out
- */
-#undef WITH_SELINUX
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
 
-/* 
- * GNU/Linux with /usr/include/execinfo.h, otherwise comment it out
- */
-#undef WITH_BACKTRACE
-
-/*
- * GNU/Linux and some other (newer) systems might have this, its ok to say no
- * even if you dont have this, you just wont have the -- options on the command line
- */
-#undef WITH_LONGOPTS
-
-/*
- * most people these days have this file, if you _dont_ have it, then youll need to put the "full path"
- * to a file that can be read that contains random data.
- */
-#undef RANDOM_DEVICE
-
-/*
- * with linux, define this (or if you have /proc/net/route)
- * otherwise use we will make due, remeber to use -i if you dont have /proc/net/route
- */
-#undef HAVE_PROC_NET_ROUTE
-
-/* may not be used, if using MAC */
-#undef NOPRIV_USER
-
-/*
- * cc __attribute__(()) support
- */
-#undef HAVE___ATTRIBUTE__
-
-
-/* XXX */
+/* Define if CPU is big-endian */
 #undef CPU_BIGENDIAN
+
+/* Define if CPU is little-endian */
 #undef CPU_LITTLEENDIAN
+
+/* Enable debugging support */
+#undef DEBUG_SUPPORT
+
+/* Define to 1 if you have the 'alarm' function. */
+#undef HAVE_ALARM
+
+/* Define to 1 if you have the <arpa/inet.h> header file. */
+#undef HAVE_ARPA_INET_H
+
+/* Define to 1 if you have the 'closedir' function. */
+#undef HAVE_CLOSEDIR
+
+/* Define to 1 if you have the <dirent.h> header file. */
+#undef HAVE_DIRENT_H
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the 'fork' function. */
+#undef HAVE_FORK
+
+/* Define to 1 if you have the 'getaddrinfo' function. */
+#undef HAVE_GETADDRINFO
+
+/* Define to 1 if you have the 'gethostbyname' function. */
+#undef HAVE_GETHOSTBYNAME
+
+/* Define to 1 if you have the 'getnameinfo' function. */
+#undef HAVE_GETNAMEINFO
+
+/* Define to 1 if you have the 'gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define to 1 if you have the <ifaddrs.h> header file. */
+#undef HAVE_IFADDRS_H
+
+/* Define to 1 if you have the 'inet_ntoa' function. */
+#undef HAVE_INET_NTOA
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the 'GeoIP' library (-lGeoIP). */
 #undef HAVE_LIBGEOIP
 
-#undef STDC_HEADERS
-#undef HAVE_ARPA_INET_H
-#undef HAVE_IFADDRS_H
-#undef HAVE_INTTYPES_H
+/* Define to 1 if you have the 'ltdl' library (-lltdl). */
+#undef HAVE_LIBLTDL
+
+/* Define to 1 if you have the 'pcap' library (-lpcap). */
+#undef HAVE_LIBPCAP
+
+/* Define to 1 if you have the 'z' library (-lz). */
+#undef HAVE_LIBZ
+
+/* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
+
+/* Define to 1 if your system has a GNU libc compatible 'malloc' function, and
+   to 0 otherwise. */
+#undef HAVE_MALLOC
+
+/* Define to 1 if you have the <malloc.h> header file. */
+#undef HAVE_MALLOC_H
+
+/* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-#undef HAVE_NETINET_IF_ETHER_H
-#undef HAVE_NETINET_IN_H
-#undef HAVE_NET_BPF_H
-#undef HAVE_NET_ETHERNET_H
-#undef HAVE_NET_IF_DL_H
-#undef HAVE_NET_IF_H
-#undef HAVE_PCAP_LIB_VERSION
-#undef HAVE_PCAP_SET_NONBLOCK
-#undef HAVE_STDINT_H
-#undef HAVE_STDLIB_H
-#undef HAVE_STRINGS_H
-#undef HAVE_STRING_H
-#undef HAVE_SYS_ETHERNET_H
-#undef HAVE_SYS_SOCKET_H
-#undef HAVE_SYS_STAT_H
-#undef HAVE_SYS_TIME_H
-#undef HAVE_SYS_WAIT_H
-#undef HAVE_UNISTD_H
-#undef TIME_WITH_SYS_TIME
+
+/* Define to 1 if you have the 'memset' function. */
+#undef HAVE_MEMSET
+
+/* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
-#undef HAVE_SYS_IOCTL_H
-#undef HAVE_FCNTL_H
-#undef DEBUG_SUPPORT
+
+/* Define to 1 if you have the <netinet/ether.h> header file. */
 #undef HAVE_NETINET_ETHER_H
+
+/* Define to 1 if you have the <netinet/if_ether.h> header file. */
+#undef HAVE_NETINET_IF_ETHER_H
+
+/* Define to 1 if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
+/* Define to 1 if you have the <netpacket/packet.h> header file. */
 #undef HAVE_NETPACKET_PACKET_H
 
+/* Define to 1 if you have the <net/bpf.h> header file. */
+#undef HAVE_NET_BPF_H
 
-#undef WITH_MYSQL
-#undef WITH_PGSQL
+/* Define to 1 if you have the <net/ethernet.h> header file. */
+#undef HAVE_NET_ETHERNET_H
 
-/* XXX fixme */
-#undef SHLIB_EXT
-#undef LTDL_SHLIB_EXT
+/* Define to 1 if you have the <net/if_dl.h> header file. */
+#undef HAVE_NET_IF_DL_H
 
-#define UNI_SYNC_SIGNAL	SIGUSR1
+/* Define to 1 if you have the <net/if.h> header file. */
+#undef HAVE_NET_IF_H
 
-/*
- * used to find out when spawned processes or connected drones have given us a foul taste for execution, 
- * causing us to cease our existance in this cruel world
- */
-#define MAX_ERRORS 32
+/* Define if p0f v3 API is available */
+#undef HAVE_P0F3_API
 
-#define DEF_SOCK_TIMEOUT 8
+/* Define if pcap_lib_version is available */
+#undef HAVE_PCAP_LIB_VERSION
 
-/* you can change this, it doesnt matter, think firewalls */
-#define BINDPORT_START	8000
-#define DEF_LISTEN_ADDR	"localhost:1234"
+/* Define if pcap_setnonblock is available */
+#undef HAVE_PCAP_SET_NONBLOCK
 
-/*
- * by default, 2 processes will be forked, this is where they will listen
- */
-#define DEF_SENDER	"unix:" LOCALSTATEDIR "/" TARGETNAME "/send"
-#define DEF_LISTENER	"unix:" LOCALSTATEDIR "/" TARGETNAME "/listen"
+/* Define if /proc/net/route is available */
+#undef HAVE_PROC_NET_ROUTE
 
-#define DEF_SCANTIMEOUT 7	/* number of seconds to wait for packets coming back */
+/* Define to 1 if your system has a GNU libc compatible 'realloc' function,
+   and to 0 otherwise. */
+#undef HAVE_REALLOC
 
-#undef SENDERNAME
-#undef TARGETNAME
+/* Define to 1 if you have the 'select' function. */
+#undef HAVE_SELECT
+
+/* Define to 1 if you have the 'socket' function. */
+#undef HAVE_SOCKET
+
+/* Define to 1 if you have the 'stat' function. */
+#undef HAVE_STAT
+
+/* Define to 1 if you have the <stddef.h> header file. */
+#undef HAVE_STDDEF_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the 'strdup' function. */
+#undef HAVE_STRDUP
+
+/* Define to 1 if you have the 'strerror' function. */
+#undef HAVE_STRERROR
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the 'strrchr' function. */
+#undef HAVE_STRRCHR
+
+/* Define to 1 if you have the 'strstr' function. */
+#undef HAVE_STRSTR
+
+/* Define if struct sockaddr has sa_len member */
+#undef HAVE_STRUCT_SOCKADDR_LEN
+
+/* Define to 1 if you have the <sys/ethernet.h> header file. */
+#undef HAVE_SYS_ETHERNET_H
+
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
+
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <sys/wait.h> header file. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the 'vfork' function. */
+#undef HAVE_VFORK
+
+/* Define to 1 if you have the <vfork.h> header file. */
+#undef HAVE_VFORK_H
+
+/* Define to 1 if you have the 'vprintf' function. */
+#undef HAVE_VPRINTF
+
+/* Define to 1 if 'fork' works. */
+#undef HAVE_WORKING_FORK
+
+/* Define to 1 if 'vfork' works. */
+#undef HAVE_WORKING_VFORK
+
+/* define if your compiler has __attribute__ */
+#undef HAVE___ATTRIBUTE__
+
+/* Name of listener binary */
 #undef LISTENERNAME
 
-#define CONF_DIR	SYSCONFDIR "/" TARGETNAME
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#undef LT_OBJDIR
 
-#define CONF_FILE	CONF_DIR "/%s.conf"
-#define DEF_PROFILE	"unicorn"
+/* Non-privileged user for listener */
+#undef NOPRIV_USER
 
-#define PORT_NUMBERS	CONF_DIR "/ports.txt"
-#define OUI_CONF	CONF_DIR "/oui.txt"
-#define MODULE_DIR	LIBDIR "/" TARGETNAME "/modules"
-#define SENDER_PATH	LIBEXECDIR "/" TARGETNAME "/" SENDERNAME
-#define LISTENER_PATH	LIBEXECDIR "/" TARGETNAME "/" LISTENERNAME
+/* Path to p0f v3 socket */
+#undef P0F3_SOCKET_PATH
 
-/* may or may not be used, depending */
-#define CHROOT_DIR LOCALSTATEDIR "/" TARGETNAME
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
 
-#define MAX_CONNS	32	/* MAX amount of ipc or pollable connections	*/
-#define IPC_DSIZE	65536	/* MAX amount of bytes for an ipc message chunk	*/
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
 
-#ifdef HAVE___ATTRIBUTE__
-# define _PACKED_ __attribute__((packed))
-# define _PRINTF45_ __attribute__((format(printf, 4, 5)))
-# define _PRINTF45NR_ __attribute__((format(printf, 4, 5), noreturn))
-# define _PRINTF12NR_ __attribute__((format(printf, 1, 2), noreturn))
-# define _NORETURN_ __attribute__((noreturn))
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Path to random device */
+#undef RANDOM_DEVICE
+
+/* Name of sender binary */
+#undef SENDERNAME
+
+/* Shared library extension */
+#undef SHLIB_EXT
+
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
+#undef STDC_HEADERS
+
+/* Name of main binary */
+#undef TARGETNAME
+
+/* Use setreuid/setregid for privilege dropping */
+#undef USE_SETRE
+
+/* Define if backtrace is available */
+#undef WITH_BACKTRACE
+
+/* Define if getopt_long is available */
+#undef WITH_LONGOPTS
+
+/* Define if MySQL support is enabled */
+#undef WITH_MYSQL
+
+/* Define if PostgreSQL support is enabled */
+#undef WITH_PGSQL
+
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
 #else
-# define _PACKED_
-# define _PRINTF45_
-# define _PRINTF45NR_
-# define _PRINTF12NR_
-# define _NORETURN_
-#endif
-
-#include <stdio.h>
-#include <sys/types.h>
-
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
-
-#ifdef STDC_HEADERS
-# include <stdlib.h>
-# include <stddef.h>
-#else
-# ifdef HAVE_STDLIB_H
-#  include <stdlib.h>
-# endif
-#endif
-#ifdef HAVE_STRING_H
-# if !STDC_HEADERS && HAVE_MEMORY_H
-#  include <memory.h>
-# endif
-# include <string.h>
-#endif
-#ifdef HAVE_STRINGS_H
-# include <strings.h>
-#endif
-#ifdef HAVE_INTTYPES_H
-# include <inttypes.h>
-#else
-# ifdef HAVE_STDINT_H
-#  include <stdint.h>
-# endif
-#endif
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>
-#endif
-
-#if HAVE_SYS_WAIT_H
-# include <sys/wait.h>
-#endif
-#ifndef WEXITSTATUS
-# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
-#endif
-#ifndef WIFEXITED
-# define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
-#endif
-
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
 # endif
 #endif
 
-/* dont ask, its not worth trying to understand */
-#ifndef u_int
-# define u_int unsigned int
-#endif
-#ifndef u_short
-# define u_short unsigned short
-#endif
-#ifndef u_char
-# define u_char unsigned char
+/* Define for HP-UX */
+#undef _HPUX_SOURCE
+
+/* Define to empty if 'const' does not conform to ANSI C. */
+#undef const
+
+/* Define as 'int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define to '__inline__' or '__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
 #endif
 
-#ifdef HAVE_LIMITS_H
-# include <limits.h>
-#endif
+/* Define to rpl_malloc if the replacement function should be used. */
+#undef malloc
 
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-# include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-# include <netinet/in.h>
-#endif
-#ifdef HAVE_NET_IF_H
-# include <net/if.h>
-#endif
-#ifdef HAVE_NETINET_ETHER_H
-# include <netinet/ether.h>
-#endif
-#ifdef HAVE_NETPACKET_PACKET_H
-# include <netpacket/packet.h>
-#endif
-#ifdef HAVE_IFADDRS_H
-# include <ifaddrs.h>
-#endif
-#ifdef HAVE_ARPA_INET_H
-# include <arpa/inet.h>
-#endif
-#ifdef HAVE_NET_IF_DL_H
-# include <net/if_dl.h>
-#endif
+/* Define to 'long int' if <sys/types.h> does not define. */
+#undef off_t
 
-#ifdef HAVE_NET_ETHERNET_H
-# include <net/ethernet.h>
-#elif defined(HAVE_NETINET_IF_ETHER_H)
-# include <netinet/if_ether.h>
-#elif defined(HAVE_SYS_ETHERNET_H)
-# include <sys/ethernet.h>
-#endif
+/* Define as a signed integer type capable of holding a process identifier. */
+#undef pid_t
 
-#ifdef HAVE_NETDB_H
-# include <netdb.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif
-#ifdef HAVE_FCNTL_H
-# include <fcntl.h>
-#endif
+/* Define to rpl_realloc if the replacement function should be used. */
+#undef realloc
 
-#if defined(solaris) || (defined(__SVR4) && defined(sun))
-# define SOLARIS 1
-#endif
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
+#undef size_t
 
-#ifndef BYTE_ORDER
-# ifndef LITTLE_ENDIAN
-#  define LITTLE_ENDIAN 1234
-# endif
-# ifndef BIG_ENDIAN
-#  define BIG_ENDIAN 4321
-# endif
-# if defined(CPU_BIGENDIAN)
-#  define BYTE_ORDER BIG_ENDIAN
-# elif defined(CPU_LITTLEENDIAN)
-#  define BYTE_ORDER LITTLE_ENDIAN
-# else
-#  error PDP bad, weirdo
-# endif
-#endif /* BYTE ORDER */
+/* Define as 'int' if <sys/types.h> doesn't define. */
+#undef uid_t
 
-#ifndef PATH_MAX
-#define PATH_MAX 512
-#endif
-#ifndef INT_MAX
-# define INT_MAX 0x7fffffff /* seems good to me, i dont really feel like checking */
-#endif
+/* Define as 'fork' if 'vfork' does not work. */
+#undef vfork
 
-#include <globalheaders.h>
+/* Define to empty if the keyword 'volatile' does not work. Warning: valid
+   code using 'volatile' can become incorrect without. Disable with care. */
+#undef volatile
 
-/* some older boxes will require this gross stuff here */
-#ifndef suseconds_t
-#define suseconds_t long
-#endif
 
-#define assert(x) \
-	if (!(x)) { \
-		PANIC("Assertion `%s' fails", # x); \
-	}
+/* Include project-specific definitions not managed by autoheader */
+#include <unicorn_defs.h>
 
-#define THE_ONLY_SUPPORTED_HWADDR_LEN 6
-
-#ifdef MAX
-# undef MAX
-#endif
-#ifdef MIN
-# undef MIN
-#endif
-#ifdef SWAP
-# undef SWAP
-#endif
-
-#define MAX(x, y) ((x) > (y) ? (x) : (y))
-#define MIN(x, y) ((x) < (y) ? (x) : (y))
-#define SWAP(x, y)	\
-	(x) ^= (y);	\
-	(y) ^= (x);	\
-	(x) ^= (y)
-#define CLEAR(m) memset((m), 0, sizeof(m))
-
-#ifdef HAVE_STRUCT_SOCKADDR_LEN
-struct f_s {
-	uint8_t len;
-	uint8_t family;
-};
-#else
-struct f_s {
-	uint16_t family;
-};
-#endif
-
-#define SSTFMT	"%zd"
-#define STFMT	"%zu"

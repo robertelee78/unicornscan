@@ -1,8 +1,8 @@
 include ../Makefile.inc
 
-SRCS=chld.c drone_setup.c getconfig.c main.c usignals.c vip.c
+SRCS=chld.c drone_setup.c getconfig.c main.c supabase_setup.c usignals.c vip.c
 OBJS=$(SRCS:.c=.lo)
-HDRS=$(SRCS:.c=.h) config.h packageinfo.h settings.h 
+HDRS=$(SRCS:.c=.h) config.h packageinfo.h settings.h supabase_setup.h 
 
 G_LDPATH=-L$(BUILD_DIR)/src/unilib -L$(BUILD_DIR)/src/parse -L$(BUILD_DIR)/src/scan_progs
 G_LDADD=$(LDFLAGS) -lscan -lparse -lunilib -lpcap -lltdl -ldnet -luext

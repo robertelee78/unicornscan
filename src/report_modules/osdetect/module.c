@@ -27,6 +27,8 @@
 #include <unilib/xmalloc.h>
 #include <unilib/modules.h>
 
+#include <arpa/inet.h>
+
 #include "module.h"
 #include "dodetect.h"
 
@@ -125,6 +127,8 @@ void osdetect_init(void) {
 }
 
 void osdetect_fini(void) {
+	/* Clean up p0f v3 connection */
+	p0f3_cleanup();
 	return;
 }
 
@@ -142,6 +146,7 @@ int create_report(const void *r) {
 	output_data_t *e_out=NULL;
 	char *res=NULL;
 	struct in_addr ia;
+	char addr_str[INET_ADDRSTRLEN];
 
 	r_u.ptr=r;
 
@@ -173,7 +178,8 @@ int create_report(const void *r) {
 		res=do_osdetect(r_u.cr, dlen);
 
 		if (GET_IMMEDIATE() && res != NULL && strlen(res)) {
-			OUT("System at %s matches OS %s", inet_ntoa(ia), res);
+			inet_ntop(AF_INET, &ia, addr_str, sizeof(addr_str));
+			OUT("System at %s matches OS %s", addr_str, res);
 		}
 
 		if (res != NULL) {
