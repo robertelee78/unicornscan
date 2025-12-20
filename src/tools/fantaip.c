@@ -25,7 +25,11 @@
 
 #include <arpa/inet.h>
 
+#ifdef HAVE_DUMBNET_H
+#include <dumbnet.h>
+#else
 #include <dnet.h>
+#endif
 
 struct  myetheraddr {
 	uint8_t octet[THE_ONLY_SUPPORTED_HWADDR_LEN];

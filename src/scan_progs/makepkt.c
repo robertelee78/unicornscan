@@ -18,7 +18,11 @@
  **********************************************************************/
 #include <config.h>
 
+#ifdef HAVE_DUMBNET_H
+#include <dumbnet.h>
+#else
 #include <dnet.h>
+#endif
 
 #include <unilib/output.h>
 #include <unilib/pktutil.h>

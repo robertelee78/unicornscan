@@ -19,7 +19,11 @@
 #include <config.h>
 
 #include <errno.h>
+#ifdef HAVE_DUMBNET_H
+#include <dumbnet.h>
+#else
 #include <dnet.h>
+#endif
 
 #include <scan_progs/send_packet.h>
 
