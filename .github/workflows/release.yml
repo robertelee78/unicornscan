@@ -56,9 +56,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug - Show debian files
+        run: |
+          echo "=== Debian files ==="
+          ls -la debian/
+          echo "=== debian/control ==="
+          cat debian/control
+          echo "=== debian/rules ==="
+          cat debian/rules
+          echo "=== debhelper version ==="
+          dpkg -l debhelper | tail -1
+
       - name: Build .deb package
         run: |
-          dpkg-buildpackage -us -uc -b
+          dpkg-buildpackage -us -uc -b -d
           mkdir -p artifacts
           mv ../*.deb artifacts/
           # Rename to include distro
