@@ -1,0 +1,104 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.4.8)'
+        required: false
+
+jobs:
+  build-deb:
+    name: Build .deb (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu-22.04
+            container: ubuntu:22.04
+            codename: jammy
+          - distro: ubuntu-24.04
+            container: ubuntu:24.04
+            codename: noble
+          - distro: debian-bullseye
+            container: debian:bullseye
+            codename: bullseye
+          - distro: debian-bookworm
+            container: debian:bookworm
+            codename: bookworm
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            build-essential \
+            debhelper \
+            devscripts \
+            autoconf \
+            automake \
+            libtool \
+            libpcap-dev \
+            libdnet-dev \
+            libltdl-dev \
+            libpq-dev \
+            flex \
+            bison \
+            git
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build .deb package
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p artifacts
+          mv ../*.deb artifacts/
+          # Rename to include distro
+          cd artifacts
+          for f in *.deb; do
+            newname="${f%.deb}_${{ matrix.distro }}.deb"
+            mv "$f" "$newname"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unicornscan-${{ matrix.distro }}
+          path: artifacts/*.deb
+
+  release:
+    name: Create Release
+    needs: build-deb
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*.deb
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

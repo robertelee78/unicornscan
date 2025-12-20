@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	autoreconf -fi
+	dh_auto_configure -- \
+		--prefix=/usr \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--with-pgsql
+
+override_dh_auto_install:
+	dh_auto_install
+	# Remove .la files
+	find debian/unicornscan -name '*.la' -delete
+
+override_dh_installchangelogs:
+	dh_installchangelogs CHANGELOG

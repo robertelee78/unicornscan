@@ -1,0 +1,12 @@
+unicornscan (0.4.8-1) unstable; urgency=medium
+
+  * New upstream release
+  * Fix TCP reassembly buffer underflow causing heap corruption
+  * Fix NULL pointer dereferences in pgsql module
+  * Add Supabase cloud database support
+  * Modernize p0f integration to v3
+  * Enhanced UDP payloads from nmap-payloads
+  * Fix compilation on modern Linux (GCC 13+)
+  * Modernize fantaip for WiFi interfaces
+
+ -- Robert Lee <robert@loveathome.us>  Fri, 20 Dec 2025 09:00:00 -0800
