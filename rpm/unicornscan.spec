@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.8
+Version:        0.4.9
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -73,6 +73,11 @@ mkdir -p %{buildroot}%{_localstatedir}/unicornscan
 %dir %{_localstatedir}/unicornscan
 
 %changelog
+* Fri Dec 20 2024 Robert Lee <robert@loveathome.us> - 0.4.9-1
+- Disable NIC offload (GRO/LRO/TSO/GSO) for accurate packet capture
+- Add DLT_LINUX_SLL support for capturing on "any" interface
+- Add verbosity-based logging for packet parsing issues
+
 * Fri Dec 20 2024 Robert Lee <robert@loveathome.us> - 0.4.8-1
 - Fix libdumbnet/libdnet support for cross-platform builds
 - Add Supabase cloud database support
