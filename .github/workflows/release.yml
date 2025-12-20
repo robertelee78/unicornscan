@@ -78,8 +78,11 @@ jobs:
 
       - name: Build
         run: |
-          set -ex
-          make -j$(nproc)
+          set -x
+          echo "=== GCC version ==="
+          gcc --version
+          echo "=== Make ==="
+          make -j$(nproc) 2>&1 || { echo "Make failed"; make V=1 2>&1 | tail -100; exit 1; }
 
       - name: Create package
         run: |
