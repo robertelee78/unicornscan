@@ -8,8 +8,15 @@ unicornscan.dvi: unicornscan.tex
 unicornscan.pdf: unicornscan.dvi
 	pdflatex unicornscan.tex
 
+# Man page is pre-built in source tree; only regenerate if latex2man is available
 unicornscan.1: unicornscan_man.tex
-	latex2man unicornscan_man.tex unicornscan.1
+	@if command -v latex2man >/dev/null 2>&1; then \
+		latex2man unicornscan_man.tex unicornscan.1; \
+	elif [ -f unicornscan.1 ]; then \
+		echo "Using pre-built man page"; \
+	else \
+		echo "Error: latex2man not found and no pre-built man page"; exit 1; \
+	fi
 
 install: unicornscan.1
 	mkdir -p $(DESTDIR)/$(mandir)/man1
