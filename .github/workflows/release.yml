@@ -88,12 +88,16 @@ jobs:
       - name: Create package
         run: |
           set -ex
+          # Extract version from configure.ac
+          VERSION=$(grep 'AC_INIT' configure.ac | sed -n 's/.*\[\([0-9.]*\)\].*/\1/p')
+          echo "Building version: $VERSION"
+
           make DESTDIR=$(pwd)/debian/unicornscan install
           mkdir -p debian/unicornscan/DEBIAN
           # Create control file for dpkg-deb
-          cat > debian/unicornscan/DEBIAN/control << 'CTRL'
+          cat > debian/unicornscan/DEBIAN/control << CTRL
           Package: unicornscan
-          Version: 0.4.8
+          Version: ${VERSION}
           Architecture: amd64
           Maintainer: Robert Lee <robert@loveathome.us>
           Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5
@@ -105,7 +109,7 @@ jobs:
           sed -i 's/^          //' debian/unicornscan/DEBIAN/control
           dpkg-deb --build debian/unicornscan
           mkdir -p artifacts
-          mv debian/unicornscan.deb artifacts/unicornscan_0.4.8_${{ matrix.distro }}.deb
+          mv debian/unicornscan.deb artifacts/unicornscan_${VERSION}_${{ matrix.distro }}.deb
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -155,10 +159,14 @@ jobs:
 
       - name: Create source tarball
         run: |
-          mkdir -p /tmp/unicornscan-0.4.8
-          cp -r . /tmp/unicornscan-0.4.8/
+          # Extract version from spec file
+          VERSION=$(grep '^Version:' rpm/unicornscan.spec | awk '{print $2}')
+          echo "Building version: $VERSION"
+
+          mkdir -p /tmp/unicornscan-${VERSION}
+          cp -r . /tmp/unicornscan-${VERSION}/
           cd /tmp
-          tar czf ~/rpmbuild/SOURCES/unicornscan-0.4.8.tar.gz unicornscan-0.4.8
+          tar czf ~/rpmbuild/SOURCES/unicornscan-${VERSION}.tar.gz unicornscan-${VERSION}
 
       - name: Copy spec file
         run: cp rpm/unicornscan.spec ~/rpmbuild/SPECS/
