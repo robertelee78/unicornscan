@@ -100,13 +100,28 @@ jobs:
           Version: ${VERSION}
           Architecture: amd64
           Maintainer: Robert Lee <robert@loveathome.us>
-          Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5
+          Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5, libcap2-bin
           Section: net
           Priority: optional
           Description: Asynchronous stateless TCP/UDP network scanner
           CTRL
           # Remove leading spaces from heredoc
           sed -i 's/^          //' debian/unicornscan/DEBIAN/control
+
+          # Create postinst script to set capabilities
+          cat > debian/unicornscan/DEBIAN/postinst << 'POSTINST'
+          #!/bin/sh
+          # Set Linux capabilities to allow running without root
+          # Fails gracefully if capabilities aren't supported (SELinux, containers, etc.)
+          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/unicornscan 2>/dev/null || true
+          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/fantaip 2>/dev/null || true
+          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unilisten 2>/dev/null || true
+          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unisend 2>/dev/null || true
+          exit 0
+          POSTINST
+          sed -i 's/^          //' debian/unicornscan/DEBIAN/postinst
+          chmod 755 debian/unicornscan/DEBIAN/postinst
+
           dpkg-deb --build debian/unicornscan
           mkdir -p artifacts
           mv debian/unicornscan.deb artifacts/unicornscan_${VERSION}_${{ matrix.distro }}.deb
