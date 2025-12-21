@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.9
+Version:        0.4.10
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -24,6 +24,7 @@ BuildRequires:  make
 Requires:       libpcap
 Requires:       libdnet
 Requires:       libtool-ltdl
+Requires:       libcap
 
 %description
 Unicornscan is an asynchronous network scanner designed for
@@ -58,6 +59,14 @@ make install DESTDIR=%{buildroot}
 # Create var directory
 mkdir -p %{buildroot}%{_localstatedir}/unicornscan
 
+%post
+# Set Linux capabilities to allow running without root
+# Fails gracefully if capabilities aren't supported (SELinux, containers, etc.)
+setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_bindir}/unicornscan 2>/dev/null || :
+setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_bindir}/fantaip 2>/dev/null || :
+setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_libexecdir}/unicornscan/unilisten 2>/dev/null || :
+setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_libexecdir}/unicornscan/unisend 2>/dev/null || :
+
 %files
 %license LICENSE
 %doc README
@@ -73,6 +82,10 @@ mkdir -p %{buildroot}%{_localstatedir}/unicornscan
 %dir %{_localstatedir}/unicornscan
 
 %changelog
+* Sat Dec 21 2024 Robert Lee <robert@loveathome.us> - 0.4.10-1
+- Set Linux capabilities on install for non-root operation
+- Only disable receive offloads (GRO/LRO), restore on exit
+
 * Fri Dec 20 2024 Robert Lee <robert@loveathome.us> - 0.4.9-1
 - Disable NIC offload (GRO/LRO/TSO/GSO) for accurate packet capture
 - Add DLT_LINUX_SLL support for capturing on "any" interface
