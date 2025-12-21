@@ -77,6 +77,10 @@ static unsigned int listen_cidr;
 
 void *r_queue=NULL, *p_queue=NULL;
 
+/* Saved offload state for restoration on exit */
+static int saved_offload_mask = 0;
+static char saved_interface[64] = {0};
+
 void recv_packet(void) {
 	char errbuf[PCAP_ERRBUF_SIZE], *pfilter=NULL;
 	struct bpf_program filter;
@@ -170,20 +174,22 @@ void recv_packet(void) {
 
 	if (s->pcap_readfile == NULL) {
 		/*
-		 * Disable NIC offload features (GRO/LRO/TSO/GSO) that interfere with
-		 * accurate packet capture. These features coalesce packets in the kernel,
-		 * making IP tot_len larger than what we actually capture.
+		 * Disable NIC receive offload features (GRO/LRO) that interfere with
+		 * accurate packet capture. These features coalesce inbound packets in
+		 * the kernel, making IP tot_len larger than what we actually capture.
+		 * We restore these settings when the scan completes.
 		 */
-		int offload_mask = util_disable_offload(s->interface_str, errbuf);
-		if (offload_mask > 0) {
+		saved_offload_mask = util_disable_offload(s->interface_str, errbuf);
+		if (saved_offload_mask > 0) {
+			/* Save interface name for restoration on exit */
+			strncpy(saved_interface, s->interface_str, sizeof(saved_interface) - 1);
 			INF("%s", errbuf);  /* Log what was disabled */
-		} else if (offload_mask < 0) {
+		} else if (saved_offload_mask < 0) {
 			/* Failed to control offload - warn but continue */
 			VRB(0, "Warning: Could not check/disable offload on %s: %s",
 			    s->interface_str, errbuf);
 			VRB(0, "If you see 'truncated packet' errors, manually run:");
-			VRB(0, "  ethtool -K %s gro off lro off tso off gso off",
-			    s->interface_str);
+			VRB(0, "  ethtool -K %s gro off lro off", s->interface_str);
 		}
 
 		/*
@@ -506,6 +512,12 @@ void recv_packet(void) {
 		pcap_dump_close(pdump);
 	}
 
+	/* Restore NIC offload settings if we disabled them */
+	if (saved_offload_mask > 0 && saved_interface[0] != '\0') {
+		if (util_restore_offload(saved_interface, saved_offload_mask) == 0) {
+			VRB(1, "Restored offload settings on %s", saved_interface);
+		}
+	}
 
 	DBG(M_CLD, "listener exiting");
 

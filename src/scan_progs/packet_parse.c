@@ -453,7 +453,7 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 	if (totlen > pk_len && pk_layer == 1) {
 		/*
 		 * IP header claims more data than we captured. This should not happen
-		 * if offload features (GRO/LRO/TSO) were properly disabled at startup.
+		 * if receive offload (GRO/LRO) was properly disabled at startup.
 		 *
 		 * If you see this error, offload was not disabled. This can happen in:
 		 *   - VMs where guest can't control host NIC settings
