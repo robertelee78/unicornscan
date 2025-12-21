@@ -155,9 +155,13 @@ int util_preparepcap(pcap_t *pdev, char *errorbuf) {
 #endif
 
 /*
- * Disable NIC offload features that interfere with accurate packet capture.
- * GRO/LRO/TSO/GSO cause the kernel to coalesce packets, making IP tot_len
- * larger than the actual captured data - which breaks packet parsing.
+ * Disable NIC receive offload features that interfere with accurate packet capture.
+ * GRO/LRO coalesce inbound packets in the kernel, making IP tot_len larger than
+ * the actual captured data - which breaks packet parsing.
+ *
+ * Note: We only disable receive-side offloads (GRO/LRO). Transmit-side offloads
+ * (TSO/GSO) are irrelevant for unicornscan since we send raw packets via libdnet,
+ * completely bypassing the kernel TCP stack.
  *
  * Uses SIOCETHTOOL ioctl to disable these features.
  * Reference: https://github.com/torvalds/linux/blob/master/net/ethtool/ioctl.c
@@ -248,27 +252,8 @@ int util_disable_offload(const char *interface, char *errorbuf) {
 	}
 #endif
 
-	/* Check and disable TSO (TCP Segmentation Offload) */
-#ifdef ETHTOOL_GTSO
-	feature_val = ethtool_get_feature(fd, interface, ETHTOOL_GTSO);
-	if (feature_val > 0) {
-		ret = ethtool_set_feature(fd, interface, ETHTOOL_STSO, 0);
-		if (ret == 0) {
-			disabled_mask |= OFFLOAD_TSO;
-		}
-	}
-#endif
-
-	/* Check and disable GSO (Generic Segmentation Offload) */
-#ifdef ETHTOOL_GGSO
-	feature_val = ethtool_get_feature(fd, interface, ETHTOOL_GGSO);
-	if (feature_val > 0) {
-		ret = ethtool_set_feature(fd, interface, ETHTOOL_SGSO, 0);
-		if (ret == 0) {
-			disabled_mask |= OFFLOAD_GSO;
-		}
-	}
-#endif
+	/* Note: TSO/GSO are transmit-side offloads - not disabled here since
+	 * unicornscan sends raw packets via libdnet, bypassing kernel TCP stack */
 
 	close(fd);
 
@@ -277,9 +262,7 @@ int util_disable_offload(const char *interface, char *errorbuf) {
 		char features[128] = "";
 		if (disabled_mask & OFFLOAD_GRO) strcat(features, "GRO ");
 		if (disabled_mask & OFFLOAD_LRO) strcat(features, "LRO ");
-		if (disabled_mask & OFFLOAD_TSO) strcat(features, "TSO ");
-		if (disabled_mask & OFFLOAD_GSO) strcat(features, "GSO ");
-		snprintf(errorbuf, PCAP_ERRBUF_SIZE - 1, "Disabled offload features on %s: %s", interface, features);
+		snprintf(errorbuf, PCAP_ERRBUF_SIZE - 1, "Disabled receive offload on %s: %s", interface, features);
 	} else {
 		errorbuf[0] = '\0';
 	}
@@ -314,17 +297,7 @@ int util_restore_offload(const char *interface, int features_mask) {
 	}
 #endif
 
-#ifdef ETHTOOL_STSO
-	if (features_mask & OFFLOAD_TSO) {
-		ethtool_set_feature(fd, interface, ETHTOOL_STSO, 1);
-	}
-#endif
-
-#ifdef ETHTOOL_SGSO
-	if (features_mask & OFFLOAD_GSO) {
-		ethtool_set_feature(fd, interface, ETHTOOL_SGSO, 1);
-	}
-#endif
+	/* Note: TSO/GSO are transmit-side offloads that we don't touch */
 
 	close(fd);
 	return ret;
