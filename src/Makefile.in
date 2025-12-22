@@ -5,7 +5,7 @@ OBJS=$(SRCS:.c=.lo)
 HDRS=$(SRCS:.c=.h) config.h packageinfo.h settings.h supabase_setup.h 
 
 G_LDPATH=-L$(BUILD_DIR)/src/unilib -L$(BUILD_DIR)/src/parse -L$(BUILD_DIR)/src/scan_progs
-G_LDADD=$(LDFLAGS) -lscan -lparse -lunilib -lpcap -lltdl @DNETLIBS@ -luext
+G_LDADD=$(LDFLAGS) -lscan -lparse -lunilib -lpcap -lltdl @DNETLIBS@ @GEOIP_LIBS@ -luext
 
 # build order matters
 SUBDIRS=unilib parse scan_progs tools payload_modules output_modules report_modules

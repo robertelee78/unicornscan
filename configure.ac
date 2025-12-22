@@ -372,7 +372,8 @@ if test "$with_pgsql" != "no"; then
   fi
 fi
 
-AC_CHECK_LIB([GeoIP], [GeoIP_open], [], [], [])
+dnl GeoIP support (prefers libmaxminddb, falls back to libGeoIP)
+AC_UNI_GEOIP
 
 dnl P0F v3 integration for modern OS fingerprinting
 AC_ARG_WITH(p0f3-socket,
@@ -390,6 +391,8 @@ AC_SUBST(PG_LDFLAGS)
 AC_SUBST(PG_CPPFLAGS)
 AC_SUBST(MY_LDFLAGS)
 AC_SUBST(MY_CPPFLAGS)
+AC_SUBST(GEOIP_LIBS)
+AC_SUBST(GEOIP_CFLAGS)
 
 dnl check for getopt_long
 AC_MSG_CHECKING([for getopt_long])
@@ -413,9 +416,9 @@ dnl checks for special files
 
 U_CDEFS="${DEFS} ${U_CDEFS}"
 U_COPTS="${CFLAGS} ${U_COPTS}"
-U_CINCS="${CPPFLAGS} ${U_CINCS}"
+U_CINCS="${CPPFLAGS} ${U_CINCS} ${GEOIP_CFLAGS}"
 U_LDFLAGS="${LDFLAGS} ${U_LDFLAGS}"
-U_LIBS="${U_LIBS} ${UNILDADD}"
+U_LIBS="${U_LIBS} ${UNILDADD} ${GEOIP_LIBS}"
 
 AC_SUBST(U_COPTS)
 AC_SUBST(U_CDEFS)
@@ -464,7 +467,7 @@ echo "--                Configuration Summary                                   
 echo "prefix:                           ${prefix}"
 echo "PostgreSQL Support:               $pgsql"
 echo "MySQL Support:                    $mysql"
-echo "GeoIP support:                    $ac_cv_lib_GeoIP_GeoIP_open"
+echo "GeoIP support:                    $geoip_found"
 echo "SELinux Support:                  $selinux"
 echo "Listen User: (non-selinux)        $listen_user"
 echo "libraries missing that will be built:  \`$NEED_AUX_LIBS'"

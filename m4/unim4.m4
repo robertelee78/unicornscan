@@ -178,6 +178,48 @@ AC_SUBST(DNETCFLG)
 AC_SUBST(DNETLIBS)
 ])
 
+dnl GeoIP/MaxMindDB detection with multiple path search
+dnl Uses libmaxminddb for modern .mmdb format (GeoLite2, DB-IP, IPLocate.io, etc.)
+AC_DEFUN([AC_UNI_GEOIP], [
+AC_MSG_CHECKING([for GeoIP support (libmaxminddb)])
+
+dnl Allow user to specify custom database path
+AC_ARG_WITH(geoip-db,
+[  --with-geoip-db=PATH    Path to GeoIP database file (.mmdb) or directory],
+[geoip_db_path="$withval"],
+[geoip_db_path=""])
+
+dnl Check for libmaxminddb (modern, actively maintained)
+geoip_found=no
+PKG_CHECK_MODULES([MAXMINDDB], [libmaxminddb >= 1.0.0], [
+    AC_DEFINE([HAVE_LIBMAXMINDDB], [1], [Define if libmaxminddb is available])
+    GEOIP_LIBS="$MAXMINDDB_LIBS"
+    GEOIP_CFLAGS="$MAXMINDDB_CFLAGS"
+    geoip_found=yes
+    AC_MSG_RESULT([yes])
+], [
+    GEOIP_LIBS=""
+    GEOIP_CFLAGS=""
+    AC_MSG_RESULT([no (install libmaxminddb-dev)])
+])
+
+dnl If user specified a path, validate and use it
+if test -n "$geoip_db_path" && test "$geoip_db_path" != "no"; then
+    if test -f "$geoip_db_path"; then
+        AC_DEFINE_UNQUOTED([GEOIP_DB_PATH], ["$geoip_db_path"], [User-specified GeoIP database path])
+        AC_MSG_NOTICE([Using user-specified GeoIP database: $geoip_db_path])
+    elif test -d "$geoip_db_path"; then
+        AC_DEFINE_UNQUOTED([GEOIP_DB_DIR], ["$geoip_db_path"], [User-specified GeoIP database directory])
+        AC_MSG_NOTICE([Using user-specified GeoIP directory: $geoip_db_path])
+    else
+        AC_MSG_WARN([Specified GeoIP path does not exist: $geoip_db_path])
+    fi
+fi
+
+AC_SUBST(GEOIP_LIBS)
+AC_SUBST(GEOIP_CFLAGS)
+])
+
 dnl find /proc/net/route or just give up and cry
 AC_DEFUN([AC_UNI_PROCNETROUTE], [
 AC_MSG_CHECKING([for a readable /proc/net/route file])

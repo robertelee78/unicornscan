@@ -1,2 +1,123 @@
-http://www.maxmind.com/download/geoip/api/c/
-throw the databases into the /usr/local/etc/unicornscan/ directory, or whatever it is..
+# GeoIP Support in Unicornscan
+
+Unicornscan supports IP geolocation for country lookups using the `%C` format
+specifier in output formats.
+
+## Requirements
+
+Unicornscan uses **libmaxminddb** for GeoIP lookups, supporting the modern .mmdb
+database format used by GeoLite2, GeoIP2, DB-IP, and IPLocate.io.
+
+## Installing the Library
+
+### Debian/Ubuntu
+```bash
+sudo apt install libmaxminddb0 libmaxminddb-dev
+```
+
+### Fedora/RHEL/Rocky
+```bash
+sudo dnf install libmaxminddb libmaxminddb-devel
+```
+
+### Arch Linux
+```bash
+sudo pacman -S libmaxminddb
+```
+
+## Obtaining Database Files
+
+### Free Options (2025)
+
+| Provider | License | Registration | URL |
+|----------|---------|--------------|-----|
+| MaxMind GeoLite2 | Proprietary (free) | Required | https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/ |
+| DB-IP Lite | CC BY 4.0 | No | https://db-ip.com/db/lite.php |
+| IPLocate.io | MIT | No | https://www.iplocate.io/free-databases |
+
+### Automatic Updates (MaxMind)
+
+MaxMind provides `geoipupdate` for automatic database updates:
+
+```bash
+# Install
+sudo apt install geoipupdate   # Debian/Ubuntu
+sudo dnf install geoipupdate   # Fedora/RHEL
+
+# Configure with your MaxMind account ID and license key
+sudo vim /etc/GeoIP.conf
+
+# Update
+sudo geoipupdate
+```
+
+## Database Search Paths
+
+Unicornscan searches for database files in this order:
+
+1. Environment variable: `GEOIP_DATABASE=/path/to/database.mmdb`
+2. Configure option: `./configure --with-geoip-db=/path/to/database.mmdb`
+3. Standard system paths:
+   - `/usr/share/GeoIP/`
+   - `/var/lib/GeoIP/`
+   - `/usr/local/share/GeoIP/`
+4. Configuration directory: `$sysconfdir/unicornscan/`
+
+### Database Filenames Searched
+
+- GeoLite2-Country.mmdb (MaxMind free)
+- GeoIP2-Country.mmdb (MaxMind commercial)
+- dbip-country-lite.mmdb (DB-IP)
+- IP2LOCATION-LITE-DB1.mmdb (IP2Location)
+
+## Configure Options
+
+```bash
+# Auto-detect libmaxminddb
+./configure
+
+# Specify database path
+./configure --with-geoip-db=/usr/share/GeoIP/GeoLite2-Country.mmdb
+
+# Specify database directory
+./configure --with-geoip-db=/var/lib/GeoIP
+```
+
+## Runtime Configuration
+
+Set the `GEOIP_DATABASE` environment variable to override:
+
+```bash
+export GEOIP_DATABASE=/path/to/my/database.mmdb
+unicornscan -o "%h %C" target
+```
+
+## Usage
+
+Use the `%C` format specifier to include country codes:
+
+```bash
+# Show country for each host
+unicornscan -o "%h:%p %C" target
+
+# Verbose with country
+unicornscan -o "%h:%p [%T] ttl=%t country=%C" target
+```
+
+## Troubleshooting
+
+If country lookups show `??`:
+
+1. Check that a database file exists in the search paths
+2. Verify the database file is readable
+3. Try setting GEOIP_DATABASE explicitly
+4. Run with `-v` for debug output
+
+Check if libmaxminddb was detected:
+```bash
+./configure 2>&1 | grep -i geoip
+```
+
+Output will show:
+- `yes` - Library detected, GeoIP support enabled
+- `no (install libmaxminddb-dev)` - Library not found
