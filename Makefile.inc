@@ -1,6 +1,6 @@
 # Makefile.inc.  Generated from Makefile.inc.in by configure.
 
-BUILD_DIR=/opt/unicornscan-0.4.7
+BUILD_DIR=/opt/unicornscan-0.4.10
 
 prefix=/usr/local
 exec_prefix=${prefix}
