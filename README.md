@@ -279,7 +279,9 @@ See the [Dependencies](#dependencies) section for required packages.
 # Requires: libmysqlclient-dev (Debian) / mysql-devel (Fedora) / mariadb-libs (Arch)
 ./configure --with-mysql
 
-# GeoIP support is auto-detected if libgeoip is installed
+# GeoIP support (libmaxminddb for .mmdb databases)
+# Requires: libmaxminddb-dev (Debian) / libmaxminddb-devel (Fedora) / libmaxminddb (Arch)
+# See README.geoip for database sources (GeoLite2, DB-IP, IPLocate.io)
 
 # With SELinux policy
 ./configure --enable-selinux

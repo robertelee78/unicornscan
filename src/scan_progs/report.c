@@ -39,10 +39,33 @@
 
 #include <scan_progs/master.h>
 
-#ifdef HAVE_LIBGEOIP
-#include <GeoIP.h>
+/*
+ * GeoIP support using libmaxminddb (.mmdb format)
+ * Compatible with: GeoLite2, GeoIP2, DB-IP, IPLocate.io databases
+ * Searches multiple standard paths for database files.
+ */
+#ifdef HAVE_LIBMAXMINDDB
+#include <maxminddb.h>
 
-static GeoIP *gi=NULL;
+static MMDB_s mmdb;
+static int mmdb_open = 0;
+
+/* Database filenames to search for (in order of preference) */
+static const char *mmdb_filenames[] = {
+	"GeoLite2-Country.mmdb",
+	"GeoIP2-Country.mmdb",
+	"dbip-country-lite.mmdb",
+	"IP2LOCATION-LITE-DB1.mmdb",
+	NULL
+};
+
+/* Search paths for .mmdb files */
+static const char *mmdb_search_paths[] = {
+	"/usr/share/GeoIP",
+	"/var/lib/GeoIP",
+	"/usr/local/share/GeoIP",
+	NULL
+};
 
 #endif
 
@@ -64,24 +87,82 @@ static int port_open  (uint8_t /* proto */, uint16_t /* type */, uint16_t /* sub
 static int port_closed(uint8_t /* proto */, uint16_t /* type */, uint16_t /* subtype */);
 
 void report_init(void) {
+#ifdef HAVE_LIBMAXMINDDB
+	char path[PATH_MAX];
+	const char *env_path = NULL;
+	int found = 0;
+#endif
 
 	report_t=rbinit(123);
 
-#ifdef HAVE_LIBGEOIP
-	gi=GeoIP_open(CONF_DIR "/GeoIP.dat", GEOIP_MEMORY_CACHE);
-	if (gi == NULL) {
-		ERR("error opening geoip database `%s/%s': %s", CONF_DIR, "/GeoIP.dat", strerror(errno));
+#ifdef HAVE_LIBMAXMINDDB
+	/*
+	 * GeoIP database search order:
+	 * 1. Environment variable GEOIP_DATABASE
+	 * 2. User-specified path from configure --with-geoip-db
+	 * 3. Standard system paths with common filenames
+	 * 4. CONF_DIR fallback
+	 */
+	env_path = getenv("GEOIP_DATABASE");
+	if (env_path != NULL && access(env_path, R_OK) == 0) {
+		if (MMDB_open(env_path, MMDB_MODE_MMAP, &mmdb) == MMDB_SUCCESS) {
+			mmdb_open = 1;
+			found = 1;
+			DBG(M_RPT, "opened GeoIP database from env: %s", env_path);
+		}
 	}
 
+#ifdef GEOIP_DB_PATH
+	if (!found && access(GEOIP_DB_PATH, R_OK) == 0) {
+		if (MMDB_open(GEOIP_DB_PATH, MMDB_MODE_MMAP, &mmdb) == MMDB_SUCCESS) {
+			mmdb_open = 1;
+			found = 1;
+			DBG(M_RPT, "opened GeoIP database from configure: %s", GEOIP_DB_PATH);
+		}
+	}
+#endif
+
+	/* Search standard paths */
+	if (!found) {
+		const char **dir, **file;
+		for (dir = mmdb_search_paths; *dir != NULL && !found; dir++) {
+			for (file = mmdb_filenames; *file != NULL && !found; file++) {
+				snprintf(path, sizeof(path), "%s/%s", *dir, *file);
+				if (access(path, R_OK) == 0) {
+					if (MMDB_open(path, MMDB_MODE_MMAP, &mmdb) == MMDB_SUCCESS) {
+						mmdb_open = 1;
+						found = 1;
+						DBG(M_RPT, "opened GeoIP database: %s", path);
+					}
+				}
+			}
+		}
+	}
+
+	/* Final fallback: CONF_DIR */
+	if (!found) {
+		const char **file;
+		for (file = mmdb_filenames; *file != NULL && !found; file++) {
+			snprintf(path, sizeof(path), "%s/%s", CONF_DIR, *file);
+			if (access(path, R_OK) == 0) {
+				if (MMDB_open(path, MMDB_MODE_MMAP, &mmdb) == MMDB_SUCCESS) {
+					mmdb_open = 1;
+					found = 1;
+					DBG(M_RPT, "opened GeoIP database: %s", path);
+				}
+			}
+		}
+	}
+
+	if (!found) {
+		DBG(M_RPT, "no GeoIP database found; country lookups disabled");
+	}
 #endif
 
 	return;
 }
 
 void report_do(void) {
-
-#ifdef HAVE_LIBGEOIP
-#endif
 
 	DBG(M_RPT, "formats are ip `%s' imip `%s' arp `%s' imarp `%s', you should see %u results",
 		s->ip_report_fmt,
@@ -104,9 +185,10 @@ void report_destroy(void) {
 
 	report_t=NULL;
 
-#ifdef HAVE_LIBGEOIP
-	if (gi != NULL) {
-		GeoIP_delete(gi);
+#ifdef HAVE_LIBMAXMINDDB
+	if (mmdb_open) {
+		MMDB_close(&mmdb);
+		mmdb_open = 0;
 	}
 #endif
 
@@ -473,7 +555,6 @@ static char *fmtcat(const char *fmt, const void *report) {
 			 */
 			uint32_t taddr=0;
 			char ofmt[128], tmp[1024], *tptr=NULL;
-			char geoip_addr[INET_ADDRSTRLEN];
 			unsigned int noff=0;
 			struct in_addr ia;
 			int doname=0;
@@ -523,13 +604,38 @@ static char *fmtcat(const char *fmt, const void *report) {
 						break;
 					}
 					strcat(ofmt, "s");
-#ifdef HAVE_LIBGEOIP
-					inet_ntop(AF_INET, &ia, geoip_addr, sizeof(geoip_addr));
-					tptr=GeoIP_country_code_by_addr(gi, geoip_addr);
-					snprintf(tmp, sizeof(tmp) -1, ofmt, tptr != NULL ? tptr : "??");
+#ifdef HAVE_LIBMAXMINDDB
+					if (mmdb_open) {
+						int mmdb_error;
+						MMDB_lookup_result_s result;
+						MMDB_entry_data_s entry_data;
+						struct sockaddr_in sa;
+
+						sa.sin_family = AF_INET;
+						sa.sin_addr = ia;
+						result = MMDB_lookup_sockaddr(&mmdb, (struct sockaddr *)&sa, &mmdb_error);
+						if (mmdb_error == MMDB_SUCCESS && result.found_entry) {
+							if (MMDB_get_value(&result.entry, &entry_data,
+							    "country", "iso_code", NULL) == MMDB_SUCCESS &&
+							    entry_data.has_data && entry_data.type == MMDB_DATA_TYPE_UTF8_STRING) {
+								/* entry_data.utf8_string is not null-terminated */
+								char cc[4] = {0};
+								size_t len = entry_data.data_size < 3 ? entry_data.data_size : 2;
+								memcpy(cc, entry_data.utf8_string, len);
+								snprintf(tmp, sizeof(tmp) - 1, ofmt, cc);
+							} else {
+								snprintf(tmp, sizeof(tmp) - 1, ofmt, "??");
+							}
+						} else {
+							snprintf(tmp, sizeof(tmp) - 1, ofmt, "??");
+						}
+					} else {
+						snprintf(tmp, sizeof(tmp) - 1, ofmt, "??");
+					}
 					KEHSTR(tmp);
 #else
-					ERR("no GeoIP support compiled in!");
+					snprintf(tmp, sizeof(tmp) - 1, ofmt, "??");
+					KEHSTR(tmp);
 #endif
 
 					break;
