@@ -12,7 +12,15 @@ SUBDIRS=unilib parse scan_progs tools payload_modules output_modules report_modu
 
 all: @targetname@
 
-@targetname@: alld
+parse/libparse.la:
+	$(MAKE) -C parse libparse.la
+
+scan_progs/libscan.la:
+	$(MAKE) -C scan_progs libscan.la
+
+unilib/libunilib.la:
+	$(MAKE) -C unilib libunilib.la
+
 @targetname@: compile.h $(OBJS) parse/libparse.la scan_progs/libscan.la unilib/libunilib.la
 	$(LIBTOOL) --mode=link $(CC) -export-dynamic $(CFLAGS) -o @targetname@ $(OBJS) $(G_LDPATH) $(G_LDADD)
 
