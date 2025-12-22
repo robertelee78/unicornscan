@@ -1,6 +1,6 @@
 # Deep Analysis: Fingerprint 7 ("strangetcp") Buffer Overflow
 
-**File:** `/opt/unicornscan-0.4.7/src/scan_progs/init_packet.c`
+**File:** `src/scan_progs/init_packet.c`
 **Lines:** 294-339
 **Date:** 2025-12-16
 **Severity:** HIGH - Confirmed Buffer Overflow
@@ -323,7 +323,7 @@ TCP options should be 4-byte aligned:
 
 Search for uses of `tcpoptions_len`:
 ```bash
-grep -r "tcpoptions_len" /opt/unicornscan-0.4.7/src/
+grep -r "tcpoptions_len" src/
 ```
 
 Likely vulnerable code patterns:

@@ -1,8 +1,8 @@
-# Modern IP Spoofing Techniques for Network Scanners (2024-2025)
+# Modern IP Spoofing Techniques for Network Scanners (2025-2026)
 
 ## Executive Summary
 
-This research document analyzes modern IP spoofing capabilities that network scanners should support in 2024-2025, including evasion techniques, anti-spoofing countermeasures, and implementation considerations. The research covers nmap's approach, emerging eBPF/BPF implications, anti-spoofing measures (uRPF, BCP38), and advanced combination techniques.
+This research document analyzes modern IP spoofing capabilities that network scanners should support in 2025-2026, including evasion techniques, anti-spoofing countermeasures, and implementation considerations. The research covers nmap's approach, emerging eBPF/BPF implications, anti-spoofing measures (uRPF, BCP38), and advanced combination techniques.
 
 **Key Finding**: While IP spoofing remains a critical capability for network scanners, modern defenses (uRPF, BCP38/84, deep packet inspection) have significantly reduced its effectiveness. Scanners must combine multiple evasion techniques and understand the limitations imposed by contemporary network infrastructure.
 
@@ -31,7 +31,7 @@ nmap -S <spoofed_ip> <target>
 - May require `-e <interface>` to specify the correct network interface
 - Most effective with `-Pn` (skip ping) to avoid detection
 
-**2024-2025 Effectiveness**: ⚠️ LIMITED
+**2025-2026 Effectiveness**: ⚠️ LIMITED
 - Modern ISPs implement egress filtering (BCP38)
 - Responses never reach the attacker
 - Primarily useful for deception/attribution misdirection
@@ -51,7 +51,7 @@ nmap -D <decoy1>,<decoy2>,ME,<decoy3> <target>
 - `ME` specifies position of real IP (default: random)
 - Can use `RND` for random IPs or `RND:5` for 5 random decoys
 
-**Best practices** (2024-2025):
+**Best practices** (2025-2026):
 ```bash
 # Good: Mix of real IPs from target's network
 nmap -D 192.168.1.10,192.168.1.20,ME,192.168.1.30 target.local
@@ -69,7 +69,7 @@ nmap -D RND:5,ME,RND:5 target.com
 - Effectiveness reduced by modern correlation engines
 - Advanced IDS can identify real scanner through timing analysis
 
-**2024-2025 Effectiveness**: ⚠️ MODERATE
+**2025-2026 Effectiveness**: ⚠️ MODERATE
 - Effective against basic IDS (signature-based)
 - Defeated by behavioral analysis and ML-based detection
 - Router path tracing can identify real source
@@ -77,7 +77,7 @@ nmap -D RND:5,ME,RND:5 target.com
 
 ---
 
-## 2. Modern Evasion Techniques (2024-2025)
+## 2. Modern Evasion Techniques (2025-2026)
 
 ### 2.1 Offensive Deception via Spoofed SYN Scans
 
@@ -182,7 +182,7 @@ nmap --spoof-mac <MAC|vendor|random> <target>
 - Allows interception of responses to spoofed IP scans
 - Tools: arpspoof, ettercap, bettercap
 
-**2024-2025 Mitigations**:
+**2025-2026 Mitigations**:
 - Dynamic ARP Inspection (DAI)
 - Static ARP entries on critical systems
 - ARP monitoring tools
@@ -206,7 +206,7 @@ nmap --spoof-mac <MAC|vendor|random> <target>
   - TCP timestamp inconsistencies
   - Window size patterns
 
-### 4.2 eBPF (Extended BPF) - 2024-2025 Game Changer
+### 4.2 eBPF (Extended BPF) - 2025-2026 Game Changer
 
 **Enhanced capabilities**:
 - **Packet modification**: Can rewrite headers in-kernel
@@ -237,7 +237,7 @@ int detect_spoofed(struct xdp_md *ctx) {
 }
 ```
 
-**Scanner implications** (2024-2025):
+**Scanner implications** (2025-2026):
 - eBPF enables kernel-level detection before packets reach application
 - Traditional spoofing techniques more easily detected
 - Scanners must account for eBPF-based defenses
@@ -296,7 +296,7 @@ ip access-list extended INGRESS-FILTER
   deny ip any any log
 ```
 
-**Effectiveness** (2024-2025):
+**Effectiveness** (2025-2026):
 - ✅ Highly effective at ISP edge
 - ⚠️ Inconsistent deployment globally
 - ⚠️ Challenges with multihoming (BCP84 addresses this)
@@ -373,7 +373,7 @@ interface GigabitEthernet0/0
 - Considers multiple feasible paths
 - Recommended for modern deployments
 
-**Scanner implications** (2024-2025):
+**Scanner implications** (2025-2026):
 - Strict uRPF makes spoofing nearly impossible
 - Loose uRPF still blocks bogon addresses
 - Enhanced uRPF becoming standard
@@ -402,7 +402,7 @@ Spoofed packet claiming 192.168.1.100:
 → DPI identifies inconsistency → Packet dropped
 ```
 
-**2024-2025 deployment**:
+**2025-2026 deployment**:
 - Standard in enterprise firewalls
 - Used by CDNs (Cloudflare, Akamai)
 - Machine learning enhances detection
@@ -565,7 +565,7 @@ send(fragment1)
 # Target waits longer, reassembles malicious payload
 ```
 
-### 7.4 Modern Defenses (2024-2025)
+### 7.4 Modern Defenses (2025-2026)
 
 **Fragment reassembly engines**:
 - Modern IDS/IPS reassemble before inspection
@@ -590,7 +590,7 @@ send(fragment1)
 
 ### 8.1 Core Spoofing Features
 
-**MUST HAVE** (2024-2025):
+**MUST HAVE** (2025-2026):
 - ✅ Source IP spoofing (`-S`) with interface selection
 - ✅ Decoy scanning (`-D`) with random/manual IP selection
 - ✅ MAC address spoofing for local network scans
@@ -616,7 +616,7 @@ send(fragment1)
 
 ### 8.2 Privilege Requirements
 
-**Linux capabilities** (2024-2025 best practice):
+**Linux capabilities** (2025-2026 best practice):
 ```bash
 # Minimum for basic spoofing
 setcap cap_net_raw=eip /usr/bin/scanner
@@ -789,7 +789,7 @@ unicornscan --detect-antispoofing <target>
 
 ---
 
-## 10. Conclusion and 2024-2025 Outlook
+## 10. Conclusion and 2025-2026 Outlook
 
 ### 10.1 Key Takeaways
 
@@ -881,10 +881,10 @@ unicornscan --detect-antispoofing <target>
 ## Document Metadata
 
 - **Author**: Research Agent (Claude Code)
-- **Date**: December 16, 2024
+- **Date**: December 16, 2025
 - **Project**: Unicornscan Modernization
 - **Version**: 1.0
-- **Last Updated**: 2024-12-16
+- **Last Updated**: 2025-12-16
 - **Target Audience**: Security researchers, network engineers, penetration testers
 - **Classification**: Technical Research - Educational Use Only
 

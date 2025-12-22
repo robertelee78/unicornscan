@@ -259,10 +259,10 @@ struct f_s {
 All these files currently get the MASSIVE config.h.in with all manual code.
 
 **Critical files:**
-- `/opt/unicornscan-0.4.7/src/getconfig.c` - Command-line parsing
-- `/opt/unicornscan-0.4.7/src/supabase_setup.c` - Supabase config
-- `/opt/unicornscan-0.4.7/src/output_modules/database/pgsqldb.c` - Database output
-- `/opt/unicornscan-0.4.7/src/main.c` - Main program
+- `src/getconfig.c` - Command-line parsing
+- `src/supabase_setup.c` - Supabase config
+- `src/output_modules/database/pgsqldb.c` - Database output
+- `src/main.c` - Main program
 - All unilib/*.c files
 - All scan_progs/*.c files
 - All payload_modules/*.c files
@@ -346,13 +346,13 @@ Could use supabase_url to query for region, but adds complexity.
 ## 5. Required Changes for Proper Architecture
 
 ### Step 1: Create unicorn_defs.h
-**File:** `/opt/unicornscan-0.4.7/src/unicorn_defs.h`
+**File:** `src/unicorn_defs.h`
 - Move all manual code from config.h.in (lines 20-26, 172-411)
 - Keep organized with clear sections
 - Include config.h FIRST, then add manual definitions
 
 ### Step 2: Clean config.h.in
-**File:** `/opt/unicornscan-0.4.7/src/config.h.in`
+**File:** `src/config.h.in`
 - Remove ALL manual code
 - Keep ONLY GPL header and autoheader placeholders
 - Add comment block at top:
@@ -422,7 +422,7 @@ static char *supabase_build_connstring(const settings_t *settings) {
 ```
 
 ### Step 5: Update compile.h generation
-**File:** `/opt/unicornscan-0.4.7/src/Makefile.am` (or similar)
+**File:** `src/Makefile.am` (or similar)
 
 compile.h is auto-generated with build info. Ensure it includes:
 ```c
@@ -434,12 +434,12 @@ This is fine as-is, but verify it doesn't conflict with new structure.
 ## 6. Migration Strategy
 
 ### Phase 1: Create unicorn_defs.h (NO CHANGES to existing files)
-1. Create `/opt/unicornscan-0.4.7/src/unicorn_defs.h`
+1. Create `src/unicorn_defs.h`
 2. Copy manual code from config.h.in lines 20-26, 172-411
 3. Test compilation - nothing should break yet
 
 ### Phase 2: Update config.h.in to include unicorn_defs.h
-1. Edit `/opt/unicornscan-0.4.7/src/config.h.in`
+1. Edit `src/config.h.in`
 2. Remove lines 20-26, 172-411
 3. Add at end (after all #undef placeholders):
 ```c
@@ -468,18 +468,18 @@ This is fine as-is, but verify it doesn't conflict with new structure.
 ## 7. Files That Need Modification
 
 ### Critical Path (Minimum changes):
-1. `/opt/unicornscan-0.4.7/src/unicorn_defs.h` - CREATE NEW
-2. `/opt/unicornscan-0.4.7/src/config.h.in` - MAJOR EDIT (remove manual code)
-3. `/opt/unicornscan-0.4.7/src/settings.h` - Add supabase_region field
-4. `/opt/unicornscan-0.4.7/src/supabase_setup.c` - Add region to config
-5. `/opt/unicornscan-0.4.7/src/getconfig.c` - Add region option parsing
-6. `/opt/unicornscan-0.4.7/src/output_modules/database/pgsqldb.c` - Use region
+1. `src/unicorn_defs.h` - CREATE NEW
+2. `src/config.h.in` - MAJOR EDIT (remove manual code)
+3. `src/settings.h` - Add supabase_region field
+4. `src/supabase_setup.c` - Add region to config
+5. `src/getconfig.c` - Add region option parsing
+6. `src/output_modules/database/pgsqldb.c` - Use region
 
 ### Optional (for cleaner architecture):
 7. All 87 source files - Change `#include <config.h>` to include unicorn_defs.h explicitly
 
 ### Build system:
-8. `/opt/unicornscan-0.4.7/src/Makefile.am` - Add unicorn_defs.h to dist/install
+8. `src/Makefile.am` - Add unicorn_defs.h to dist/install
 
 ## 8. Testing Plan
 

@@ -1,7 +1,7 @@
-# Unicornscan 0.4.7 Build Verification Report
+# Unicornscan Build Verification Report
 
 **Date**: 2025-12-18
-**Build Location**: `/opt/unicornscan-0.4.7`
+**Build Location**: Project root (source tree)
 **Compiler**: gcc version 15.2.0
 **Platform**: Linux 6.17.0-8-generic x86_64
 
@@ -15,11 +15,11 @@
 
 | Binary | Path | Size | Status |
 |--------|------|------|--------|
-| unicornscan | `/opt/unicornscan-0.4.7/src/unicornscan` | 831 KB | ✅ PRESENT |
-| unisend | `/opt/unicornscan-0.4.7/src/scan_progs/unisend` | 635 KB | ✅ PRESENT |
-| unilisten | `/opt/unicornscan-0.4.7/src/scan_progs/unilisten` | 570 KB | ✅ PRESENT |
-| fantaip | `/opt/unicornscan-0.4.7/src/tools/fantaip` | 112 KB | ✅ PRESENT |
-| unibrow | `/opt/unicornscan-0.4.7/src/tools/unibrow` | 93 KB | ✅ PRESENT |
+| unicornscan | `src/unicornscan` | 831 KB | ✅ PRESENT |
+| unisend | `src/scan_progs/unisend` | 635 KB | ✅ PRESENT |
+| unilisten | `src/scan_progs/unilisten` | 570 KB | ✅ PRESENT |
+| fantaip | `src/tools/fantaip` | 112 KB | ✅ PRESENT |
+| unibrow | `src/tools/unibrow` | 93 KB | ✅ PRESENT |
 
 **Binary Details**:
 - All binaries are ELF 64-bit LSB pie executables
@@ -43,7 +43,7 @@
 | stun.so | 78 KB | ✅ BUILT |
 | upnp.so | 79 KB | ✅ BUILT |
 
-**Location**: `/opt/unicornscan-0.4.7/src/payload_modules/.libs/`
+**Location**: `src/payload_modules/.libs/`
 
 ### Output Modules (1 module)
 
@@ -51,7 +51,7 @@
 |--------|------|--------|----------|
 | pgsqldb.so | 393 KB | ✅ BUILT | PostgreSQL + Supabase support |
 
-**Location**: `/opt/unicornscan-0.4.7/src/output_modules/database/.libs/`
+**Location**: `src/output_modules/database/.libs/`
 
 **PostgreSQL Module Features**:
 - ✅ Linked against libpq.so.5
@@ -66,7 +66,7 @@
 |--------|------|--------|
 | osdetect.so | 734 KB | ✅ BUILT |
 
-**Location**: `/opt/unicornscan-0.4.7/src/report_modules/osdetect/.libs/`
+**Location**: `src/report_modules/osdetect/.libs/`
 
 ## 3. Library Dependencies
 
@@ -130,7 +130,7 @@
 ### Help Output Test
 
 ```bash
-$ /opt/unicornscan-0.4.7/src/unicornscan --help
+$ src/unicornscan --help
 ```
 
 **Result**: ✅ PASS - Displays comprehensive help with all options
@@ -149,7 +149,7 @@ $ /opt/unicornscan-0.4.7/src/unicornscan --help
 ### Version Test
 
 ```bash
-$ /opt/unicornscan-0.4.7/src/unicornscan --version
+$ src/unicornscan --version
 ```
 
 **Result**: ✅ PASS
@@ -227,12 +227,12 @@ The build includes 12 OS fingerprinting profiles (via `-W` option):
 
 | File | Location | Status |
 |------|----------|--------|
-| modules.conf | `/opt/unicornscan-0.4.7/etc/modules.conf` | ✅ PRESENT |
-| payloads.conf | `/opt/unicornscan-0.4.7/etc/payloads.conf` | ✅ PRESENT (34 KB) |
-| unicorn.conf | `/opt/unicornscan-0.4.7/etc/unicorn.conf` | ✅ PRESENT |
+| modules.conf | `etc/modules.conf` | ✅ PRESENT |
+| payloads.conf | `etc/payloads.conf` | ✅ PRESENT (34 KB) |
+| unicorn.conf | `etc/unicorn.conf` | ✅ PRESENT |
 
 Example configurations also available in:
-- `/opt/unicornscan-0.4.7/src/parse/example_confs/`
+- `src/parse/example_confs/`
 
 ## 9. Comparison with Expected Features
 

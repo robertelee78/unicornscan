@@ -2,7 +2,7 @@
 
 **Analysis Date:** 2025-12-18
 **First Commit:** 0f68d97 (Initial commit of unicornscan 0.4.7)
-**Current Version:** configure.ac in /opt/unicornscan-0.4.7
+**Current Version:** configure.ac in project root
 **Total Commits:** 29
 
 ## Executive Summary

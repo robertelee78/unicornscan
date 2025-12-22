@@ -375,10 +375,19 @@ unicornscan -E -I target.com:1-65535
 
 ## Project History
 
-- **Original Author**: Jack Louis (Rapture Security / Outpost24)
-- **Initial Release**: ~2004-2006
-- **Final Original Release**: 0.4.7 (December 2007)
-- **Modernization**: 2024-2025 (GCC 15 compatibility, p0f v3 integration)
+Unicornscan was created by **Jack Louis** at Rapture Security (later Outpost24) as a high-performance asynchronous network scanner. It pioneered stimulus-based scanning with separate send/receive processes.
+
+| Milestone | Date | Details |
+|-----------|------|---------|
+| Initial Development | 2004-2006 | Original implementation by Jack Louis |
+| Final Original Release | December 2007 | Version 0.4.7 |
+| Modernization Begins | December 2025 | GCC 14/15 compatibility, build fixes |
+| Active Maintenance | 2025-present | Ongoing development and enhancements |
+
+**Current Version**: See `configure.ac` for the authoritative version number.
+
+The modernization effort preserves all original functionality while enabling the tool to build and run on current Linux distributions. See [HISTORY.md](HISTORY.md) for detailed project history.
+
 - **License**: GNU General Public License v2+
 
 ## Files

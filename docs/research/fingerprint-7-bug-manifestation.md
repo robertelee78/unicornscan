@@ -6,7 +6,7 @@
 
 ## The Fatal Check in makepkt_build_tcp()
 
-**File:** `/opt/unicornscan-0.4.7/src/scan_progs/makepkt.c`
+**File:** `src/scan_progs/makepkt.c`
 **Lines:** 114-119
 
 ### The Validation Code

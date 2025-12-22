@@ -15,7 +15,7 @@
 | Custom MTU | `--mtu <size>` | `--mtu <size>` | CAP_NET_RAW |
 | Interface selection | `-e <iface>` | `-e <iface>` | - |
 
-## Effectiveness Matrix (2024-2025)
+## Effectiveness Matrix (2025-2026)
 
 | Technique | Basic IDS | DPI | BCP38 | uRPF Strict | uRPF Loose | Modern ML-IDS |
 |-----------|-----------|-----|-------|-------------|------------|---------------|
@@ -530,5 +530,5 @@ echo "[+] All tests completed"
 ---
 
 **Document Version**: 1.0
-**Last Updated**: 2024-12-16
+**Last Updated**: 2025-12-16
 **Part of**: Unicornscan Modernization Project

@@ -12,7 +12,7 @@
 ### Step 1: Confirm Current Behavior
 ```bash
 # Compile current version
-cd /opt/unicornscan-0.4.7
+cd /path/to/unicornscan
 make clean && make
 
 # Test current fingerprint 7
@@ -90,7 +90,7 @@ s->ss->tcpoptions[38]=0x01; s->ss->tcpoptions[39]=0x01;
 
 ### Step 3: Apply Fix Using sed (Automated)
 ```bash
-cd /opt/unicornscan-0.4.7/src/scan_progs
+cd src/scan_progs
 
 # Fix 1: Change tcpoptions_len from 24 to 40
 sed -i '311s/tcpoptions_len=24;/tcpoptions_len=40; /' init_packet.c
@@ -123,7 +123,7 @@ sed -n '309,340p' src/scan_progs/init_packet.c
 
 ### Test 1: Compile
 ```bash
-cd /opt/unicornscan-0.4.7
+cd /path/to/unicornscan
 make clean
 make
 

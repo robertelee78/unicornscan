@@ -24,7 +24,7 @@ This document provides a comprehensive analysis of p0f v3 architecture compared 
 
 ### 1.1 Architecture Overview
 
-**Location:** `/opt/unicornscan-0.4.7/src/tools/p0f/`
+**Location:** `src/tools/p0f/`
 
 **Core Components:**
 - `p0f.c` (1,071 lines) - Main fingerprinting engine
@@ -36,7 +36,7 @@ This document provides a comprehensive analysis of p0f v3 architecture compared 
   - `p0fr.fp` (193 lines) - RST signatures
 
 **Integration Points:**
-- `/opt/unicornscan-0.4.7/src/report_modules/osdetect/dodetect.c`
+- `src/report_modules/osdetect/dodetect.c`
 - Uses `load_config()` and `p0f_parse()` functions
 - Called from unicornscan's packet processing pipeline
 
@@ -1240,11 +1240,11 @@ This approach positions unicornscan to benefit from ongoing p0f development whil
 ### Appendix A: File Manifest
 
 **P0F v2 (Unicornscan):**
-- `/opt/unicornscan-0.4.7/src/tools/p0f/p0f.c` (1,071 lines)
-- `/opt/unicornscan-0.4.7/src/tools/p0f/p0f.fp` (797 lines)
-- `/opt/unicornscan-0.4.7/src/tools/p0f/p0fa.fp` (167 lines)
-- `/opt/unicornscan-0.4.7/src/tools/p0f/p0fr.fp` (193 lines)
-- `/opt/unicornscan-0.4.7/src/report_modules/osdetect/dodetect.c`
+- `src/tools/p0f/p0f.c` (1,071 lines)
+- `src/tools/p0f/p0f.fp` (797 lines)
+- `src/tools/p0f/p0fa.fp` (167 lines)
+- `src/tools/p0f/p0fr.fp` (193 lines)
+- `src/report_modules/osdetect/dodetect.c`
 
 **P0F v3:**
 - `/tmp/p0f-v3/p0f.c` (803 lines)

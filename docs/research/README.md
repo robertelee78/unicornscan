@@ -7,7 +7,7 @@ This directory contains in-depth research and analysis conducted for the Unicorn
 ### IP Spoofing and Evasion Techniques
 
 1. **[ip-spoofing-modern-techniques.md](ip-spoofing-modern-techniques.md)** (28 KB)
-   - Comprehensive analysis of modern IP spoofing capabilities for network scanners (2024-2025)
+   - Comprehensive analysis of modern IP spoofing capabilities for network scanners (2025-2026)
    - Covers nmap's `-S` and `-D` flags, MAC spoofing, BPF/eBPF implications
    - Anti-spoofing measures: uRPF, BCP38/BCP84, Deep Packet Inspection
    - TTL manipulation, fragmentation + spoofing combinations
@@ -42,7 +42,7 @@ This directory contains in-depth research and analysis conducted for the Unicorn
 
 All research documents follow these principles:
 
-1. **Web Search for Current Information**: Leveraging 2024-2025 sources to ensure recommendations reflect the current threat landscape
+1. **Web Search for Current Information**: Leveraging 2025-2026 sources to ensure recommendations reflect the current threat landscape
 2. **Primary Source Citations**: Direct links to official documentation, RFCs, and authoritative security research
 3. **Practical Implementation Focus**: Code examples, command-line syntax, and concrete recommendations
 4. **Effectiveness Analysis**: Realistic assessment of what works vs. what doesn't against modern defenses
@@ -59,7 +59,7 @@ All research documents follow these principles:
 
 ### For Security Researchers
 
-- **Current Techniques**: Understand what evasion methods work in 2024-2025
+- **Current Techniques**: Understand what evasion methods work in 2025-2026
 - **Defense Awareness**: Learn how modern security measures (uRPF, BCP38, DPI, eBPF) detect spoofing
 - **Combination Strategies**: Single techniques are easily defeated; combine multiple approaches
 - **Effectiveness Metrics**: Use provided matrices to assess likelihood of success
@@ -73,7 +73,7 @@ All research documents follow these principles:
 
 ## Key Findings Summary
 
-### IP Spoofing (2024-2025)
+### IP Spoofing (2025-2026)
 
 | Finding | Impact | Recommendation |
 |---------|--------|----------------|
@@ -148,5 +148,5 @@ All research in this directory is provided **for educational and authorized secu
 ---
 
 **Research Team**: Claude Code Research Agent
-**Last Updated**: December 16, 2024
+**Last Updated**: December 16, 2025
 **Project**: Unicornscan Modernization (v0.4.7 → v1.0)
