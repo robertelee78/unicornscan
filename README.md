@@ -18,22 +18,107 @@ Unicornscan is an asynchronous stateless network stimulus delivery/response reco
 - **OS Personality Emulation**: Emulate 12 different OS TCP/IP stacks when scanning
 - **Linux Capabilities**: Run without root using file capabilities
 
+## Dependencies
+
+### Build Dependencies
+
+These are only needed when compiling from source:
+
+**Debian/Ubuntu:**
+```bash
+sudo apt install build-essential autoconf automake libtool pkg-config \
+    libpcap-dev libdumbnet-dev libltdl-dev flex bison
+```
+
+**Fedora/RHEL/Rocky:**
+```bash
+# Rocky/RHEL 9 requires EPEL and CRB:
+# sudo dnf install epel-release && sudo dnf config-manager --set-enabled crb
+
+sudo dnf install gcc make autoconf automake libtool pkg-config \
+    libpcap-devel libdnet-devel libtool-ltdl-devel flex bison
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S base-devel autoconf automake libtool pkgconf \
+    libpcap libdnet flex bison
+```
+
+**Optional build dependencies:**
+
+| Feature | Debian/Ubuntu | Fedora/RHEL | Arch | Configure Flag |
+|---------|---------------|-------------|------|----------------|
+| PostgreSQL/Supabase | `libpq-dev` | `postgresql-devel` | `postgresql-libs` | `--with-pgsql` |
+| MySQL | `libmysqlclient-dev` | `mysql-devel` | `mariadb-libs` | `--with-mysql` |
+
+### Runtime Dependencies
+
+These are needed to run the compiled binaries:
+
+**Debian/Ubuntu:**
+```bash
+sudo apt install libpcap0.8 libdumbnet1 libltdl7 libcap2-bin
+# Optional for database export:
+sudo apt install libpq5
+```
+
+**Fedora/RHEL/Rocky:**
+```bash
+sudo dnf install libpcap libdnet libtool-ltdl libcap
+# Optional for database export:
+sudo dnf install postgresql-libs
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S libpcap libdnet libtool libcap
+# Optional for database export:
+sudo pacman -S postgresql-libs
+```
+
+**Note:** When installing from .deb or .rpm packages, runtime dependencies are installed automatically.
+
+### Library Name Differences
+
+The low-level networking library has different names across distributions:
+- **Debian/Ubuntu**: `libdumbnet-dev` (build) / `libdumbnet1` (runtime)
+- **Fedora/RHEL/Arch**: `libdnet-devel` (build) / `libdnet` (runtime)
+
+Both refer to the same library (libdnet by Dug Song).
+
 ## Quick Start
 
-### Installation
+### Installation from Source
 
 ```bash
-# Dependencies (Debian/Ubuntu)
-sudo apt install build-essential libpcap-dev flex bison libcap-dev
+# Install build dependencies (see Dependencies section above)
 
 # Build
-./configure --prefix=$HOME/.local/unicornscan
+./configure --prefix=/usr --sysconfdir=/etc
 make
-make install
+sudo make install
 
 # Enable non-root scanning (Linux)
 sudo make setcap
 ```
+
+### Installation from Packages
+
+Pre-built packages are available for Debian, Ubuntu, Fedora, and Rocky Linux:
+
+```bash
+# Download from GitHub Releases
+# https://github.com/robertelee78/unicornscan/releases
+
+# Debian/Ubuntu
+sudo dpkg -i unicornscan_*.deb
+
+# Fedora/RHEL/Rocky
+sudo rpm -i unicornscan-*.rpm
+```
+
+Packages automatically set Linux capabilities for non-root operation.
 
 ### Basic Usage
 
@@ -183,15 +268,18 @@ See [Supabase Integration Guide](docs/supabase-integration.md) for full document
 
 ## Building with Optional Features
 
+See the [Dependencies](#dependencies) section for required packages.
+
 ```bash
 # With PostgreSQL output support (required for Supabase)
+# Requires: libpq-dev (Debian) / postgresql-devel (Fedora) / postgresql-libs (Arch)
 ./configure --with-pgsql
 
 # With MySQL output support
+# Requires: libmysqlclient-dev (Debian) / mysql-devel (Fedora) / mariadb-libs (Arch)
 ./configure --with-mysql
 
-# With GeoIP location support
-./configure --with-geoip
+# GeoIP support is auto-detected if libgeoip is installed
 
 # With SELinux policy
 ./configure --enable-selinux
