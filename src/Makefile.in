@@ -10,14 +10,17 @@ G_LDADD=$(LDFLAGS) -lscan -lparse -lunilib -lpcap -lltdl @DNETLIBS@ -luext
 # build order matters
 SUBDIRS=unilib parse scan_progs tools payload_modules output_modules report_modules
 
-all: alld @targetname@
+all: @targetname@
 
-@targetname@: compile.h $(OBJS) parse/libparse.la scan_progs/libscan.la unilib/libunilib.la
+# Order-only prerequisite (| alld) ensures subdirectories build first
+# but doesn't trigger unnecessary rebuilds of the main binary
+@targetname@: compile.h $(OBJS) | alld
 	$(LIBTOOL) --mode=link $(CC) -export-dynamic $(CFLAGS) -o @targetname@ $(OBJS) $(G_LDPATH) $(G_LDADD)
 
 compile.h: ../configure
 	CC="$(CC)" ./compiledby.sh > compile.h
 
+.PHONY: alld
 alld:
 	@for g in $(SUBDIRS); do \
 		echo "Entering $$g" && cd $$g && @USE_MAKE@ all || exit 1 && cd ..;\

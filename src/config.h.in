@@ -12,13 +12,13 @@
 /* Enable debugging support */
 #undef DEBUG_SUPPORT
 
-/* Define to 1 if you have the 'alarm' function. */
+/* Define to 1 if you have the `alarm' function. */
 #undef HAVE_ALARM
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
-/* Define to 1 if you have the 'closedir' function. */
+/* Define to 1 if you have the `closedir' function. */
 #undef HAVE_CLOSEDIR
 
 /* Define to 1 if you have the <dirent.h> header file. */
@@ -27,49 +27,55 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have the <dnet.h> header file. */
+#undef HAVE_DNET_H
+
+/* Define if dumbnet.h is available */
+#undef HAVE_DUMBNET_H
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define to 1 if you have the 'fork' function. */
+/* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
-/* Define to 1 if you have the 'getaddrinfo' function. */
+/* Define to 1 if you have the `getaddrinfo' function. */
 #undef HAVE_GETADDRINFO
 
-/* Define to 1 if you have the 'gethostbyname' function. */
+/* Define to 1 if you have the `gethostbyname' function. */
 #undef HAVE_GETHOSTBYNAME
 
-/* Define to 1 if you have the 'getnameinfo' function. */
+/* Define to 1 if you have the `getnameinfo' function. */
 #undef HAVE_GETNAMEINFO
 
-/* Define to 1 if you have the 'gettimeofday' function. */
+/* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #undef HAVE_IFADDRS_H
 
-/* Define to 1 if you have the 'inet_ntoa' function. */
+/* Define to 1 if you have the `inet_ntoa' function. */
 #undef HAVE_INET_NTOA
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the 'GeoIP' library (-lGeoIP). */
+/* Define to 1 if you have the `GeoIP' library (-lGeoIP). */
 #undef HAVE_LIBGEOIP
 
-/* Define to 1 if you have the 'ltdl' library (-lltdl). */
+/* Define to 1 if you have the `ltdl' library (-lltdl). */
 #undef HAVE_LIBLTDL
 
-/* Define to 1 if you have the 'pcap' library (-lpcap). */
+/* Define to 1 if you have the `pcap' library (-lpcap). */
 #undef HAVE_LIBPCAP
 
-/* Define to 1 if you have the 'z' library (-lz). */
+/* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
-/* Define to 1 if your system has a GNU libc compatible 'malloc' function, and
+/* Define to 1 if your system has a GNU libc compatible `malloc' function, and
    to 0 otherwise. */
 #undef HAVE_MALLOC
 
@@ -79,7 +85,7 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
-/* Define to 1 if you have the 'memset' function. */
+/* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
 /* Define to 1 if you have the <netdb.h> header file. */
@@ -121,17 +127,17 @@
 /* Define if /proc/net/route is available */
 #undef HAVE_PROC_NET_ROUTE
 
-/* Define to 1 if your system has a GNU libc compatible 'realloc' function,
+/* Define to 1 if your system has a GNU libc compatible `realloc' function,
    and to 0 otherwise. */
 #undef HAVE_REALLOC
 
-/* Define to 1 if you have the 'select' function. */
+/* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
-/* Define to 1 if you have the 'socket' function. */
+/* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
-/* Define to 1 if you have the 'stat' function. */
+/* Define to 1 if you have the `stat' function. */
 #undef HAVE_STAT
 
 /* Define to 1 if you have the <stddef.h> header file. */
@@ -146,10 +152,10 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the 'strdup' function. */
+/* Define to 1 if you have the `strdup' function. */
 #undef HAVE_STRDUP
 
-/* Define to 1 if you have the 'strerror' function. */
+/* Define to 1 if you have the `strerror' function. */
 #undef HAVE_STRERROR
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -158,10 +164,10 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the 'strrchr' function. */
+/* Define to 1 if you have the `strrchr' function. */
 #undef HAVE_STRRCHR
 
-/* Define to 1 if you have the 'strstr' function. */
+/* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
 /* Define if struct sockaddr has sa_len member */
@@ -194,19 +200,19 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the 'vfork' function. */
+/* Define to 1 if you have the `vfork' function. */
 #undef HAVE_VFORK
 
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
-/* Define to 1 if you have the 'vprintf' function. */
+/* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
-/* Define to 1 if 'fork' works. */
+/* Define to 1 if `fork' works. */
 #undef HAVE_WORKING_FORK
 
-/* Define to 1 if 'vfork' works. */
+/* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
 /* define if your compiler has __attribute__ */
@@ -251,7 +257,7 @@
 /* Shared library extension */
 #undef SHLIB_EXT
 
-/* Define to 1 if all of the C89 standard headers exist (not just the ones
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
@@ -289,13 +295,13 @@
 /* Define for HP-UX */
 #undef _HPUX_SOURCE
 
-/* Define to empty if 'const' does not conform to ANSI C. */
+/* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
-/* Define as 'int' if <sys/types.h> doesn't define. */
+/* Define to `int' if <sys/types.h> doesn't define. */
 #undef gid_t
 
-/* Define to '__inline__' or '__inline' if that's what the C compiler
+/* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 #undef inline
@@ -304,7 +310,7 @@
 /* Define to rpl_malloc if the replacement function should be used. */
 #undef malloc
 
-/* Define to 'long int' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
 
 /* Define as a signed integer type capable of holding a process identifier. */
@@ -313,17 +319,17 @@
 /* Define to rpl_realloc if the replacement function should be used. */
 #undef realloc
 
-/* Define as 'unsigned int' if <stddef.h> doesn't define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
-/* Define as 'int' if <sys/types.h> doesn't define. */
+/* Define to `int' if <sys/types.h> doesn't define. */
 #undef uid_t
 
-/* Define as 'fork' if 'vfork' does not work. */
+/* Define as `fork' if `vfork' does not work. */
 #undef vfork
 
-/* Define to empty if the keyword 'volatile' does not work. Warning: valid
-   code using 'volatile' can become incorrect without. Disable with care. */
+/* Define to empty if the keyword `volatile' does not work. Warning: valid
+   code using `volatile' can become incorrect without. Disable with care. */
 #undef volatile
 
 

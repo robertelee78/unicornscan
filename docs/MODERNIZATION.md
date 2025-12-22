@@ -405,5 +405,5 @@ modular design means we can update pieces without rewriting everything.
 
 ---
 
-*Document created during codebase analysis - December 2024*
+*Document created during codebase analysis - December 2025*
 *For Jack.*

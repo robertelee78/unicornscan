@@ -492,8 +492,8 @@ p0f -f test.fp -r capture.pcap
 
 ## Further Reading
 
-- **Full Analysis:** `/opt/unicornscan-0.4.7/docs/p0f-v3-research-analysis.md`
-- **Integration Recommendation:** `/opt/unicornscan-0.4.7/docs/p0f-integration-recommendation.md`
+- **Full Analysis:** `docs/p0f-v3-research-analysis.md`
+- **Integration Recommendation:** `docs/p0f-integration-recommendation.md`
 - **P0F v3 README:** https://github.com/p0f/p0f/blob/master/docs/README
 - **P0F v3 Signature Format:** https://lcamtuf.coredump.cx/p0f3/README (Section 5)
 

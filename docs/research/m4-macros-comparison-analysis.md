@@ -318,7 +318,7 @@ If configure.ac doesn't use the lost macros, no restoration needed.
 - Single monolithic m4 file
 - Copyright 1996-2004
 
-### Current (2024)
+### Current (2025)
 - libtool.m4: from libtool 2.4.7+
 - Split into: libtool.m4, ltoptions.m4, ltsugar.m4, ltversion.m4, lt~obsolete.m4
 - Copyright 1996-2024

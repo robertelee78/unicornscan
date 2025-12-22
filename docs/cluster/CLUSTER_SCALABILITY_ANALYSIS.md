@@ -336,7 +336,7 @@ close(d->s);
 
 ### 5.1 Existing Tests
 
-**Location:** `/opt/unicornscan-0.4.7/src/scan_progs/tests/`
+**Location:** `src/scan_progs/tests/`
 
 **Test Files:**
 - `test_drone_cluster.c` - **Cluster mode test suite (22 tests)**

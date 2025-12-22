@@ -599,10 +599,10 @@ Some values are randomized:
 ## Source Code References
 
 All packet structure implementations:
-- `/opt/unicornscan-0.4.7/src/scan_progs/init_packet.c`
+- `src/scan_progs/init_packet.c`
 
 Packet building functions:
-- `/opt/unicornscan-0.4.7/src/scan_progs/makepkt.c`
+- `src/scan_progs/makepkt.c`
 
 Header definitions:
-- `/opt/unicornscan-0.4.7/src/scan_progs/packets.h`
+- `src/scan_progs/packets.h`

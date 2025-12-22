@@ -237,20 +237,20 @@ Pad to 40 bytes (maximum TCP options):
 ## File Locations
 
 ### Source Files
-- **Bug location:** `/opt/unicornscan-0.4.7/src/scan_progs/init_packet.c`
+- **Bug location:** `src/scan_progs/init_packet.c`
   - Line 311: Incorrect length declaration
   - Lines 315-337: Buffer overflow writes
   - Line 337: Duplicate write bug
 
-- **Validation code:** `/opt/unicornscan-0.4.7/src/scan_progs/makepkt.c`
+- **Validation code:** `src/scan_progs/makepkt.c`
   - Line 114: 4-byte alignment check (the constraint)
   - Line 158: Packet copy (where overflow manifests)
 
-- **Buffer declaration:** `/opt/unicornscan-0.4.7/src/scan_progs/scanopts.h`
+- **Buffer declaration:** `src/scan_progs/scanopts.h`
   - Line 48: `uint8_t tcpoptions[64];`
 
 ### Analysis Documents
-All located in: `/opt/unicornscan-0.4.7/docs/research/`
+All located in: `docs/research/`
 
 ```
 fingerprint-7-executive-summary.md      - Quick overview and recommendations
@@ -317,9 +317,9 @@ TCP Options [40 bytes]:
 ## Related Documentation
 
 ### Existing Unicornscan Docs
-- `/opt/unicornscan-0.4.7/docs/OS_FINGERPRINT_SPOOFING_ANALYSIS.md`
-- `/opt/unicornscan-0.4.7/docs/FINGERPRINT_PACKET_STRUCTURES.md`
-- `/opt/unicornscan-0.4.7/docs/FINGERPRINT_QUICK_REFERENCE.md`
+- `docs/OS_FINGERPRINT_SPOOFING_ANALYSIS.md`
+- `docs/FINGERPRINT_PACKET_STRUCTURES.md`
+- `docs/FINGERPRINT_QUICK_REFERENCE.md`
 
 ### RFCs Referenced
 - **RFC 793:** Transmission Control Protocol (TCP basics)
@@ -460,4 +460,4 @@ Methodology:
 **END OF INDEX**
 
 For detailed analysis, see the individual documents listed above.
-All documents are located in `/opt/unicornscan-0.4.7/docs/research/`
+All documents are located in `docs/research/`

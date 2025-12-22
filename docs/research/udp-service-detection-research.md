@@ -331,7 +331,7 @@ zmap -M udp -p 53 --probe-args=hex:00001000000000000000000000000000
 - 31337 - BackOrifice
 - 27960-27964 - Quake 3 (often abused)
 
-### Modern Network Considerations (2024-2025)
+### Modern Network Considerations (2025-2026)
 
 **Emerging Protocols**:
 - QUIC (UDP 443, 80) - HTTP/3 transport
@@ -467,8 +467,8 @@ static const struct udp_payload_entry {
 ### Integration Points
 
 **Existing unicornscan code**:
-- `/opt/unicornscan-0.4.7/src/scan_progs/send_packet.c` - Payload delivery
-- `/opt/unicornscan-0.4.7/src/scan_progs/makepkt.c:74` - `makepkt_build_udp()`
+- `src/scan_progs/send_packet.c` - Payload delivery
+- `src/scan_progs/makepkt.c:74` - `makepkt_build_udp()`
 - Payload selection in `cmp_payload()` function
 
 **New files needed**:
