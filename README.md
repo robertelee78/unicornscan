@@ -118,11 +118,11 @@ Pre-built packages are available for Debian, Ubuntu, Fedora, and Rocky Linux:
 # Download from GitHub Releases
 # https://github.com/robertelee78/unicornscan/releases
 
-# Debian/Ubuntu
-sudo dpkg -i unicornscan_*.deb
+# Debian/Ubuntu (apt handles dependencies automatically)
+sudo apt install ./unicornscan_*.deb
 
-# Fedora/RHEL/Rocky
-sudo rpm -i unicornscan-*.rpm
+# Fedora/RHEL/Rocky (dnf handles dependencies automatically)
+sudo dnf install ./unicornscan-*.rpm
 ```
 
 Packages automatically set Linux capabilities for non-root operation.
