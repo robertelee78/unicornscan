@@ -68,9 +68,17 @@ void report_init(void) {
 	report_t=rbinit(123);
 
 #ifdef HAVE_LIBGEOIP
-	gi=GeoIP_open(CONF_DIR "/GeoIP.dat", GEOIP_MEMORY_CACHE);
-	if (gi == NULL) {
-		ERR("error opening geoip database `%s/%s': %s", CONF_DIR, "/GeoIP.dat", strerror(errno));
++	if (access("/usr/share/GeoIP/GeoIP.dat", F_OK) == 0) {
++		gi=GeoIP_open("/usr/share/GeoIP/GeoIP.dat", GEOIP_MEMORY_CACHE);
++		if (gi == NULL) {
++			ERR("Error opening geoip standard database `/usr/share/GeoIP/GeoIP.dat': %s", strerror(errno));
++		}
++	}
++	else {
++		gi=GeoIP_open(CONF_DIR "/GeoIP.dat", GEOIP_MEMORY_CACHE);
++		if (gi == NULL) {
++			ERR("Error opening geoip database `%s/%s': %s", CONF_DIR, "/GeoIP.dat", strerror(errno));
++		}
 	}
 
 #endif
