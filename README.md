@@ -1,6 +1,6 @@
 # Unicornscan
 
-**High-speed asynchronous network scanner with OS fingerprinting**
+**Unicorns are fast.**
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 
@@ -9,7 +9,7 @@ Unicornscan is an asynchronous stateless network stimulus delivery/response reco
 ## Features
 
 - **Asynchronous Architecture**: Separate sender/listener processes enable packet rates of 25,000+ PPS
-- **Multiple Scan Modes**: TCP (SYN, ACK, FIN, NULL, XMAS, custom flags), UDP, ARP, ICMP, IP protocol
+- **Multiple Scan Modes**: TCP (SYN, ACK, FIN, NULL, custom flags), UDP, ARP, ICMP, etc
 - **OS Fingerprinting**: Integrated p0f v3 signatures with 50+ embedded OS fingerprints
 - **Source Spoofing**: Full phantom IP support with ARP proxy tool (`fantaip`)
 - **Protocol Payloads**: HTTP, DNS, SIP, UPnP/SSDP, NTALK for service-specific probing
@@ -49,6 +49,7 @@ sudo pacman -S base-devel autoconf automake libtool pkgconf \
 
 | Feature | Debian/Ubuntu | Fedora/RHEL | Arch | Configure Flag |
 |---------|---------------|-------------|------|----------------|
+| GeoIP (country lookup) | `libmaxminddb-dev` | `libmaxminddb-devel` | `libmaxminddb` | auto-detected |
 | PostgreSQL/Supabase | `libpq-dev` | `postgresql-devel` | `postgresql-libs` | `--with-pgsql` |
 | MySQL | `libmysqlclient-dev` | `mysql-devel` | `mariadb-libs` | `--with-mysql` |
 
@@ -59,6 +60,8 @@ These are needed to run the compiled binaries:
 **Debian/Ubuntu:**
 ```bash
 sudo apt install libpcap0.8 libdumbnet1 libltdl7 libcap2-bin
+# Optional for GeoIP country lookup:
+sudo apt install libmaxminddb0
 # Optional for database export:
 sudo apt install libpq5
 ```
@@ -66,6 +69,8 @@ sudo apt install libpq5
 **Fedora/RHEL/Rocky:**
 ```bash
 sudo dnf install libpcap libdnet libtool-ltdl libcap
+# Optional for GeoIP country lookup:
+sudo dnf install libmaxminddb
 # Optional for database export:
 sudo dnf install postgresql-libs
 ```
@@ -73,6 +78,8 @@ sudo dnf install postgresql-libs
 **Arch Linux:**
 ```bash
 sudo pacman -S libpcap libdnet libtool libcap
+# Optional for GeoIP country lookup:
+sudo pacman -S libmaxminddb
 # Optional for database export:
 sudo pacman -S postgresql-libs
 ```
