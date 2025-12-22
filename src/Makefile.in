@@ -10,8 +10,9 @@ G_LDADD=$(LDFLAGS) -lscan -lparse -lunilib -lpcap -lltdl @DNETLIBS@ -luext
 # build order matters
 SUBDIRS=unilib parse scan_progs tools payload_modules output_modules report_modules
 
-all: alld @targetname@
+all: @targetname@
 
+@targetname@: alld
 @targetname@: compile.h $(OBJS) parse/libparse.la scan_progs/libscan.la unilib/libunilib.la
 	$(LIBTOOL) --mode=link $(CC) -export-dynamic $(CFLAGS) -o @targetname@ $(OBJS) $(G_LDPATH) $(G_LDADD)
 
