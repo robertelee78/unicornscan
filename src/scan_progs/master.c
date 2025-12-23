@@ -35,6 +35,7 @@
 #include <scan_progs/portfunc.h>
 #include <scan_progs/workunits.h>
 #include <scan_progs/report.h>
+#include <scan_progs/phase_filter.h>
 #include <unilib/drone.h>
 #include <unilib/qfifo.h>
 #include <unilib/chtbl.h>
@@ -57,12 +58,27 @@ static int master_state=0;
 
 static unsigned int send_workunits_complete=0, listen_workunits_complete=0;
 static int listener_stats=0;
+static int lwu_mixed=0;  /* moved from dispatch_work_units() for phase reset */
 
 static void master_read_drones(void);
 static void master_updatestate(int );
 static int dispatch_work_units(void);
 static int senders_done(void);
 static void terminate_listeners(void);
+
+/*
+ * Reset master state for a new phase in compound mode.
+ * Called from main.c before run_scan() for phase 2+.
+ * Ensures dispatch_work_units() starts fresh for each phase.
+ */
+void master_reset_phase_state(void) {
+	send_workunits_complete=0;
+	listen_workunits_complete=0;
+	lwu_mixed=0;
+	/* Note: listener_stats is reset in run_scan() at line 306 */
+	/* Note: master_state is reset in run_scan() at line 248 */
+	DBG(M_MST, "master_reset_phase_state: reset counters for new phase");
+}
 
 static void master_updatestate(int state) {
 
@@ -504,6 +520,11 @@ int deal_with_output(void *msg, size_t msg_len) {
 
 		r_u.a->od_q=fifo_init();
 
+		/* Store ARP response in phase filter cache for compound mode */
+		if (s->num_phases > 1) {
+			phase_filter_store(r_u.a->ipaddr, r_u.a->hwaddr);
+		}
+
 		push_jit_report_modules(r_u.ptr);
 	}
 	else {
@@ -623,7 +644,7 @@ static int dispatch_work_units(void) {
 
 
 		if (master_state == MASTER_START && c->type == DRONE_TYPE_LISTENER) {
-			static int lwu_mixed=0;
+			/* lwu_mixed moved to file scope for phase reset support */
 
 			DBG(M_MST, "sending listener workunits");
 
