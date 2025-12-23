@@ -117,6 +117,8 @@ jobs:
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/fantaip 2>/dev/null || true
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unilisten 2>/dev/null || true
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unisend 2>/dev/null || true
+          # Make socket directory writable by all users (sticky bit prevents deletion by others)
+          chmod 1777 /var/unicornscan 2>/dev/null || true
           exit 0
           POSTINST
           sed -i 's/^          //' debian/unicornscan/DEBIAN/postinst
