@@ -1,5 +1,5 @@
 /**********************************************************************
- * Copyright (C) 2024-2025 unicornscan contributors                   *
+ * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>          *
  *                                                                    *
  * This program is free software; you can redistribute it and/or      *
  * modify it under the terms of the GNU General Public License        *
