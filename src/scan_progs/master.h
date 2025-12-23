@@ -21,6 +21,7 @@
 
 void run_drone(void);
 void run_scan(void);
+void master_reset_phase_state(void); /* reset counters for compound mode phases */
 int dispatch_pri_work(void);
 int deal_with_output(void * /* msg */, size_t /* msg_len */);
 void deal_with_workunit(const void * /* workunit */, uint32_t /* wid */);

@@ -35,12 +35,15 @@
 
 #include <unilib/drone.h>
 #include <unilib/modules.h>
+#include <unilib/qfifo.h>
+#include <unilib/xmalloc.h>
 
 #include <scan_progs/scan_export.h>
 #include <scan_progs/master.h>
 #include <scan_progs/workunits.h>
 #include <scan_progs/report.h>
 #include <scan_progs/connect.h>
+#include <scan_progs/phase_filter.h>
 
 #include <usignals.h>
 #include <drone_setup.h>
@@ -49,6 +52,19 @@
 settings_t *s=NULL;
 int ident=0;
 const char *ident_name_ptr=NULL;
+
+/*
+ * Copy targets from target_strs back to argv_ext for phase 2+.
+ * Phase 1 consumes argv_ext, so we need to repopulate it.
+ */
+static void repopulate_argv_targets(const char *target) {
+	fifo_push(s->argv_ext, xstrdup(target));
+}
+
+static void prepare_targets_for_phase(void) {
+	/* argv_ext should be empty after phase 1 consumed it */
+	fifo_walk(s->target_strs, (void (*)(void *))repopulate_argv_targets);
+}
 
 int main(int argc, char **argv) {
 	unsigned int num_secs=0, time_off=0;
@@ -89,6 +105,17 @@ int main(int argc, char **argv) {
 
 	if (getconfig_argv(argc, argv) < 0) {
 		terminate("unable to get configuration");
+	}
+
+	/*
+	 * Initialize phase filter for compound mode ARP caching.
+	 * Must be done after getconfig_argv() sets s->num_phases,
+	 * and before do_targets() so the cache is ready for validation.
+	 */
+	if (s->num_phases > 1) {
+		if (phase_filter_init() != 1) {
+			terminate("failed to initialize phase filter for compound mode");
+		}
 	}
 
 	/* now parse argv data for a target -> workunit list */
@@ -233,9 +260,43 @@ int main(int argc, char **argv) {
 		}
 
 		for (s->cur_iter=1 ; s->cur_iter < (s->scan_iter + 1); s->cur_iter++) {
-			VRB(1, "scan iteration %u out of %u", s->cur_iter, s->scan_iter);
-			workunit_reset();
-			run_scan();
+			/*
+			 * Phase loop for compound mode (e.g., -mA+T).
+			 * Single mode (num_phases <= 1) runs once with existing settings.
+			 */
+			int num_phases_to_run=(s->num_phases > 1) ? s->num_phases : 1;
+
+			for (s->cur_phase=0; s->cur_phase < num_phases_to_run; s->cur_phase++) {
+				if (s->num_phases > 1) {
+					/*
+					 * Compound mode: load phase-specific settings.
+					 * Phase 1 workunits already created by do_targets().
+					 * Phase 2+ need workunits regenerated with new mode.
+					 */
+					if (load_phase_settings(s->cur_phase) != 1) {
+						terminate("failed to load phase %d settings", s->cur_phase + 1);
+					}
+
+					if (s->cur_phase > 0) {
+						VRB(1, "phase %d: regenerating workunits for %s",
+							s->cur_phase + 1, strscanmode(scan_getmode()));
+						workunit_reinit();
+						master_reset_phase_state();
+						prepare_targets_for_phase();
+						do_targets();
+					}
+
+					VRB(1, "scan iteration %u phase %u/%u: %s",
+						s->cur_iter, s->cur_phase + 1, s->num_phases,
+						strscanmode(scan_getmode()));
+				}
+				else {
+					VRB(1, "scan iteration %u out of %u", s->cur_iter, s->scan_iter);
+				}
+
+				workunit_reset();
+				run_scan();
+			}
 		}
 
 		report_do();
@@ -254,6 +315,11 @@ int main(int argc, char **argv) {
 
 	fini_output_modules();
 	fini_report_modules();
+
+	/* Clean up phase filter if it was initialized for compound mode */
+	if (s->num_phases > 1) {
+		phase_filter_destroy();
+	}
 
 	workunit_destroy();
 
