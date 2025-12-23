@@ -66,6 +66,50 @@ static void prepare_targets_for_phase(void) {
 	fifo_walk(s->target_strs, (void (*)(void *))repopulate_argv_targets);
 }
 
+/*
+ * Callback for phase_filter_walk() to create a /32 workunit for each
+ * IP that responded to ARP in phase 1.
+ */
+static void add_workunit_for_arp_host(uint32_t ipaddr, void *ctx) {
+	char *estr=NULL;
+	char ip_str[24];
+	(void)ctx;
+
+	/*
+	 * Format IP as dotted quad. ipaddr is in network byte order,
+	 * so first byte is lowest octet.
+	 */
+	snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
+		(ipaddr >> 0) & 0xff, (ipaddr >> 8) & 0xff,
+		(ipaddr >> 16) & 0xff, (ipaddr >> 24) & 0xff);
+
+	DBG(M_WRK, "phase 2+: adding /32 workunit for ARP responder %s", ip_str);
+
+	if (workunit_add(ip_str, &estr) < 0) {
+		ERR("failed to add workunit for ARP responder %s: %s", ip_str, estr);
+	}
+}
+
+/*
+ * Create workunits from ARP cache for compound mode phase 2+.
+ *
+ * Instead of creating CIDR-based workunits that the sender would iterate,
+ * we create individual /32 workunits for each host that responded to ARP.
+ * This ensures phase 2+ only scans hosts discovered in phase 1.
+ */
+static void do_targets_from_arp_cache(void) {
+	uint32_t count=0;
+
+	count=phase_filter_count();
+	if (count == 0) {
+		VRB(0, "phase 2+: no ARP responses cached, nothing to scan");
+		return;
+	}
+
+	VRB(1, "phase 2+: creating workunits for %u ARP responders", count);
+	phase_filter_walk(add_workunit_for_arp_host, NULL);
+}
+
 int main(int argc, char **argv) {
 	unsigned int num_secs=0, time_off=0;
 	char time_est[128];
@@ -282,8 +326,11 @@ int main(int argc, char **argv) {
 							s->cur_phase + 1, strscanmode(scan_getmode()));
 						workunit_reinit();
 						master_reset_phase_state();
-						prepare_targets_for_phase();
-						do_targets();
+						/*
+						 * For phase 2+, create workunits only for hosts
+						 * that responded to ARP in phase 1.
+						 */
+						do_targets_from_arp_cache();
 					}
 
 					VRB(1, "scan iteration %u phase %u/%u: %s",

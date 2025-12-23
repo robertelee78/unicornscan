@@ -19,6 +19,27 @@
 #ifndef _SCAN_OPTS_H
 # define _SCAN_OPTS_H
 
+/*
+ * COMPOUND MODE PHASE CONFIGURATION
+ * Each phase in a compound mode (e.g., -mA+T) has its own settings.
+ * Phase 1 runs first (typically ARP), subsequent phases filter based on results.
+ * Per-phase PPS overrides global -r rate; 0 means use global rate.
+ */
+typedef struct scan_phase_t {
+	uint8_t mode;		/* MODE_ARPSCAN, MODE_TCPSCAN, etc	*/
+	uint16_t tcphdrflgs;	/* TH_SYN, TH_FIN, etc (TCP modes)	*/
+	uint16_t send_opts;	/* S_ flags for this phase		*/
+	uint16_t recv_opts;	/* L_ flags for this phase		*/
+	uint32_t pps;		/* per-phase rate; 0 = use global -r	*/
+} scan_phase_t;
+
+#ifdef SCANPHASE
+# warning check headers!
+# undef SCANPHASE
+#endif
+
+#define SCANPHASE scan_phase_t
+
 /* nothing other than the scan option code and scan_module code should touch this (perhaps modules too) */
 
 typedef struct scan_settings_t {
