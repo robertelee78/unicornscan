@@ -1,11 +1,11 @@
 # unicornscan
-/usr/bin/unicornscan			--	system_u:object_r:unicornscan_exec_t
-/usr/bin/fantaip			--	system_u:object_r:netutils_exec_t
-/usr/bin/unicycle			--	system_u:object_r:netutils_exec_t
-/usr/libexec/unicornscan(/.*)?		--	system_u:object_r:usr_t
-/usr/lib/unicornscan(/.*)?		--	system_u:object_r:lib_t
-/usr/libexec/unicornscan/unilisten	--	system_u:object_r:unilisten_exec_t
-/usr/libexec/unicornscan/unisend	--	system_u:object_r:unisend_exec_t
-/usr/lib/unicornscan/modules/[a-z0-9]*\.so	--	system_u:object_r:shlib_t
-/usr/etc/unicornscan(/.*)?		--	system_u:object_r:unicornscan_share_t
-/usr/var/unicornscan(/.*)?	--	system_u:object_r:unicornscan_var_t
+/usr/local/bin/unicornscan			--	system_u:object_r:unicornscan_exec_t
+/usr/local/bin/fantaip			--	system_u:object_r:netutils_exec_t
+/usr/local/bin/unicycle			--	system_u:object_r:netutils_exec_t
+/usr/local/libexec/unicornscan(/.*)?		--	system_u:object_r:usr_t
+/usr/local/lib/unicornscan(/.*)?		--	system_u:object_r:lib_t
+/usr/local/libexec/unicornscan/unilisten	--	system_u:object_r:unilisten_exec_t
+/usr/local/libexec/unicornscan/unisend	--	system_u:object_r:unisend_exec_t
+/usr/local/lib/unicornscan/modules/[a-z0-9]*\.so	--	system_u:object_r:shlib_t
+/usr/local/etc/unicornscan(/.*)?		--	system_u:object_r:unicornscan_share_t
+/usr/local/var/unicornscan(/.*)?	--	system_u:object_r:unicornscan_var_t

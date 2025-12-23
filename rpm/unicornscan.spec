@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.10
+Version:        0.4.12
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -66,8 +66,8 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_bi
 setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_bindir}/fantaip 2>/dev/null || :
 setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_libexecdir}/unicornscan/unilisten 2>/dev/null || :
 setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_libexecdir}/unicornscan/unisend 2>/dev/null || :
-# Make socket directory writable by all users (sticky bit prevents deletion by others)
-chmod 1777 %{_localstatedir}/unicornscan 2>/dev/null || :
+# Note: Non-root users use XDG_RUNTIME_DIR for sockets (e.g., /run/user/$UID/unicornscan/)
+# The /var/unicornscan directory is only used when running as root
 
 %files
 %license LICENSE
@@ -84,16 +84,21 @@ chmod 1777 %{_localstatedir}/unicornscan 2>/dev/null || :
 %dir %{_localstatedir}/unicornscan
 
 %changelog
-* Sat Dec 21 2024 Robert Lee <robert@loveathome.us> - 0.4.10-1
+* Mon Dec 22 2025 Robert Lee <robert@unicornscan.org> - 0.4.12-1
+- Use XDG_RUNTIME_DIR for per-user socket paths (secure non-root operation)
+- Replace deprecated libGeoIP with modern libmaxminddb
+- Add multi-path GeoIP database search
+
+* Sat Dec 21 2025 Robert Lee <robert@unicornscan.org> - 0.4.10-1
 - Set Linux capabilities on install for non-root operation
 - Only disable receive offloads (GRO/LRO), restore on exit
 
-* Fri Dec 20 2024 Robert Lee <robert@loveathome.us> - 0.4.9-1
+* Fri Dec 20 2025 Robert Lee <robert@unicornscan.org> - 0.4.9-1
 - Disable NIC offload (GRO/LRO/TSO/GSO) for accurate packet capture
 - Add DLT_LINUX_SLL support for capturing on "any" interface
 - Add verbosity-based logging for packet parsing issues
 
-* Fri Dec 20 2024 Robert Lee <robert@loveathome.us> - 0.4.8-1
+* Fri Dec 20 2025 Robert Lee <robert@unicornscan.org> - 0.4.8-1
 - Fix libdumbnet/libdnet support for cross-platform builds
 - Add Supabase cloud database support
 - Fix NULL pointer dereferences in pgsqldb module
