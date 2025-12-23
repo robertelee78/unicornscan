@@ -1,6 +1,6 @@
 #ifndef VERSION
 
-#define VERSION "0.4.8"
+#define VERSION "0.4.12"
 #define BUGURL "osace-users@lists.sourceforge.net"
 
 #ifdef WITH_SELINUX

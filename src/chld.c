@@ -29,6 +29,7 @@
 #include <unilib/arch.h>
 #include <unilib/drone.h>
 #include <unilib/modules.h>
+#include <unilib/sockpath.h>
 
 #include <usignals.h>
 
@@ -82,8 +83,13 @@ int chld_fork(void) {
 
 	/* initialize senders */
 	if ((s->forklocal & FORK_LOCAL_SENDER) == FORK_LOCAL_SENDER) {
+		const char *sender_uri = sockpath_get_sender();
+		if (sender_uri == NULL) {
+			ERR("cannot determine sender socket path");
+			return -1;
+		}
 
-		drone_add(DEF_SENDER);
+		drone_add(sender_uri);
 
 		chld_sender=fork();
 		if (chld_sender < 0) {
@@ -101,7 +107,7 @@ int chld_fork(void) {
 			argz[3]=verbose_level;
 			argz[4]=s->debugmaskstr;
 			argz[5]=s->interface_str;
-			argz[6]=xstrdup(DEF_SENDER);
+			argz[6]=xstrdup(sender_uri);
 			argz[7]=NULL;
 
 			envz[0]='\0';
@@ -126,8 +132,13 @@ int chld_fork(void) {
 
 	/* initialize listeners */
 	if ((s->forklocal & FORK_LOCAL_LISTENER) == FORK_LOCAL_LISTENER) {
+		const char *listener_uri = sockpath_get_listener();
+		if (listener_uri == NULL) {
+			ERR("cannot determine listener socket path");
+			return -1;
+		}
 
-		drone_add(DEF_LISTENER);
+		drone_add(listener_uri);
 
 		chld_listener=fork();
 		if (chld_listener < 0) {
@@ -151,7 +162,7 @@ int chld_fork(void) {
 			argz[6]=s->vi[0]->myaddr_s;
 			argz[7]=s->vi[0]->hwaddr_s;
 			argz[8]=(s->pcap_dumpfile == NULL ? xstrdup("none") : s->pcap_dumpfile);
-			argz[9]=xstrdup(DEF_LISTENER);
+			argz[9]=xstrdup(listener_uri);
 			argz[10]=NULL;
 
 			envz[0]='\0';
