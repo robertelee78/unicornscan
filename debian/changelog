@@ -9,4 +9,4 @@ unicornscan (0.4.8-1) unstable; urgency=medium
   * Fix compilation on modern Linux (GCC 13+)
   * Modernize fantaip for WiFi interfaces
 
- -- Robert Lee <robert@loveathome.us>  Fri, 20 Dec 2025 09:00:00 -0800
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 20 Dec 2025 09:00:00 -0800

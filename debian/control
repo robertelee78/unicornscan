@@ -1,7 +1,7 @@
 Source: unicornscan
 Section: net
 Priority: optional
-Maintainer: Robert Lee <robert@loveathome.us>
+Maintainer: Robert E. Lee <robert@unicornscan.org>
 Build-Depends: debhelper (>= 13),
                autoconf,
                automake,

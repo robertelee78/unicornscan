@@ -5,11 +5,11 @@ Source: https://github.com/robertelee78/unicornscan
 
 Files: *
 Copyright: 2004-2006 Jack Louis <jack@rapturesecurity.org>
-           2025 Robert Lee <robert@loveathome.us>
+           2025 Robert E. Lee <robert@unicornscan.org>
 License: GPL-2+
 
 Files: debian/*
-Copyright: 2025 Robert Lee <robert@loveathome.us>
+Copyright: 2025 Robert E. Lee <robert@unicornscan.org>
 License: GPL-2+
 
 License: GPL-2+

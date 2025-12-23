@@ -99,7 +99,7 @@ jobs:
           Package: unicornscan
           Version: ${VERSION}
           Architecture: amd64
-          Maintainer: Robert Lee <robert@loveathome.us>
+          Maintainer: Robert E. Lee <robert@unicornscan.org>
           Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5, libcap2-bin
           Section: net
           Priority: optional
