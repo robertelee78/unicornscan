@@ -715,7 +715,9 @@ static int dispatch_work_units(void) {
 
 			DBG(M_MST, "sending sender workunits");
 
-			if ((w_k.s=workunit_get_sp(&wk_len, &wid)) != NULL) {
+			w_k.s=workunit_get_sp(&wk_len, &wid);
+
+			if (w_k.s != NULL) {
 				DBG(M_WRK, "got sender workunit of size " STFMT ", sending to sender", wk_len);
 
 				if (send_message(c->s, MSG_WORKUNIT, MSG_STATUS_OK, w_k.cr, wk_len) < 0) {

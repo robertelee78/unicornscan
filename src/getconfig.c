@@ -516,8 +516,16 @@ int getconfig_argv(int argc, char ** argv) {
 
 	s->argv_ext=fifo_init();
 
+	/*
+	 * Also save targets to target_strs for multi-phase compound mode.
+	 * Phase 1 consumes argv_ext, phase 2+ repopulates from target_strs.
+	 */
+	s->target_strs=fifo_init();
+
 	for (; optind < argc; optind++) {
-		fifo_push(s->argv_ext, xstrdup(argv[optind]));
+		char *target=xstrdup(argv[optind]);
+		fifo_push(s->argv_ext, target);
+		fifo_push(s->target_strs, xstrdup(target));
 	}
 
 	return 1;
