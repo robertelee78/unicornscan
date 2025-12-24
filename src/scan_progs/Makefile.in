@@ -1,7 +1,8 @@
 include ../../Makefile.inc
 
 LS_SRCS=chksum.c connect.c master.c options.c packet_slice.c \
-	payload.c portfunc.c scanopts.c workunits.c makepkt.c report.c
+	payload.c portfunc.c scanopts.c workunits.c makepkt.c report.c \
+	phase_filter.c
 LS_HDRS=$(LS_SRCS:.c=.h) tcphash.h
 LS_OBJS=$(LS_SRCS:.c=.lo)
 LS_LIBNAME=libscan.la
