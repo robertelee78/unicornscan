@@ -165,6 +165,42 @@ Lowercase clears the flag. Examples:
 - `-mTsA` = ACK only (no SYN)
 - `-mTsFPU` = FIN+PSH+URG (XMAS scan)
 
+## Compound Scan Modes
+
+Compound modes chain multiple scan phases together, with later phases only scanning targets discovered by earlier phases. This is particularly powerful when combined with ARP discovery, as it eliminates kernel ARP blocking delays that normally throttle scans on sparse local networks.
+
+### How It Works
+
+When you scan a large local network range (e.g., /16) where most IPs are unused, the kernel spends significant time trying to resolve ARP for non-existent hosts. This creates blocking delays that prevent the scanner from maintaining high packet rates.
+
+Compound modes solve this by performing ARP discovery first, then only scanning hosts that actually responded. This can reduce packets by up to 95% on sparse networks while maintaining full scan rates.
+
+### Usage
+
+Chain scan modes with the `+` operator:
+
+```bash
+# ARP discovery then TCP SYN scan - only scans hosts that responded to ARP
+unicornscan -mA+T 192.168.1.0/24 -p22,80,443 -r10000
+
+# ARP discovery then UDP scan
+unicornscan -mA+U 192.168.1.0/24 -p53,67,123 -r5000
+
+# Three phases: ARP → TCP → UDP (all filtered by ARP phase 1)
+unicornscan -mA+T+U 192.168.1.0/24 -p22,80,53 -r10000
+```
+
+### Benefits
+
+- **Eliminates ARP Blocking**: No kernel delays waiting for non-existent hosts
+- **Massive Packet Reduction**: Up to 95% fewer packets on sparse networks
+- **Full Rate Scanning**: Maintains target PPS even on large local ranges
+- **Efficient Resource Use**: Only probes live targets in later phases
+
+### Requirements
+
+Compound modes require targets on the local network (same L2 broadcast domain). For remote targets, use standard single-mode scanning.
+
 ## OS Fingerprinting
 
 ### Passive Detection (Response Analysis)
