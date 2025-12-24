@@ -222,6 +222,11 @@ unicornscan -mA:L15:R3+T 192.168.1.0/24 -p80
 # Only specify what you need - unset values use global defaults
 unicornscan -mA:R5+T1000 192.168.1.0/24 -p80 -R2 -L5
 # ARP uses 5 repeats, global timeout; TCP uses 1000 PPS, 2 repeats, 5s timeout
+
+# Practical local network scan: quick ports with reliable ARP discovery
+unicornscan -mA10:R5:L15+T 192.168.1.0/24:q -Ivr1000
+# ARP at 10 PPS with 5 repeats and 15s timeout (thorough discovery)
+# Then TCP SYN on quick ports at 1000 PPS with immediate verbose output
 ```
 
 Per-phase options allow fine-tuning each scan phase independently. For example, ARP discovery often benefits from more repeats and longer timeouts to catch slow hosts, while TCP scanning can run at higher rates with fewer repeats.
