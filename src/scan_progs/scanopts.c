@@ -234,7 +234,140 @@ int scan_getrecvtimeout(void) {
 	return s->ss->recv_timeout;
 }
 
+/*
+ * Parse compound mode string (e.g., "A+T", "A+Tsf", "A100+T300+U")
+ * Splits on '+' delimiter and parses each phase separately.
+ * Per-phase PPS overrides global rate; master flags are OR'd globally.
+ * Returns: 1 on success, -1 on error
+ */
+static int scan_parsemode_compound(const char *str) {
+	char *dup=NULL, *token=NULL, *saveptr=NULL;
+	int phase_count=0, i=0;
+	const char *p=NULL;
+	scan_phase_t *phases=NULL;
+
+	assert(str != NULL);
+
+	if (strlen(str) < 1) {
+		return -1;
+	}
+
+	/* count phases by counting '+' delimiters */
+	for (p=str; *p != '\0'; p++) {
+		if (*p == '+') {
+			phase_count++;
+		}
+	}
+	phase_count++; /* N delimiters = N+1 segments */
+
+	DBG(M_CNF, "compound mode: str=`%s' phase_count=%d", str, phase_count);
+
+	/* allocate phase array */
+	phases=(scan_phase_t *)xmalloc(sizeof(scan_phase_t) * phase_count);
+	memset(phases, 0, sizeof(scan_phase_t) * phase_count);
+
+	/* split and parse each segment */
+	dup=xstrdup(str);
+
+	for (token=strtok_r(dup, "+", &saveptr), i=0;
+	     token != NULL && i < phase_count;
+	     token=strtok_r(NULL, "+", &saveptr), i++) {
+		uint8_t mode=0;
+		uint16_t flags=0, sf=0, lf=0, mf=0;
+		uint32_t pps=0;
+
+		/* empty token from ++ or leading/trailing + */
+		if (strlen(token) < 1) {
+			ERR("invalid compound mode `%s': empty phase at position %d", str, i + 1);
+			xfree(dup);
+			xfree(phases);
+			return -1;
+		}
+
+		/* use existing parser for each segment */
+		if (scan_parsemode(token, &mode, &flags, &sf, &lf, &mf, &pps) < 0) {
+			/* scan_parsemode already printed error */
+			xfree(dup);
+			xfree(phases);
+			return -1;
+		}
+
+		phases[i].mode=mode;
+		phases[i].tcphdrflgs=flags;
+		phases[i].send_opts=sf;
+		phases[i].recv_opts=lf;
+		phases[i].pps=pps;
+
+		/* master flags (M_DO_CONNECT etc.) are global, OR them in */
+		s->options |= mf;
+	}
+
+	xfree(dup);
+
+	DBG(M_CNF, "compound mode: after loop i=%d phase_count=%d", i, phase_count);
+
+	/* validate we got expected number of phases (handles +A, A+, A++T, etc.) */
+	if (i != phase_count) {
+		ERR("invalid compound mode `%s': expected %d phases, got %d (check for leading/trailing/double +)",
+		    str, phase_count, i);
+		xfree(phases);
+		return -1;
+	}
+
+	/*
+	 * If ARP is used in compound mode, it must be first phase.
+	 * ARP filtering only helps BEFORE subsequent scans to reduce blocked sendto() calls.
+	 * -mT+A makes no sense since TCP would already run before ARP discovery.
+	 */
+	{
+		int arp_position=-1;
+		int j=0;
+
+		for (j=0; j < phase_count; j++) {
+			if (phases[j].mode == MODE_ARPSCAN) {
+				arp_position=j;
+				break;
+			}
+		}
+
+		if (arp_position > 0) {
+			ERR("compound mode `%s': ARP phase must be first for filtering benefit; "
+			    "reorder to -mA+... (ARP discovery should precede other scan types)",
+			    str);
+			xfree(phases);
+			return -1;
+		}
+	}
+
+	/* store in global settings */
+	s->phases=phases;
+	s->num_phases=(uint8_t)phase_count;
+	s->cur_phase=0;
+
+	/* set current scan settings to phase 0 for initial execution */
+	s->ss->mode=phases[0].mode;
+	s->ss->tcphdrflgs=phases[0].tcphdrflgs;
+	s->send_opts |= phases[0].send_opts;
+	s->recv_opts |= phases[0].recv_opts;
+
+	/* per-phase PPS overrides global if set */
+	if (phases[0].pps > 0) {
+		s->pps=phases[0].pps;
+	}
+
+	DBG(M_CNF, "compound mode: %d phases parsed from `%s'", phase_count, str);
+
+	return 1;
+}
+
 int scan_setoptmode(const char *str) {
+
+	/* check for compound mode ('+' delimiter) */
+	if (strchr(str, '+') != NULL) {
+		return scan_parsemode_compound(str);
+	}
+
+	/* single mode - use existing parser */
 	return scan_parsemode(str, &s->ss->mode, &s->ss->tcphdrflgs, &s->send_opts, &s->recv_opts, &s->options, &s->pps);
 }
 
@@ -260,7 +393,7 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 
 		walk++;
 		/* check to see if the user specified TCP flags with TCP mode */
-		if (strlen(walk) > 0) {
+		if (strlen(walk) > 0 && !isdigit(*walk)) {
 			ret=decode_tcpflags(walk);
 			if (ret < 0) {
 				ERR("bad tcp flags `%s'", str);
@@ -271,6 +404,10 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 			for (;*walk != '\0' && ! isdigit(*walk); walk++) {
 				;
 			}
+		}
+		else {
+			/* Default to SYN scan if no flags specified */
+			*flags=TH_SYN;
 		}
 	}
 	else if (*walk == 'U') {
@@ -423,4 +560,42 @@ char *strscanmode(int mode) {
 	}
 
 	return modestr;
+}
+
+/*
+ * Load settings from a specific phase into the active scan settings.
+ * Used for compound mode to switch between phases (e.g., ARP -> TCP).
+ * Returns 1 on success, -1 on error.
+ */
+int load_phase_settings(int phase_index) {
+	scan_phase_t *phase=NULL;
+
+	if (s->phases == NULL || phase_index < 0 || phase_index >= s->num_phases) {
+		ERR("load_phase_settings: invalid phase %d (num_phases=%d)",
+			phase_index, s->num_phases);
+		return -1;
+	}
+
+	phase=&s->phases[phase_index];
+
+	/* Copy phase-specific settings to active scan settings */
+	s->ss->mode=phase->mode;
+	s->ss->tcphdrflgs=phase->tcphdrflgs;
+
+	/* Apply phase-specific send/recv options */
+	s->send_opts=phase->send_opts;
+	s->recv_opts=phase->recv_opts;
+
+	/* Apply phase-specific PPS if set, otherwise keep global -r rate */
+	if (phase->pps > 0) {
+		s->pps=phase->pps;
+	}
+
+	VRB(1, "phase %d: mode %s, tcphdrflgs 0x%04x, pps %u",
+		phase_index + 1,
+		strscanmode(phase->mode),
+		phase->tcphdrflgs,
+		s->pps);
+
+	return 1;
 }

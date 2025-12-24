@@ -63,6 +63,41 @@ void workunit_destroy(void) {
 	fifo_destroy(s->lwu);
 }
 
+/*
+ * Reinitialize workunit queues for a new phase.
+ * Clears existing workunits and creates fresh queues.
+ * Used in compound mode between phases (e.g., after ARP, before TCP).
+ */
+void workunit_reinit(void) {
+	/* Destroy existing queues if they exist */
+	if (s->swu != NULL) {
+		fifo_destroy(s->swu);
+	}
+	if (s->lwu != NULL) {
+		fifo_destroy(s->lwu);
+	}
+
+	/* Create fresh queues */
+	s->swu=fifo_init();
+	s->lwu=fifo_init();
+
+	/* Reset workunit sequence for new phase */
+	s->wk_seq=0;
+
+	/*
+	 * Reset scan_iter so that workunits created by do_targets() will have
+	 * iter=1, matching cur_iter for this iteration. Without this reset,
+	 * scan_iter would increment to 2 and workunits wouldn't be found.
+	 */
+	s->scan_iter=0;
+
+	/* Reset dispatch indexes */
+	swu_s=0;
+	lwu_s=0;
+
+	DBG(M_WRK, "workunit_reinit: queues reinitialized for new phase");
+}
+
 void workunit_reset(void) {
 	swu_s=0;
 	lwu_s=0;
@@ -212,6 +247,34 @@ int workunit_add(const char *targets, char **estr) {
 
 		xfree(start);
 		return -1;
+	}
+
+	/*
+	 * Compound mode with ARP first phase requires local targets.
+	 * ARP is Layer 2 and won't reach hosts beyond the local broadcast domain.
+	 * Fail early with a helpful message rather than silently producing no results.
+	 */
+	if (s->num_phases > 1 && s->phases != NULL && s->phases[0].mode == MODE_ARPSCAN) {
+		char *intf=NULL;
+		struct sockaddr *gw=NULL;
+
+		if (getroutes(&intf, (struct sockaddr *)&netid, (struct sockaddr *)&mask, &gw) == 1 && gw != NULL) {
+			char target_str[64], gw_str[64];
+
+			/* cidr_saddrstr uses static buffer, copy results separately */
+			strncpy(target_str, cidr_saddrstr((struct sockaddr *)&netid), sizeof(target_str) - 1);
+			target_str[sizeof(target_str) - 1]='\0';
+			strncpy(gw_str, cidr_saddrstr(gw), sizeof(gw_str) - 1);
+			gw_str[sizeof(gw_str) - 1]='\0';
+
+			snprintf(emsg, sizeof(emsg) - 1,
+				"compound mode -mA+... requires targets on local network; "
+				"target %s requires gateway %s (remote); "
+				"use -mT alone for remote targets",
+				target_str, gw_str);
+			xfree(start);
+			return -1;
+		}
 	}
 
 	DBG(M_WRK, "adding target %s (%s/%u)", start, cidr_saddrstr((struct sockaddr *)&netid), mask_cidr);
