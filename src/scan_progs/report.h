@@ -20,6 +20,7 @@
 # define _REPORT_H
 
 void report_do(void);
+void report_do_arp(void);	/* compound mode: output arp sorted by IP */
 void report_init(void);
 int report_add(void * /* report_msg */, size_t /* length of msg */);
 void report_destroy(void);

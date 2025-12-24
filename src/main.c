@@ -343,6 +343,14 @@ int main(int argc, char **argv) {
 
 				workunit_reset();
 				run_scan();
+
+				/*
+				 * In compound mode, after completing an ARP phase,
+				 * output ARP results sorted by IP address.
+				 */
+				if (s->num_phases > 1 && scan_getmode() == MODE_ARPSCAN) {
+					report_do_arp();
+				}
 			}
 		}
 
