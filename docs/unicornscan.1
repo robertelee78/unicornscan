@@ -133,7 +133,41 @@ currently is that it only logs the output of the `Main\&' thread and not the sen
 this option can be adjusted to get more accurate results, or if scanning a high\-latency target network; for example. 
 .TP
 [\fB\-m, \-\-mode \fP\fIMode\fP]
- String representation of the desired scanning mode. Correct usage includes U, T, A and sf for Udp scanning, Tcp scanning, Arp scanning, and Tcp Connect scanning respectively. 
+ String representation of the desired scanning mode. Basic modes are:
+.RS
+.TP
+\fBT\fP
+TCP SYN scan (default). Optional flags follow: SFRPAU set flags, sfrpau clear flags.
+.TP
+\fBU\fP
+UDP scan.
+.TP
+\fBA\fP
+ARP scan (local network only).
+.TP
+\fBsf\fP
+TCP connect scan.
+.RE
+.PP
+.B COMPOUND MODES
+.RS
+Modes can be chained with \fB+\fP delimiter to execute multiple scan phases sequentially.
+ARP discovery should be the first phase to enable host filtering.
+.PP
+.nf
+\fB\-mA+T\fP     ARP discovery, then TCP SYN scan (only ARP responders)
+\fB\-mA+U\fP     ARP discovery, then UDP scan (only ARP responders)
+\fB\-mA+TSF\fP   ARP discovery, then TCP SYN+FIN scan
+\fB\-mA+T+U\fP   ARP, then TCP, then UDP (all filtered by ARP)
+.fi
+.PP
+In phase 2+, only hosts that responded to ARP in phase 1 are scanned.
+This eliminates kernel ARP blocking delays on sparse local networks,
+enabling full packet rates even when most target IPs are unused.
+.PP
+Compound modes require targets on the local network (same L2 broadcast domain).
+Remote targets will be rejected with an error message.
+.RE
 .TP
 [\fB\-M, \-\-module\-dir \fP\fIDirectory\fP]
  Path to a directory containing shared object `modules\&' for unicornscan to search. 
@@ -195,14 +229,21 @@ to make sure the replies are routed back to the interface the listener has open.
 .SH EXAMPLES
 
 \fBunicornscan \-msf \-s 5.4.3.2 \-r 340 \-Iv \-epgsqldb www.domain.tld/21:80,8080,443,81\fP
-runs unicornscan in connect mode with an apparent (to the target) source address of 5.4.3.2 at a rate 
+runs unicornscan in connect mode with an apparent (to the target) source address of 5.4.3.2 at a rate
 of 340 packets per second. results will be displayed as they are found \fI\-I\fP
-and the output 
+and the output
 will be verbose \fI\-v\fP\&.
 The module `pgsqldb\&' will be activated \fI\-epgsqldb\fP
-and 
-the target of this scan will be the /21 network that host www.domain.tld belongs to making attempts 
-to connect to port 80, 8080, 443 and 81. 
+and
+the target of this scan will be the /21 network that host www.domain.tld belongs to making attempts
+to connect to port 80, 8080, 443 and 81.
+.PP
+\fBunicornscan \-mA+T \-r 10000 \-Iv 192.168.1.0/24:22,80,443\fP
+runs a compound mode scan on local network 192.168.1.0/24. Phase 1 performs ARP discovery at
+10000 packets per second to identify live hosts. Phase 2 then runs a TCP SYN scan, but only
+against hosts that responded to ARP in phase 1. This eliminates kernel ARP blocking delays
+on sparse networks where most IPs are unused, enabling full packet rates. For a /24 with only
+13 live hosts out of 256 addresses, this achieves 95% packet reduction in phase 2. 
 .PP
 .SH FILES
 
