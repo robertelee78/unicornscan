@@ -191,6 +191,41 @@ unicornscan -mA+U 192.168.1.0/24 -p53,67,123 -r5000
 unicornscan -mA+T+U 192.168.1.0/24 -p22,80,53 -r10000
 ```
 
+### Per-Phase Options
+
+Each phase can have independent settings for packet rate, repeats, and timeout:
+
+```
+-mA100:R3:L15+T500
+    │   │   │    └── Phase 2: TCP SYN at 500 PPS (global repeats/timeout)
+    │   │   └─────── Phase 1: 15 second receive timeout
+    │   └─────────── Phase 1: 3 repeats
+    └─────────────── Phase 1: ARP at 100 PPS
+```
+
+**Modifiers:**
+| Modifier | Description | Default |
+|----------|-------------|---------|
+| `<pps>` | Packets per second (number after mode) | global `-r` |
+| `:R<n>` | Repeat scan n times | global `-R` |
+| `:L<n>` | Receive timeout in seconds | global `-L` (7s) |
+
+**Examples:**
+
+```bash
+# ARP at 1000 PPS with 3 repeats and 10s timeout, then TCP at 5000 PPS
+unicornscan -mA1000:R3:L10+T5000 192.168.1.0/24 -p22,80,443
+
+# Modifiers can appear in any order
+unicornscan -mA:L15:R3+T 192.168.1.0/24 -p80
+
+# Only specify what you need - unset values use global defaults
+unicornscan -mA:R5+T1000 192.168.1.0/24 -p80 -R2 -L5
+# ARP uses 5 repeats, global timeout; TCP uses 1000 PPS, 2 repeats, 5s timeout
+```
+
+Per-phase options allow fine-tuning each scan phase independently. For example, ARP discovery often benefits from more repeats and longer timeouts to catch slow hosts, while TCP scanning can run at higher rates with fewer repeats.
+
 ### Benefits
 
 - **Eliminates ARP Blocking**: No kernel delays waiting for non-existent hosts
