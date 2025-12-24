@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.12
+Version:        0.4.13
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -84,6 +84,13 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %dir %{_localstatedir}/unicornscan
 
 %changelog
+* Mon Dec 23 2025 Robert Lee <robert@unicornscan.org> - 0.4.13-1
+- Add compound scan modes (-mA+T, -mA+U) for ARP-filtered TCP/UDP scanning
+- ARP discovery phase filters subsequent scan phases to responding hosts only
+- Eliminates kernel ARP blocking delays on sparse local networks
+- 95% packet reduction on networks with few live hosts
+- Clear error handling for remote targets in compound mode
+
 * Mon Dec 22 2025 Robert Lee <robert@unicornscan.org> - 0.4.12-1
 - Use XDG_RUNTIME_DIR for per-user socket paths (secure non-root operation)
 - Replace deprecated libGeoIP with modern libmaxminddb
