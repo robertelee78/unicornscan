@@ -71,6 +71,7 @@ static const char *mmdb_search_paths[] = {
 
 static void *report_t=NULL;
 static int do_report_nodefunc(uint64_t, void *, void *);
+static int do_arpreport_nodefunc(uint64_t, void *, void *);
 static void clean_report_extra(void *);
 static char *get_report_extra(ip_report_t *);
 static char *fmtcat_ip4addr(int /* dodns */, uint32_t /* addr */);
@@ -173,6 +174,22 @@ void report_do(void) {
 	);
 
 	rbwalk(report_t, do_report_nodefunc, 1, NULL);
+
+	return;
+}
+
+/*
+ * Compound mode: output ARP reports sorted by IP address.
+ * Called after phase 1 (ARP) completes, before phase 2 begins.
+ * Does not free reports; report_do() handles cleanup later.
+ */
+void report_do_arp(void) {
+
+	DBG(M_RPT, "compound mode: outputting ARP reports sorted by IP, %u total reports",
+		rbsize(report_t)
+	);
+
+	rbwalk(report_t, do_arpreport_nodefunc, 1, NULL);
 
 	return;
 }
@@ -329,7 +346,12 @@ int report_add(void *o, size_t o_len) {
 			memcpy(oc_u.ptr, o_u.ptr, o_len);
 			rbinsert(report_t, rkey, oc_u.ptr);
 
-			if (GET_IMMEDIATE()) {
+			/*
+			 * In compound mode, suppress immediate ARP output.
+			 * ARP results will be output sorted by IP via report_do_arp()
+			 * after the ARP phase completes.
+			 */
+			if (GET_IMMEDIATE() && s->num_phases <= 1) {
 				line=fmtcat(s->arp_imreport_fmt, o_u.a);
 				if (line != NULL) {
 					OUT("%s", line);
@@ -398,6 +420,15 @@ static int do_report_nodefunc(uint64_t rkey, void *ptr, void *cbdata) {
 
 	r_u.ptr=ptr;
 
+	/*
+	 * In compound mode, ARP reports were already output sorted by IP
+	 * via report_do_arp(). Just free and skip to avoid duplicate output.
+	 */
+	if (s->num_phases > 1 && *r_u.magic == ARP_REPORT_MAGIC) {
+		xfree(r_u.ptr);
+		return 1;
+	}
+
 	push_report_modules((const void *)r_u.ptr); /* ADD to it */
 
 	switch (*r_u.magic) {
@@ -433,6 +464,39 @@ static int do_report_nodefunc(uint64_t rkey, void *ptr, void *cbdata) {
 
 	clean_report_extra(r_u.ptr);
 	xfree(r_u.ptr);
+
+	return 1;
+}
+
+/*
+ * Callback for report_do_arp(): output ARP reports only, sorted by IP.
+ * Skips IP reports. Does not free reports; report_do() handles cleanup.
+ */
+static int do_arpreport_nodefunc(uint64_t rkey, void *ptr, void *cbdata) {
+	union {
+		void *ptr;
+		arp_report_t *ar;
+		uint32_t *magic;
+	} r_u;
+
+	assert(ptr != NULL);
+
+	r_u.ptr=ptr;
+
+	/* only process ARP reports in this callback */
+	if (*r_u.magic != ARP_REPORT_MAGIC) {
+		return 1;
+	}
+
+	push_report_modules((const void *)r_u.ptr);
+
+	push_output_modules((const void *)r_u.ptr);
+
+	if ( ! GET_REPORTQUIET()) {
+		display_report(r_u.ptr);
+	}
+
+	/* do not free; report_do() will clean up later */
 
 	return 1;
 }
@@ -992,8 +1056,8 @@ static uint64_t get_ipreport_key(uint32_t dhost, uint16_t dport, uint32_t shost)
 static uint64_t get_arpreport_key(uint32_t dhost, uint8_t *dmac) {
 	union {
 		struct {
-			uint32_t dhost;
-			uint8_t cmac[4];
+			uint8_t cmac[4];	/* low 32 bits: compressed MAC	*/
+			uint32_t dhost;		/* high 32 bits: IP for sorting	*/
 		} arp;
 		uint64_t key;
 	} p_u;
