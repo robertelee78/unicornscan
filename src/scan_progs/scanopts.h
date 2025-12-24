@@ -23,7 +23,11 @@
  * COMPOUND MODE PHASE CONFIGURATION
  * Each phase in a compound mode (e.g., -mA+T) has its own settings.
  * Phase 1 runs first (typically ARP), subsequent phases filter based on results.
- * Per-phase PPS overrides global -r rate; 0 means use global rate.
+ * Per-phase values override global settings; 0 means use global.
+ *
+ * Syntax: -mA100:R3:L15+T500 means:
+ *   Phase 1: ARP at 100pps, 3 repeats, 15s timeout
+ *   Phase 2: TCP SYN at 500pps, global repeats, global timeout
  */
 typedef struct scan_phase_t {
 	uint8_t mode;		/* MODE_ARPSCAN, MODE_TCPSCAN, etc	*/
@@ -31,6 +35,8 @@ typedef struct scan_phase_t {
 	uint16_t send_opts;	/* S_ flags for this phase		*/
 	uint16_t recv_opts;	/* L_ flags for this phase		*/
 	uint32_t pps;		/* per-phase rate; 0 = use global -r	*/
+	uint32_t repeats;	/* per-phase repeats; 0 = use global -R	*/
+	uint8_t recv_timeout;	/* per-phase timeout; 0 = use global -L	*/
 } scan_phase_t;
 
 #ifdef SCANPHASE

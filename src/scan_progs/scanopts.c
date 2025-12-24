@@ -35,6 +35,12 @@
 #include <scan_progs/portfunc.h>
 #include <scan_progs/workunits.h>
 
+/* forward declarations for static functions */
+static int parse_phase_modifiers(const char *, uint32_t *, uint8_t *);
+static int scan_parsemode_ext(const char *, uint8_t *, uint16_t *, uint16_t *,
+                              uint16_t *, uint16_t *, uint32_t *, uint32_t *, uint8_t *);
+static int scan_parsemode_compound(const char *);
+
 int scan_getmode(void) {
 	return s->ss->mode;
 }
@@ -235,9 +241,10 @@ int scan_getrecvtimeout(void) {
 }
 
 /*
- * Parse compound mode string (e.g., "A+T", "A+Tsf", "A100+T300+U")
+ * Parse compound mode string (e.g., "A+T", "A100:R3:L15+T", "A+Tsf500")
  * Splits on '+' delimiter and parses each phase separately.
- * Per-phase PPS overrides global rate; master flags are OR'd globally.
+ * Per-phase options override global settings; 0 means use global.
+ * Master flags (M_DO_CONNECT etc.) are OR'd globally.
  * Returns: 1 on success, -1 on error
  */
 static int scan_parsemode_compound(const char *str) {
@@ -274,7 +281,8 @@ static int scan_parsemode_compound(const char *str) {
 	     token=strtok_r(NULL, "+", &saveptr), i++) {
 		uint8_t mode=0;
 		uint16_t flags=0, sf=0, lf=0, mf=0;
-		uint32_t pps=0;
+		uint32_t pps=0, repeats=0;
+		uint8_t timeout=0;
 
 		/* empty token from ++ or leading/trailing + */
 		if (strlen(token) < 1) {
@@ -284,9 +292,9 @@ static int scan_parsemode_compound(const char *str) {
 			return -1;
 		}
 
-		/* use existing parser for each segment */
-		if (scan_parsemode(token, &mode, &flags, &sf, &lf, &mf, &pps) < 0) {
-			/* scan_parsemode already printed error */
+		/* use extended parser for per-phase options */
+		if (scan_parsemode_ext(token, &mode, &flags, &sf, &lf, &mf, &pps, &repeats, &timeout) < 0) {
+			/* scan_parsemode_ext already printed error */
 			xfree(dup);
 			xfree(phases);
 			return -1;
@@ -297,9 +305,14 @@ static int scan_parsemode_compound(const char *str) {
 		phases[i].send_opts=sf;
 		phases[i].recv_opts=lf;
 		phases[i].pps=pps;
+		phases[i].repeats=repeats;
+		phases[i].recv_timeout=timeout;
 
 		/* master flags (M_DO_CONNECT etc.) are global, OR them in */
 		s->options |= mf;
+
+		DBG(M_CNF, "compound mode: phase %d: mode=%s pps=%u repeats=%u timeout=%u",
+		    i + 1, strscanmode(mode), pps, repeats, timeout);
 	}
 
 	xfree(dup);
@@ -350,9 +363,15 @@ static int scan_parsemode_compound(const char *str) {
 	s->send_opts |= phases[0].send_opts;
 	s->recv_opts |= phases[0].recv_opts;
 
-	/* per-phase PPS overrides global if set */
+	/* per-phase overrides global if set (0 = use global) */
 	if (phases[0].pps > 0) {
 		s->pps=phases[0].pps;
+	}
+	if (phases[0].repeats > 0) {
+		s->repeats=phases[0].repeats;
+	}
+	if (phases[0].recv_timeout > 0) {
+		s->ss->recv_timeout=phases[0].recv_timeout;
 	}
 
 	DBG(M_CNF, "compound mode: %d phases parsed from `%s'", phase_count, str);
@@ -369,6 +388,69 @@ int scan_setoptmode(const char *str) {
 
 	/* single mode - use existing parser */
 	return scan_parsemode(str, &s->ss->mode, &s->ss->tcphdrflgs, &s->send_opts, &s->recv_opts, &s->options, &s->pps);
+}
+
+/*
+ * Parse phase modifiers after PPS number: :R<repeats>:L<timeout>
+ * Modifiers can appear in any order. 0 means use global setting.
+ * Returns: 1 on success, -1 on error
+ */
+static int parse_phase_modifiers(const char *walk, uint32_t *repeats, uint8_t *timeout) {
+	unsigned int val=0;
+
+	*repeats=0;
+	*timeout=0;
+
+	while (*walk == ':') {
+		walk++;
+
+		if (*walk == 'R') {
+			walk++;
+			if (sscanf(walk, "%u", &val) != 1) {
+				ERR("bad repeats value after :R");
+				return -1;
+			}
+			if (val > 0xffff) {
+				ERR("repeats value out of range (max 65535)");
+				return -1;
+			}
+			*repeats=(uint32_t)val;
+
+			/* skip past digits */
+			for (; *walk != '\0' && isdigit(*walk); walk++) {
+				;
+			}
+		}
+		else if (*walk == 'L') {
+			walk++;
+			if (sscanf(walk, "%u", &val) != 1) {
+				ERR("bad timeout value after :L");
+				return -1;
+			}
+			if (val > 0xff) {
+				ERR("timeout value out of range (max 255)");
+				return -1;
+			}
+			*timeout=(uint8_t)val;
+
+			/* skip past digits */
+			for (; *walk != '\0' && isdigit(*walk); walk++) {
+				;
+			}
+		}
+		else {
+			ERR("unknown phase modifier `:%c' (valid: :R<repeats> :L<timeout>)", *walk);
+			return -1;
+		}
+	}
+
+	/* verify we consumed all input */
+	if (*walk != '\0') {
+		ERR("unexpected characters after phase modifiers: `%s'", walk);
+		return -1;
+	}
+
+	return 1;
 }
 
 int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf, uint16_t *lf, uint16_t *mf, uint32_t *pps) {
@@ -393,7 +475,7 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 
 		walk++;
 		/* check to see if the user specified TCP flags with TCP mode */
-		if (strlen(walk) > 0 && !isdigit(*walk)) {
+		if (strlen(walk) > 0 && !isdigit(*walk) && *walk != ':') {
 			ret=decode_tcpflags(walk);
 			if (ret < 0) {
 				ERR("bad tcp flags `%s'", str);
@@ -401,7 +483,7 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 			}
 			*flags=(uint16_t)ret;
 
-			for (;*walk != '\0' && ! isdigit(*walk); walk++) {
+			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
 				;
 			}
 		}
@@ -432,7 +514,7 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 		walk += 2;
 
 		/* check to see if the user specified TCP flags with TCP mode */
-		if (strlen(walk) > 0) {
+		if (strlen(walk) > 0 && *walk != ':') {
 			ret=decode_tcpflags(walk);
 			if (ret < 0) {
 				ERR("bad tcp flags `%s'", str);
@@ -440,7 +522,7 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 			}
 			*flags=(uint16_t)ret;
 
-			for (;*walk != '\0' && ! isdigit(*walk); walk++) {
+			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
 				;
 			}
 		}
@@ -454,14 +536,151 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 		return 1;
 	}
 
-	if (sscanf(walk, "%u", pps) == 1) {
+	/* parse optional PPS number */
+	if (isdigit(*walk)) {
+		if (sscanf(walk, "%u", pps) != 1) {
+			ERR("bad pps `%s', using default %u", walk, s->pps);
+			*pps=s->pps;
+		}
+
+		/* skip past digits to any modifiers */
+		for (; *walk != '\0' && isdigit(*walk); walk++) {
+			;
+		}
+	}
+
+	/* check for end of string or phase modifiers */
+	if (*walk == '\0') {
 		return 1;
 	}
 
-	/* this isnt likely possible */
-	ERR("bad pps `%s', using default %u", walk, s->pps);
+	/* remainder must be phase modifiers - handled by caller for compound mode */
+	return 1;
+}
 
+/*
+ * Extended mode parser with per-phase options support.
+ * Parses: <mode>[<flags>][<pps>][:R<repeats>][:L<timeout>]
+ * Example: A100:R3:L15 or TsS500:R2
+ * Returns: 1 on success, -1 on error
+ */
+static int scan_parsemode_ext(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf,
+                              uint16_t *lf, uint16_t *mf, uint32_t *pps,
+                              uint32_t *repeats, uint8_t *timeout) {
+	int ret=0;
+	const char *walk=NULL;
+
+	assert(str != NULL);
+	assert(mode != NULL); assert(flags != NULL); assert(sf != NULL);
+	assert(lf != NULL); assert(mf != NULL); assert(pps != NULL);
+	assert(repeats != NULL); assert(timeout != NULL);
+
+	if (strlen(str) < 1) {
+		return -1;
+	}
+
+	/* initialize defaults */
 	*pps=s->pps;
+	*repeats=0;
+	*timeout=0;
+
+	walk=str;
+
+	if (*walk == 'T') {
+
+		*mode=MODE_TCPSCAN;
+
+		walk++;
+		/* check to see if the user specified TCP flags with TCP mode */
+		if (strlen(walk) > 0 && !isdigit(*walk) && *walk != ':') {
+			ret=decode_tcpflags(walk);
+			if (ret < 0) {
+				ERR("bad tcp flags `%s'", str);
+				return -1;
+			}
+			*flags=(uint16_t)ret;
+
+			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
+				;
+			}
+		}
+		else {
+			/* Default to SYN scan if no flags specified */
+			*flags=TH_SYN;
+		}
+	}
+	else if (*walk == 'U') {
+		*mode=MODE_UDPSCAN;
+		walk++;
+	}
+	else if (*walk == 'A') {
+		*mode=MODE_ARPSCAN;
+		walk++;
+	}
+	else if (*walk == 's' && *(walk + 1) == 'f') {
+		*mode=MODE_TCPSCAN;
+		/* XXX */
+		*mf |= M_DO_CONNECT;
+		*lf |= L_DO_CONNECT;
+		*sf |= S_SENDER_INTR;
+		/* XXX */
+		if (scan_setretlayers(0xff) < 0) {
+			ERR("unable to request packet transfer though IPC, exiting");
+	                return -1;
+		}
+		walk += 2;
+
+		/* check to see if the user specified TCP flags with TCP mode */
+		if (strlen(walk) > 0 && *walk != ':') {
+			ret=decode_tcpflags(walk);
+			if (ret < 0) {
+				ERR("bad tcp flags `%s'", str);
+				return -1;
+			}
+			*flags=(uint16_t)ret;
+
+			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
+				;
+			}
+		}
+	}
+	else {
+		ERR("unknown scanning mode `%c'", str[1]);
+		return -1;
+	}
+
+	if (*walk == '\0') {
+		return 1;
+	}
+
+	/* parse optional PPS number */
+	if (isdigit(*walk)) {
+		if (sscanf(walk, "%u", pps) != 1) {
+			ERR("bad pps `%s', using default %u", walk, s->pps);
+			*pps=s->pps;
+		}
+
+		/* skip past digits to any modifiers */
+		for (; *walk != '\0' && isdigit(*walk); walk++) {
+			;
+		}
+	}
+
+	/* check for end of string */
+	if (*walk == '\0') {
+		return 1;
+	}
+
+	/* parse phase modifiers (:R<n> :L<n>) */
+	if (*walk == ':') {
+		if (parse_phase_modifiers(walk, repeats, timeout) < 0) {
+			return -1;
+		}
+	}
+	else {
+		ERR("unexpected characters in mode string: `%s'", walk);
+		return -1;
+	}
 
 	return 1;
 }
@@ -565,6 +784,7 @@ char *strscanmode(int mode) {
 /*
  * Load settings from a specific phase into the active scan settings.
  * Used for compound mode to switch between phases (e.g., ARP -> TCP).
+ * Per-phase values (pps, repeats, recv_timeout) override global if non-zero.
  * Returns 1 on success, -1 on error.
  */
 int load_phase_settings(int phase_index) {
@@ -591,11 +811,23 @@ int load_phase_settings(int phase_index) {
 		s->pps=phase->pps;
 	}
 
-	VRB(1, "phase %d: mode %s, tcphdrflgs 0x%04x, pps %u",
+	/* Apply phase-specific repeats if set, otherwise keep global -R repeats */
+	if (phase->repeats > 0) {
+		s->repeats=phase->repeats;
+	}
+
+	/* Apply phase-specific recv_timeout if set, otherwise keep global -L timeout */
+	if (phase->recv_timeout > 0) {
+		s->ss->recv_timeout=phase->recv_timeout;
+	}
+
+	VRB(1, "phase %d: mode %s, tcphdrflgs 0x%04x, pps %u, repeats %u, timeout %u",
 		phase_index + 1,
 		strscanmode(phase->mode),
 		phase->tcphdrflgs,
-		s->pps);
+		s->pps,
+		s->repeats,
+		s->ss->recv_timeout);
 
 	return 1;
 }
