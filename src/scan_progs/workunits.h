@@ -125,6 +125,7 @@ send_workunit_t *workunit_get_sp(size_t * /* wu len */, uint32_t * /* wid */);
 recv_workunit_t *workunit_get_lp(size_t * /* wu len */, uint32_t * /* wid */);
 
 void workunit_reset(void);
+void workunit_reinit(void);
 void workunit_dump(void);
 
 int  workunit_add(const char *, char ** /* error message if < 0 */);

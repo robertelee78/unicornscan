@@ -29,6 +29,11 @@
 # define SCANSETTINGS void
 #endif
 
+#ifndef SCANPHASE
+ /* opaque pointer for compound mode phases */
+# define SCANPHASE void
+#endif
+
 /* XXX shouldnt be here at ALL, move this stuff out into scan_modules */
 #include <unilib/drone.h>
 #include <pcap.h>
@@ -140,6 +145,12 @@ typedef struct settings_s {
 
 	int scan_iter; /* how many distinct scan iterations do we need for the pcap filters? */
 	int cur_iter;
+
+	/* compound mode phase tracking (e.g., -mA+T, -mA+T+U) */
+	SCANPHASE *phases;	/* array of phases, NULL if single mode	*/
+	uint8_t num_phases;	/* count of phases (1 = normal scan)	*/
+	uint8_t cur_phase;	/* current executing phase (0-indexed)	*/
+	void *target_strs;	/* preserved target strings for multi-phase */
 
 	uint32_t repeats;
 

@@ -145,6 +145,7 @@ int scan_setsrcp(int);
 int scan_setrecvtimeout(int );
 int scan_getrecvtimeout(void);
 int scan_getmode(void);
+int load_phase_settings(int /* phase_index */);
 
 int decode_tcpflags(const char *);
 
