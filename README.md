@@ -167,13 +167,13 @@ Lowercase clears the flag. Examples:
 
 ## Compound Scan Modes
 
-Compound modes chain multiple scan phases together, with later phases only scanning targets discovered by earlier phases. This is particularly powerful when combined with ARP discovery, as it eliminates kernel ARP blocking delays that normally throttle scans on sparse local networks.
+Compound modes chain multiple scan phases together using ARP discovery to filter subsequent phases. When the first phase is ARP (`-mA+...`), all later phases only scan hosts that responded to ARP - eliminating kernel ARP blocking delays that throttle scans on sparse local networks.
 
 ### How It Works
 
-When you scan a large local network range (e.g., /16) where most IPs are unused, the kernel spends significant time trying to resolve ARP for non-existent hosts. This creates blocking delays that prevent the scanner from maintaining high packet rates.
+When scanning a large local network range (e.g., /16) where most IPs are unused, the kernel spends significant time trying to resolve ARP for non-existent hosts. This creates blocking delays that prevent the scanner from maintaining high packet rates.
 
-Compound modes solve this by performing ARP discovery first, then only scanning hosts that actually responded. This can reduce packets by up to 95% on sparse networks while maintaining full scan rates.
+Compound modes with ARP first solve this by discovering live hosts via ARP, then filtering all subsequent phases to only those responders. Note that filtering is based solely on ARP responses - later phases don't filter based on each other's results.
 
 ### Usage
 
@@ -186,7 +186,8 @@ unicornscan -mA+T 192.168.1.0/24 -p22,80,443 -r10000
 # ARP discovery then UDP scan
 unicornscan -mA+U 192.168.1.0/24 -p53,67,123 -r5000
 
-# Three phases: ARP → TCP → UDP (all filtered by ARP phase 1)
+# Three phases: ARP → TCP → UDP
+# Both TCP and UDP phases scan all ARP responders (UDP is NOT filtered by TCP results)
 unicornscan -mA+T+U 192.168.1.0/24 -p22,80,53 -r10000
 ```
 
@@ -195,11 +196,11 @@ unicornscan -mA+T+U 192.168.1.0/24 -p22,80,53 -r10000
 - **Eliminates ARP Blocking**: No kernel delays waiting for non-existent hosts
 - **Massive Packet Reduction**: Up to 95% fewer packets on sparse networks
 - **Full Rate Scanning**: Maintains target PPS even on large local ranges
-- **Efficient Resource Use**: Only probes live targets in later phases
+- **Efficient Resource Use**: Only probes ARP-responding hosts in later phases
 
 ### Requirements
 
-Compound modes require targets on the local network (same L2 broadcast domain). For remote targets, use standard single-mode scanning.
+Compound modes with ARP require targets on the local network (same L2 broadcast domain). Remote targets are rejected with an error message.
 
 ## OS Fingerprinting
 
