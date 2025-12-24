@@ -541,6 +541,15 @@ void do_targets(void) {
 
 	for (s_u.ptr=fifo_pop(s->argv_ext); s_u.ptr != NULL; s_u.ptr=fifo_pop(s->argv_ext)) {
 		if (workunit_add(s_u.str, &estr) < 0) {
+			/*
+			 * Compound mode remote target rejection is a fatal error.
+			 * Don't continue with remaining targets - user must fix target list.
+			 */
+			if (estr != NULL && strncmp(estr, "compound mode", 13) == 0) {
+				ERR("cant add workunit for argument `%s': %s", s_u.str, estr);
+				uexit(1);
+			}
+
 			if (access(s_u.str, R_OK) == 0) {
 				FILE *rfile=NULL;
 				char lbuf[2048];
@@ -556,6 +565,14 @@ void do_targets(void) {
 				while (fgets(lbuf, sizeof(lbuf) -1, rfile) != NULL) {
 					for (tok=strtok_r(lbuf, "\t\r\n\v\f ", &rent); tok != NULL; tok=strtok_r(NULL, "\t\r\n\v\f ", &rent)) {
 						if (workunit_add(tok, &estr) < 0) {
+							/*
+							 * Compound mode remote target rejection is fatal even in files.
+							 */
+							if (estr != NULL && strncmp(estr, "compound mode", 13) == 0) {
+								ERR("cant add workunit `%s' from file `%s': %s", tok, s_u.str, estr);
+								fclose(rfile);
+								uexit(1);
+							}
 							ERR("cant add workunit `%s' from file `%s': %s", tok, s_u.str, estr);
 						}
 					}
