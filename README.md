@@ -151,7 +151,7 @@ unicornscan -W 9 target.com:80   # Emulate Linux 5/6
 | Flag | Mode | Description |
 |------|------|-------------|
 | `-mT` | TCP SYN | Default. Send SYN packets, detect SYN+ACK |
-| `-mTsf` | TCP Connect | Full 3-way handshake |
+| `-msf` | TCP Connect | Full 3-way handshake |
 | `-mTSFPUA` | Custom TCP | Any combination of flags |
 | `-mU` | UDP | Protocol-aware UDP scanning |
 | `-mA` | ARP | Layer 2 host discovery |
