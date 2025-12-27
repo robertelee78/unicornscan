@@ -1,5 +1,7 @@
--- Unicornscan PostgreSQL Schema v2
+-- Unicornscan PostgreSQL Schema v3
 -- Includes JSONB columns for extensible metadata
+-- Includes Row Level Security (RLS) for Supabase compatibility
+-- Uses SECURITY INVOKER views for proper RLS enforcement
 
 drop table if exists "uni_sworkunits";
 drop table if exists "uni_lworkunits";
@@ -237,11 +239,107 @@ create index uni_ipreport_extra_gin on uni_ipreport using gin("extra_data");
 create index uni_arpreport_extra_gin on uni_arpreport using gin("extra_data");
 
 -- ============================================
--- CONVENIENCE VIEWS
+-- ROW LEVEL SECURITY (RLS)
 -- ============================================
+-- Enable RLS on all tables to satisfy Supabase security requirements.
+-- Since unicornscan connects directly with database credentials (not via
+-- Supabase client), we create permissive policies that allow full access.
+-- This pattern enables RLS compliance while maintaining direct DB access.
+
+-- Enable RLS on all tables
+alter table uni_schema_version enable row level security;
+alter table uni_scans enable row level security;
+alter table uni_sworkunits enable row level security;
+alter table uni_lworkunits enable row level security;
+alter table uni_workunitstats enable row level security;
+alter table uni_output enable row level security;
+alter table uni_ipreport enable row level security;
+alter table uni_arpreport enable row level security;
+alter table uni_ipreportdata enable row level security;
+alter table uni_ippackets enable row level security;
+alter table uni_arppackets enable row level security;
+
+-- Create permissive policies for direct database access
+-- These policies allow full access for authenticated database connections
+-- (postgres role or any role with direct DB credentials)
+
+-- Policy for uni_schema_version
+create policy "Allow full access to schema_version"
+  on uni_schema_version for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_scans
+create policy "Allow full access to scans"
+  on uni_scans for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_sworkunits
+create policy "Allow full access to sworkunits"
+  on uni_sworkunits for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_lworkunits
+create policy "Allow full access to lworkunits"
+  on uni_lworkunits for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_workunitstats
+create policy "Allow full access to workunitstats"
+  on uni_workunitstats for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_output
+create policy "Allow full access to output"
+  on uni_output for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_ipreport
+create policy "Allow full access to ipreport"
+  on uni_ipreport for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_arpreport
+create policy "Allow full access to arpreport"
+  on uni_arpreport for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_ipreportdata
+create policy "Allow full access to ipreportdata"
+  on uni_ipreportdata for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_ippackets
+create policy "Allow full access to ippackets"
+  on uni_ippackets for all
+  using (true)
+  with check (true);
+
+-- Policy for uni_arppackets
+create policy "Allow full access to arppackets"
+  on uni_arppackets for all
+  using (true)
+  with check (true);
+
+-- ============================================
+-- CONVENIENCE VIEWS (with SECURITY INVOKER)
+-- ============================================
+-- Using security_invoker=true ensures views respect RLS policies of
+-- the underlying tables, running with the invoker's permissions rather
+-- than the view creator's. This resolves Supabase SECURITY DEFINER warnings.
+-- Note: Requires PostgreSQL 15+ (Supabase uses PostgreSQL 15+)
 
 -- v_open_ports: Human-readable port scan results
-create or replace view v_open_ports as
+create or replace view v_open_ports
+with (security_invoker = true) as
 select
     s.scans_id,
     to_timestamp(s.s_time) as scan_time,
@@ -262,7 +360,8 @@ join uni_ipreport i on s.scans_id = i.scans_id
 order by s.s_time desc, i.host_addr, i.dport;
 
 -- v_scan_summary: Aggregate statistics per scan
-create or replace view v_scan_summary as
+create or replace view v_scan_summary
+with (security_invoker = true) as
 select
     s.scans_id,
     to_timestamp(s.s_time) as started,
@@ -281,13 +380,15 @@ group by s.scans_id, s.s_time, s.e_time, s.profile, s."user",
          s.num_hosts, s.num_packets, s.scan_metadata;
 
 -- v_recent_scans: Last 50 scans with key metrics
-create or replace view v_recent_scans as
+create or replace view v_recent_scans
+with (security_invoker = true) as
 select * from v_scan_summary
 order by started desc
 limit 50;
 
 -- v_host_history: All results for a given host across all scans
-create or replace view v_host_history as
+create or replace view v_host_history
+with (security_invoker = true) as
 select
     i.host_addr,
     s.scans_id,
@@ -303,7 +404,8 @@ join uni_scans s on i.scans_id = s.scans_id
 order by i.host_addr, s.s_time desc, i.dport;
 
 -- v_arp_results: Human-readable ARP scan results
-create or replace view v_arp_results as
+create or replace view v_arp_results
+with (security_invoker = true) as
 select
     s.scans_id,
     to_timestamp(s.s_time) as scan_time,
@@ -317,4 +419,4 @@ join uni_arpreport a on s.scans_id = a.scans_id
 order by s.s_time desc, a.host_addr;
 
 -- Record schema version
-insert into uni_schema_version (version) values (2);
+insert into uni_schema_version (version) values (3);

@@ -153,6 +153,9 @@ typedef struct settings_s {
 	void *target_strs;	/* preserved target strings for multi-phase */
 
 	uint32_t repeats;
+	uint32_t global_repeats;	/* original -R value before phase overrides */
+	uint32_t global_pps;		/* original -r value before phase overrides */
+	uint8_t global_recv_timeout;	/* original -L value before phase overrides */
 
 	SCANSETTINGS *ss;
 

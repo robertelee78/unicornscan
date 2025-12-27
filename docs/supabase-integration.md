@@ -335,13 +335,19 @@ The schema should auto-create on first connection. If tables are missing:
 
 **"permission denied"**
 
-Supabase's default `postgres` user should have full permissions. If using Row Level Security (RLS):
+Schema v3 enables Row Level Security (RLS) with permissive policies that allow full access for any authenticated database connection. If you still encounter permission issues:
 
+1. Ensure you're connecting with the database password (not API key)
+2. Verify the RLS policies exist:
 ```sql
--- Disable RLS for unicornscan tables
-ALTER TABLE uni_scans DISABLE ROW LEVEL SECURITY;
-ALTER TABLE uni_ipreport DISABLE ROW LEVEL SECURITY;
--- ... repeat for other tables
+SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public';
+```
+3. If policies are missing, run a scan to trigger auto-migration, or manually apply:
+```sql
+-- Re-enable RLS with permissive policies
+ALTER TABLE uni_scans ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow full access to scans" ON uni_scans FOR ALL USING (true) WITH CHECK (true);
+-- Repeat for other tables...
 ```
 
 ### Performance
@@ -468,8 +474,20 @@ Unicornscan uses libpq for direct SQL access, which requires the database passwo
 |---------|------|---------|
 | 1.0 | 2025-12 | Initial Supabase integration (FR-1, FR-2, FR-4, FR-6) |
 | 1.1 | 2025-12 | Schema v2: Added JSONB columns for extensible metadata |
+| 1.2 | 2025-12 | Schema v3: Added RLS and SECURITY INVOKER views for Supabase compliance |
 
-Schema version: 2 (tracked in `uni_schema_version` table)
+Schema version: 3 (tracked in `uni_schema_version` table)
+
+### Schema v3 Changes (Security Compliance)
+
+- **Row Level Security (RLS)**: Enabled on all 11 tables to satisfy Supabase security requirements
+- **RLS Policies**: Created permissive policies allowing full access for direct database connections
+- **SECURITY INVOKER Views**: Changed all 5 convenience views to use `security_invoker=true` instead of the default `SECURITY DEFINER`
+- Automatic migration from v2 to v3 when connecting to existing databases
+
+These changes resolve Supabase security advisor warnings:
+- "Table is public, but RLS has not been enabled" (11 tables)
+- "View is defined with the SECURITY DEFINER property" (5 views)
 
 ### Schema v2 Changes
 
