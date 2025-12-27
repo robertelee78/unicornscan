@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
 
 	/*
 	 * For compound mode, calculate and display phase 1 estimate only.
-	 * Phase 2+ estimates will be shown after phase 1 completes (see FR-2).
+	 * Phase 2+ estimates shown after ARP completes with actual live count.
 	 * For single mode, use the accumulated total estimate.
 	 */
 	if (s->num_phases > 1) {
