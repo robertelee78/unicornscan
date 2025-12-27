@@ -1060,16 +1060,20 @@ uint32_t calculate_phase_estimate(int phase_idx, double num_hosts, const char *t
 	if (phase_idx >= 0 && s->phases != NULL && phase_idx < s->num_phases) {
 		scan_phase_t *phase=&s->phases[phase_idx];
 		mode=phase->mode;
-		pps=(phase->pps > 0) ? phase->pps : s->pps;
-		repeats=(phase->repeats > 0) ? phase->repeats : s->repeats;
-		recv_timeout=(phase->recv_timeout > 0) ? phase->recv_timeout : s->ss->recv_timeout;
+		/*
+		 * Use global_* values as fallback, not s->pps/repeats/recv_timeout,
+		 * because those may still have phase 1 values when estimating phase 2.
+		 */
+		pps=(phase->pps > 0) ? phase->pps : s->global_pps;
+		repeats=(phase->repeats > 0) ? phase->repeats : s->global_repeats;
+		recv_timeout=(phase->recv_timeout > 0) ? phase->recv_timeout : s->global_recv_timeout;
 	}
 	else {
 		/* Use global settings */
 		mode=s->ss->mode;
-		pps=s->pps;
-		repeats=s->repeats;
-		recv_timeout=s->ss->recv_timeout;
+		pps=s->global_pps;
+		repeats=s->global_repeats;
+		recv_timeout=s->global_recv_timeout;
 	}
 
 	/* Sanity check pps */
