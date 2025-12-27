@@ -427,6 +427,14 @@ int main(int argc, char **argv) {
 		if (phase_filter_init() != 1) {
 			terminate("failed to initialize phase filter for compound mode");
 		}
+		/*
+		 * Load phase 0 settings BEFORE creating workunits.
+		 * This ensures per-phase PPS/repeats/timeout override global -r/-R/-L
+		 * options that were parsed after -m on the command line.
+		 */
+		if (load_phase_settings(0) != 1) {
+			terminate("failed to load phase 0 settings for compound mode");
+		}
 	}
 
 	/* now parse argv data for a target -> workunit list */
@@ -604,14 +612,14 @@ int main(int argc, char **argv) {
 				if (s->num_phases > 1) {
 					/*
 					 * Compound mode: load phase-specific settings.
-					 * Phase 1 workunits already created by do_targets().
-					 * Phase 2+ need workunits regenerated with new mode.
+					 * Phase 0 already loaded before do_targets() to ensure
+					 * workunits are created with correct per-phase PPS.
+					 * Phase 1+ need settings loaded and workunits regenerated.
 					 */
-					if (load_phase_settings(s->cur_phase) != 1) {
-						terminate("failed to load phase %d settings", s->cur_phase + 1);
-					}
-
 					if (s->cur_phase > 0) {
+						if (load_phase_settings(s->cur_phase) != 1) {
+							terminate("failed to load phase %d settings", s->cur_phase + 1);
+						}
 						VRB(1, "phase %d: regenerating workunits for %s",
 							s->cur_phase + 1, strscanmode(scan_getmode()));
 						workunit_reinit();
