@@ -56,6 +56,7 @@ void scan_setprivdefaults() {
 	s->ss->tcphdrflgs=TH_SYN; /* FSRPAUEC */
 	s->ss->src_port=-1;
 	s->ss->recv_timeout=DEF_SCANTIMEOUT; /* in config.h */
+	s->global_recv_timeout=DEF_SCANTIMEOUT;
 	s->ss->window_size=0x1000;
 
 	s->ss->syn_key=prng_get32();
@@ -232,6 +233,7 @@ int scan_setrecvtimeout(int seconds) {
 	}
 
 	s->ss->recv_timeout=seconds;
+	s->global_recv_timeout=seconds;
 
 	return 1;
 }
@@ -806,19 +808,28 @@ int load_phase_settings(int phase_index) {
 	s->send_opts=phase->send_opts;
 	s->recv_opts=phase->recv_opts;
 
-	/* Apply phase-specific PPS if set, otherwise keep global -r rate */
+	/* Apply phase-specific PPS if set, otherwise restore global -r rate */
 	if (phase->pps > 0) {
 		s->pps=phase->pps;
 	}
+	else {
+		s->pps=s->global_pps;
+	}
 
-	/* Apply phase-specific repeats if set, otherwise keep global -R repeats */
+	/* Apply phase-specific repeats if set, otherwise restore global -R repeats */
 	if (phase->repeats > 0) {
 		s->repeats=phase->repeats;
 	}
+	else {
+		s->repeats=s->global_repeats;
+	}
 
-	/* Apply phase-specific recv_timeout if set, otherwise keep global -L timeout */
+	/* Apply phase-specific recv_timeout if set, otherwise restore global -L timeout */
 	if (phase->recv_timeout > 0) {
 		s->ss->recv_timeout=phase->recv_timeout;
+	}
+	else {
+		s->ss->recv_timeout=s->global_recv_timeout;
 	}
 
 	VRB(1, "phase %d: mode %s, tcphdrflgs 0x%04x, pps %u, repeats %u, timeout %u",

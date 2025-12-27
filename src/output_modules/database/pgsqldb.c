@@ -201,7 +201,7 @@ static int supabase_migrate_schema(PGconn *conn, int from_version) {
 
 	/* Migration from v1 to v2: add JSONB columns, indexes, and views */
 	if (from_version < 2) {
-		VRB(0, "Supabase: migrating schema from v%d to v%d...", from_version, PGSQL_SCHEMA_VERSION);
+		VRB(0, "Supabase: migrating schema from v%d to v2...", from_version);
 
 		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v2_ddl, "migrate to v2 (add JSONB columns and indexes)")) {
 			return 0;
@@ -219,11 +219,25 @@ static int supabase_migrate_schema(PGconn *conn, int from_version) {
 		}
 
 		VRB(0, "Supabase: schema migration to v2 complete");
+		from_version = 2;
 	}
 
-	/* Future migrations would go here:
-	 * if (from_version < 3) { ... }
-	 */
+	/* Migration from v2 to v3: add RLS and fix views for Supabase security compliance */
+	if (from_version < 3) {
+		VRB(0, "Supabase: migrating schema from v%d to v3 (adding RLS)...", from_version);
+
+		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v3_ddl, "migrate to v3 (enable RLS and security invoker views)")) {
+			return 0;
+		}
+
+		/* Record new version */
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 3);
+		if (!supabase_exec_ddl(conn, version_sql, "record schema version 3")) {
+			return 0;
+		}
+
+		VRB(0, "Supabase: schema migration to v3 complete (RLS enabled)");
+	}
 
 	return 1;
 }
@@ -345,7 +359,17 @@ static int supabase_create_schema(PGconn *conn) {
 		return 0;
 	}
 
-	/* Create convenience views */
+	/* Enable Row Level Security on all tables */
+	if (!supabase_exec_ddl(conn, pgsql_schema_rls_ddl, "enable row level security")) {
+		return 0;
+	}
+
+	/* Create RLS policies for full access */
+	if (!supabase_exec_ddl(conn, pgsql_schema_rls_policies_ddl, "create RLS policies")) {
+		return 0;
+	}
+
+	/* Create convenience views (with security_invoker=true) */
 	if (!supabase_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
 		return 0;
 	}
@@ -356,7 +380,7 @@ static int supabase_create_schema(PGconn *conn) {
 		return 0;
 	}
 
-	VRB(0, "Supabase: schema created successfully");
+	VRB(0, "Supabase: schema created successfully (v%d with RLS enabled)", PGSQL_SCHEMA_VERSION);
 	return 1;
 }
 

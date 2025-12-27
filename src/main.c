@@ -113,46 +113,223 @@ static void get_first_target_port_spec(void *target) {
 }
 
 /*
- * Callback for phase_filter_walk() to create a /32 workunit for each
- * IP that responded to ARP in phase 1.
+ * CIDR Aggregation for Phase 2+ Workunits
  *
- * The ctx parameter is the port specification from the original target
- * (e.g., "a" for all ports, "1-1000" for a range, or NULL for default).
+ * Instead of creating one /32 workunit per ARP responder, we aggregate
+ * responding hosts into optimal CIDR blocks. This reduces workunit count
+ * while still only scanning hosts that responded to ARP.
+ *
+ * Example: if .40, .41, .42, .43 all responded, we create one /30 instead
+ * of four /32s. The algorithm finds the largest valid CIDR at each position.
  */
-static void add_workunit_for_arp_host(uint32_t ipaddr, void *ctx) {
-	char *estr=NULL;
-	char ip_str[64];
-	const char *port_spec=(const char *)ctx;
+
+/* Collector structure for gathering IPs during phase_filter_walk */
+typedef struct {
+	uint32_t *ips;		/* array of IPs in host byte order */
+	uint32_t count;		/* number of IPs collected */
+	uint32_t capacity;	/* allocated capacity */
+} ip_collector_t;
+
+/* Callback to collect IPs into sorted array */
+static void collect_arp_ip(uint32_t ipaddr, void *ctx) {
+	ip_collector_t *c=(ip_collector_t *)ctx;
+
+	/* grow array if needed */
+	if (c->count >= c->capacity) {
+		c->capacity=c->capacity ? c->capacity * 2 : 64;
+		c->ips=(uint32_t *)xrealloc(c->ips, c->capacity * sizeof(uint32_t));
+	}
+
+	/* convert network to host byte order for sorting */
+	c->ips[c->count++]=ntohl(ipaddr);
+}
+
+/* qsort comparison for uint32_t */
+static int compare_u32(const void *a, const void *b) {
+	uint32_t va=*(const uint32_t *)a;
+	uint32_t vb=*(const uint32_t *)b;
+
+	if (va < vb) return -1;
+	if (va > vb) return 1;
+	return 0;
+}
+
+/*
+ * Binary search to check if an IP is in the sorted array.
+ * Returns 1 if found, 0 if not.
+ */
+static int ip_in_set(const uint32_t *ips, uint32_t count, uint32_t ip) {
+	uint32_t lo=0, hi=count;
+
+	while (lo < hi) {
+		uint32_t mid=(lo + hi) / 2;
+
+		if (ips[mid] == ip) {
+			return 1;
+		}
+		if (ips[mid] < ip) {
+			lo=mid + 1;
+		}
+		else {
+			hi=mid;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Find the largest CIDR block starting at base_ip where all hosts
+ * in the block are present in our set. Returns the CIDR prefix length.
+ *
+ * A CIDR /N block contains 2^(32-N) hosts and must be aligned to
+ * that boundary (base_ip % block_size == 0).
+ */
+static int find_largest_cidr(const uint32_t *ips, uint32_t count,
+			     uint32_t base_ip, uint32_t max_ip) {
+	int cidr=0;
 
 	/*
-	 * Format IP as dotted quad with optional port spec.
-	 * ipaddr is in network byte order, so first byte is lowest octet.
+	 * Try progressively larger blocks from /31 down to /24.
+	 * Stop at /24 since larger blocks are impractical for local scans.
 	 */
-	if (port_spec != NULL && strlen(port_spec) > 0) {
-		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u:%s",
-			(ipaddr >> 0) & 0xff, (ipaddr >> 8) & 0xff,
-			(ipaddr >> 16) & 0xff, (ipaddr >> 24) & 0xff,
-			port_spec);
+	for (cidr=31; cidr >= 24; cidr--) {
+		uint32_t block_size=1U << (32 - cidr);
+		uint32_t block_mask=~(block_size - 1);
+		uint32_t block_base=base_ip & block_mask;
+		uint32_t block_end=block_base + block_size - 1;
+		uint32_t i=0;
+		int all_present=1;
+
+		/* block must start at base_ip (aligned) */
+		if (block_base != base_ip) {
+			continue;
+		}
+
+		/* block must not exceed our IP range */
+		if (block_end > max_ip) {
+			continue;
+		}
+
+		/* check if all hosts in block are in our set */
+		for (i=0; i < block_size; i++) {
+			if (!ip_in_set(ips, count, block_base + i)) {
+				all_present=0;
+				break;
+			}
+		}
+
+		if (all_present) {
+			return cidr;
+		}
+	}
+
+	/* fallback to /32 */
+	return 32;
+}
+
+/*
+ * Create a workunit for a CIDR block with optional port specification.
+ */
+static void create_cidr_workunit(uint32_t host_ip, int cidr,
+				 const char *port_spec) {
+	char ip_str[80];
+	char *estr=NULL;
+	uint32_t net_ip=htonl(host_ip);
+
+	if (cidr == 32) {
+		/* /32 - single host, no CIDR suffix needed */
+		if (port_spec != NULL && strlen(port_spec) > 0) {
+			snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u:%s",
+				(net_ip >> 0) & 0xff, (net_ip >> 8) & 0xff,
+				(net_ip >> 16) & 0xff, (net_ip >> 24) & 0xff,
+				port_spec);
+		}
+		else {
+			snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
+				(net_ip >> 0) & 0xff, (net_ip >> 8) & 0xff,
+				(net_ip >> 16) & 0xff, (net_ip >> 24) & 0xff);
+		}
 	}
 	else {
-		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
-			(ipaddr >> 0) & 0xff, (ipaddr >> 8) & 0xff,
-			(ipaddr >> 16) & 0xff, (ipaddr >> 24) & 0xff);
+		/* CIDR block */
+		if (port_spec != NULL && strlen(port_spec) > 0) {
+			snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u/%d:%s",
+				(net_ip >> 0) & 0xff, (net_ip >> 8) & 0xff,
+				(net_ip >> 16) & 0xff, (net_ip >> 24) & 0xff,
+				cidr, port_spec);
+		}
+		else {
+			snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u/%d",
+				(net_ip >> 0) & 0xff, (net_ip >> 8) & 0xff,
+				(net_ip >> 16) & 0xff, (net_ip >> 24) & 0xff,
+				cidr);
+		}
 	}
-
-	DBG(M_WRK, "phase 2+: adding /32 workunit for ARP responder %s", ip_str);
 
 	if (workunit_add(ip_str, &estr) < 0) {
-		ERR("failed to add workunit for ARP responder %s: %s", ip_str, estr);
+		ERR("failed to add workunit %s: %s", ip_str, estr);
 	}
+}
+
+/*
+ * Aggregate IPs into optimal CIDRs and create workunits.
+ *
+ * Algorithm: iterate through sorted IPs, at each position find the
+ * largest valid CIDR block where all hosts responded to ARP. This
+ * greedily produces the minimal number of workunits.
+ */
+static void aggregate_cidrs_and_create_workunits(const uint32_t *ips,
+						 uint32_t count,
+						 const char *port_spec) {
+	uint32_t i=0;
+	uint32_t workunits=0;
+	uint32_t max_ip=0;
+	uint8_t *covered=NULL;
+
+	if (count == 0) {
+		return;
+	}
+
+	max_ip=ips[count - 1];
+	covered=(uint8_t *)xmalloc(count);
+	memset(covered, 0, count);
+
+	for (i=0; i < count; i++) {
+		uint32_t block_size=0;
+		int cidr=0;
+		uint32_t j=0;
+
+		if (covered[i]) {
+			continue;
+		}
+
+		/* find largest CIDR block starting at this IP */
+		cidr=find_largest_cidr(ips, count, ips[i], max_ip);
+		block_size=1U << (32 - cidr);
+
+		/* create workunit for this block */
+		create_cidr_workunit(ips[i], cidr, port_spec);
+		workunits++;
+
+		/* mark all IPs in this block as covered */
+		for (j=i; j < count && ips[j] < ips[i] + block_size; j++) {
+			covered[j]=1;
+		}
+	}
+
+	VRB(1, "phase 2+: aggregated %u hosts into %u CIDR workunits",
+		count, workunits);
+
+	xfree(covered);
 }
 
 /*
  * Create workunits from ARP cache for compound mode phase 2+.
  *
- * Instead of creating CIDR-based workunits that the sender would iterate,
- * we create individual /32 workunits for each host that responded to ARP.
- * This ensures phase 2+ only scans hosts discovered in phase 1.
+ * Collects all ARP responders, aggregates them into optimal CIDR blocks,
+ * and creates workunits. This ensures phase 2+ only scans hosts discovered
+ * in phase 1, with minimal workunit overhead.
  *
  * The port specification is extracted from the original target string(s)
  * so that target:port syntax is honored in phase 2+.
@@ -160,6 +337,7 @@ static void add_workunit_for_arp_host(uint32_t ipaddr, void *ctx) {
 static void do_targets_from_arp_cache(void) {
 	uint32_t count=0;
 	const char *port_spec=NULL;
+	ip_collector_t collector;
 
 	count=phase_filter_count();
 	if (count == 0) {
@@ -180,8 +358,23 @@ static void do_targets_from_arp_cache(void) {
 		DBG(M_WRK, "phase 2+: using port spec '%s' from original target", port_spec);
 	}
 
-	VRB(1, "phase 2+: creating workunits for %u ARP responders", count);
-	phase_filter_walk(add_workunit_for_arp_host, (void *)port_spec);
+	/* collect all ARP responder IPs */
+	memset(&collector, 0, sizeof(collector));
+	phase_filter_walk(collect_arp_ip, &collector);
+
+	if (collector.count == 0) {
+		VRB(0, "phase 2+: no IPs collected from ARP cache");
+		return;
+	}
+
+	/* sort IPs for CIDR aggregation */
+	qsort(collector.ips, collector.count, sizeof(uint32_t), compare_u32);
+
+	/* aggregate into optimal CIDRs and create workunits */
+	aggregate_cidrs_and_create_workunits(collector.ips, collector.count,
+					     port_spec);
+
+	xfree(collector.ips);
 }
 
 int main(int argc, char **argv) {

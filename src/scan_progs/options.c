@@ -38,9 +38,11 @@ static keyval_t *kv_list=NULL;
 
 int scan_setdefaults(void) {
 	s->repeats=1;
+	s->global_repeats=1;
 	s->forklocal=FORK_LOCAL_LISTENER|FORK_LOCAL_SENDER;
 
 	s->pps=250;
+	s->global_pps=250;
 
 	s->master_tickrate=250;
 
@@ -346,6 +348,7 @@ int scan_setpps(const char *ppsstr) {
 	}
 
 	s->pps=pps;
+	s->global_pps=pps;
 
 	return 1;
 }
@@ -574,6 +577,7 @@ int scan_setppsi(int value) {
 	}
 
 	s->pps=value;
+	s->global_pps=value;
 
 	return 1;
 }
@@ -610,6 +614,7 @@ int scan_setrepeats(int repeats) {
 	}
 
 	s->repeats=(uint32_t)repeats;
+	s->global_repeats=(uint32_t)repeats;
 
 	return 1;
 }

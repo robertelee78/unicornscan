@@ -26,10 +26,12 @@
  * This schema is auto-created when using Supabase integration with
  * a fresh database. Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 2
+ * Schema version: 3
+ * - v3: Added RLS (Row Level Security) for Supabase compliance
+ *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 2
+#define PGSQL_SCHEMA_VERSION 3
 
 /*
  * Schema version tracking table - created first
@@ -302,12 +304,62 @@ static const char *pgsql_schema_constraints_ddl =
 	"END $$;\n";
 
 /*
+ * Row Level Security (RLS) for Supabase compatibility
+ * Enable RLS on all tables and create permissive policies for direct DB access
+ */
+static const char *pgsql_schema_rls_ddl =
+	/* Enable RLS on all tables */
+	"ALTER TABLE uni_schema_version ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_scans ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_sworkunits ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_lworkunits ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_workunitstats ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_output ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_ipreport ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_arpreport ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_ipreportdata ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_ippackets ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_arppackets ENABLE ROW LEVEL SECURITY;\n";
+
+/*
+ * RLS Policies - permissive policies for direct database access
+ * These allow full access for any authenticated database connection
+ */
+static const char *pgsql_schema_rls_policies_ddl =
+	/* Drop existing policies first (if any) to avoid conflicts */
+	"DROP POLICY IF EXISTS \"Allow full access to schema_version\" ON uni_schema_version;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to scans\" ON uni_scans;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to sworkunits\" ON uni_sworkunits;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to lworkunits\" ON uni_lworkunits;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to workunitstats\" ON uni_workunitstats;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to output\" ON uni_output;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to ipreport\" ON uni_ipreport;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to arpreport\" ON uni_arpreport;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to ipreportdata\" ON uni_ipreportdata;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to ippackets\" ON uni_ippackets;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to arppackets\" ON uni_arppackets;\n"
+	"\n"
+	/* Create permissive policies */
+	"CREATE POLICY \"Allow full access to schema_version\" ON uni_schema_version FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to scans\" ON uni_scans FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to sworkunits\" ON uni_sworkunits FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to lworkunits\" ON uni_lworkunits FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to workunitstats\" ON uni_workunitstats FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to output\" ON uni_output FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to ipreport\" ON uni_ipreport FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to arpreport\" ON uni_arpreport FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to ipreportdata\" ON uni_ipreportdata FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to ippackets\" ON uni_ippackets FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to arppackets\" ON uni_arppackets FOR ALL USING (true) WITH CHECK (true);\n";
+
+/*
  * Convenience views for common query patterns
- * Using CREATE OR REPLACE for idempotent updates
+ * Using CREATE OR REPLACE with security_invoker=true for Supabase compliance
+ * Note: security_invoker requires PostgreSQL 15+ (Supabase uses PG 15+)
  */
 static const char *pgsql_schema_views_ddl =
 	/* v_open_ports: Human-readable port scan results */
-	"CREATE OR REPLACE VIEW v_open_ports AS\n"
+	"CREATE OR REPLACE VIEW v_open_ports WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    s.scans_id,\n"
 	"    to_timestamp(s.s_time) AS scan_time,\n"
@@ -328,7 +380,7 @@ static const char *pgsql_schema_views_ddl =
 	"ORDER BY s.s_time DESC, i.host_addr, i.dport;\n"
 	"\n"
 	/* v_scan_summary: Aggregate statistics per scan */
-	"CREATE OR REPLACE VIEW v_scan_summary AS\n"
+	"CREATE OR REPLACE VIEW v_scan_summary WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    s.scans_id,\n"
 	"    to_timestamp(s.s_time) AS started,\n"
@@ -347,13 +399,13 @@ static const char *pgsql_schema_views_ddl =
 	"         s.num_hosts, s.num_packets, s.scan_metadata;\n"
 	"\n"
 	/* v_recent_scans: Last 50 scans with key metrics */
-	"CREATE OR REPLACE VIEW v_recent_scans AS\n"
+	"CREATE OR REPLACE VIEW v_recent_scans WITH (security_invoker = true) AS\n"
 	"SELECT * FROM v_scan_summary\n"
 	"ORDER BY started DESC\n"
 	"LIMIT 50;\n"
 	"\n"
 	/* v_host_history: All results for a given host across all scans */
-	"CREATE OR REPLACE VIEW v_host_history AS\n"
+	"CREATE OR REPLACE VIEW v_host_history WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    i.host_addr,\n"
 	"    s.scans_id,\n"
@@ -369,7 +421,7 @@ static const char *pgsql_schema_views_ddl =
 	"ORDER BY i.host_addr, s.s_time DESC, i.dport;\n"
 	"\n"
 	/* v_arp_results: Human-readable ARP scan results */
-	"CREATE OR REPLACE VIEW v_arp_results AS\n"
+	"CREATE OR REPLACE VIEW v_arp_results WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    s.scans_id,\n"
 	"    to_timestamp(s.s_time) AS scan_time,\n"
@@ -410,6 +462,57 @@ static const char *pgsql_schema_migration_v2_ddl =
 	"CREATE INDEX IF NOT EXISTS uni_scans_metadata_gin ON uni_scans USING gin(scan_metadata);\n"
 	"CREATE INDEX IF NOT EXISTS uni_ipreport_extra_gin ON uni_ipreport USING gin(extra_data);\n"
 	"CREATE INDEX IF NOT EXISTS uni_arpreport_extra_gin ON uni_arpreport USING gin(extra_data);\n";
+
+/*
+ * Schema v3 migration - add RLS and fix views for Supabase security compliance
+ * This migration enables Row Level Security on all tables and updates views
+ * to use SECURITY INVOKER instead of the default SECURITY DEFINER
+ */
+static const char *pgsql_schema_migration_v3_ddl =
+	/* Enable RLS on all tables (idempotent - no error if already enabled) */
+	"ALTER TABLE uni_schema_version ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_scans ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_sworkunits ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_lworkunits ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_workunitstats ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_output ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_ipreport ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_arpreport ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_ipreportdata ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_ippackets ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_arppackets ENABLE ROW LEVEL SECURITY;\n"
+	"\n"
+	/* Drop and recreate policies (idempotent) */
+	"DROP POLICY IF EXISTS \"Allow full access to schema_version\" ON uni_schema_version;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to scans\" ON uni_scans;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to sworkunits\" ON uni_sworkunits;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to lworkunits\" ON uni_lworkunits;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to workunitstats\" ON uni_workunitstats;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to output\" ON uni_output;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to ipreport\" ON uni_ipreport;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to arpreport\" ON uni_arpreport;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to ipreportdata\" ON uni_ipreportdata;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to ippackets\" ON uni_ippackets;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to arppackets\" ON uni_arppackets;\n"
+	"\n"
+	"CREATE POLICY \"Allow full access to schema_version\" ON uni_schema_version FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to scans\" ON uni_scans FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to sworkunits\" ON uni_sworkunits FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to lworkunits\" ON uni_lworkunits FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to workunitstats\" ON uni_workunitstats FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to output\" ON uni_output FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to ipreport\" ON uni_ipreport FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to arpreport\" ON uni_arpreport FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to ipreportdata\" ON uni_ipreportdata FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to ippackets\" ON uni_ippackets FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to arppackets\" ON uni_arppackets FOR ALL USING (true) WITH CHECK (true);\n"
+	"\n"
+	/* Update views to use security_invoker (requires PG 15+, Supabase uses PG 15+) */
+	"ALTER VIEW v_open_ports SET (security_invoker = true);\n"
+	"ALTER VIEW v_scan_summary SET (security_invoker = true);\n"
+	"ALTER VIEW v_recent_scans SET (security_invoker = true);\n"
+	"ALTER VIEW v_host_history SET (security_invoker = true);\n"
+	"ALTER VIEW v_arp_results SET (security_invoker = true);\n";
 
 /*
  * Record schema version

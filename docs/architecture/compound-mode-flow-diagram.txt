@@ -1,0 +1,227 @@
+# Compound Mode Remote Target Handling - Decision Flow
+
+## Startup Flow (Recommended Implementation)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ User Command: unicornscan -mA+T <targets> [options]        │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+         ┌─────────────────────────────┐
+         │ Parse CLI arguments          │
+         │ - Mode: -mA+T               │
+         │ - Targets: <targets>        │
+         │ - Rate, Interface, etc.     │
+         └─────────────┬───────────────┘
+                       │
+                       ▼
+         ┌─────────────────────────────┐
+         │ scan_parsemode_compound()   │
+         │ Split on '+' delimiter      │
+         │ Result: phases[] array      │
+         │   [0] = MODE_ARPSCAN        │
+         │   [1] = MODE_TCPSCAN        │
+         └─────────────┬───────────────┘
+                       │
+                       ▼
+         ┌─────────────────────────────┐
+         │ Validate compound mode      │
+         │ Q: Is phase[0] == ARP?      │
+         └─────────────┬───────────────┘
+                       │
+                  ┌────┴────┐
+                  │   YES   │
+                  └────┬────┘
+                       │
+                       ▼
+         ┌─────────────────────────────┐
+         │ Parse target specification  │
+         │ Extract IP ranges           │
+         └─────────────┬───────────────┘
+                       │
+                       ▼
+         ┌─────────────────────────────┐
+         │ Get interface configuration │
+         │ - Interface IP              │
+         │ - Subnet mask               │
+         │ - Network address           │
+         └─────────────┬───────────────┘
+                       │
+                       ▼
+         ┌─────────────────────────────────────────────┐
+         │ For each target IP:                         │
+         │   is_local = (target & mask) == (iface & mask) │
+         │ Result: has_remote_targets = ANY !is_local  │
+         └─────────────┬───────────────────────────────┘
+                       │
+              ┌────────┴────────┐
+              │                 │
+      ┌───────▼────────┐  ┌────▼──────────┐
+      │ has_remote =   │  │ has_remote =  │
+      │     FALSE      │  │     TRUE      │
+      └───────┬────────┘  └────┬──────────┘
+              │                │
+              │                ▼
+              │      ┌──────────────────────────┐
+              │      │ Check --force-remote flag │
+              │      └──────────┬───────────────┘
+              │                 │
+              │        ┌────────┴─────────┐
+              │        │                  │
+              │   ┌────▼─────┐      ┌────▼────────┐
+              │   │ NOT SET  │      │   SET       │
+              │   └────┬─────┘      └────┬────────┘
+              │        │                 │
+              │        ▼                 ▼
+              │   ┌─────────────────┐  ┌────────────────┐
+              │   │ FAIL EARLY      │  │ WARN + ALLOW   │
+              │   │                 │  │                │
+              │   │ Print error:    │  │ Print warning: │
+              │   │ - L2 vs L3      │  │ - ARP will fail│
+              │   │ - Why won't work│  │ - Phase 2 runs │
+              │   │ - Alternatives  │  │                │
+              │   │                 │  │ Continue ───┐  │
+              │   │ exit(1)         │  └────────────┼──┘
+              │   └─────────────────┘               │
+              │                                     │
+              └─────────────────────────────────────┘
+                                    │
+                                    ▼
+                      ┌──────────────────────────┐
+                      │ Continue normal startup  │
+                      │ - Generate workunits     │
+                      │ - Initialize sockets     │
+                      │ - Begin scanning         │
+                      └──────────────────────────┘
+```
+
+## Error Message Flow
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ERROR: Compound mode -mA+T requires targets on local network │
+├──────────────────────────────────────────────────────────────┤
+│                                                               │
+│ Target:    8.8.8.0/24 (remote, 1+ hops away)                 │
+│ Interface: eth0 (192.168.1.5/24)                             │
+│                                                               │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ Why This Fails:                                       │   │
+│ │ • ARP operates at Layer 2 (Ethernet/data link)       │   │
+│ │ • Only works on local broadcast domain                │   │
+│ │ • Router won't forward ARP requests                   │   │
+│ │ • Remote hosts never see ARP packets                  │   │
+│ │ • Result: Empty ARP cache → Phase 2 scans nothing    │   │
+│ └───────────────────────────────────────────────────────┘   │
+│                                                               │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ Solution #1: Skip ARP Phase                           │   │
+│ │   unicornscan -mT 8.8.8.0/24 -r1000                   │   │
+│ │   → Direct TCP SYN scan (recommended)                 │   │
+│ │                                                        │   │
+│ │ Solution #2: Scan Local Network                       │   │
+│ │   unicornscan -mA+T 192.168.1.0/24 -r1000             │   │
+│ │   → ARP works on local subnet                         │   │
+│ │                                                        │   │
+│ │ Solution #3: Force Remote Scan (Advanced)             │   │
+│ │   unicornscan -mA+T 8.8.8.0/24 --force-remote         │   │
+│ │   → Runs anyway, ARP phase yields no results          │   │
+│ └───────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## Runtime Behavior with --force-remote
+
+```
+Phase 1 (ARP Scan): Remote Network (8.8.8.0/24)
+───────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────┐
+│ Sending ARP requests to 254 IPs...            │
+│                                                │
+│ 8.8.8.1    → [No response] (remote)           │
+│ 8.8.8.2    → [No response] (remote)           │
+│ 8.8.8.3    → [No response] (remote)           │
+│ ...                                            │
+│ 8.8.8.254  → [No response] (remote)           │
+│                                                │
+│ ARP Cache: 0 entries                           │
+└────────────────────────────────────────────────┘
+
+Phase 2 (TCP SYN Scan): All Targets (No ARP Filtering)
+───────────────────────────────────────────────────────
+
+┌────────────────────────────────────────────────┐
+│ Scanning 254 IPs (not filtered by ARP)        │
+│                                                │
+│ 8.8.8.8:80     → [SYN-ACK] OPEN                │
+│ 8.8.8.8:443    → [SYN-ACK] OPEN                │
+│ 8.8.8.4:53     → [SYN-ACK] OPEN                │
+│ ...                                            │
+│                                                │
+│ Results: Ports found (ARP didn't filter)       │
+└────────────────────────────────────────────────┘
+
+Note: Phase 2 runs on ALL targets because --force-remote
+      disables ARP-based filtering for remote networks.
+```
+
+## Comparison: Local vs Remote Behavior
+
+```
+LOCAL NETWORK (192.168.1.0/24)         REMOTE NETWORK (8.8.8.0/24)
+─────────────────────────────────     ─────────────────────────────────
+
+┌─────────────────────────────┐       ┌─────────────────────────────┐
+│ -mA+T 192.168.1.0/24        │       │ -mA+T 8.8.8.0/24            │
+└──────────┬──────────────────┘       └──────────┬──────────────────┘
+           │                                     │
+           ▼                                     ▼
+  ┌──────────────────┐                 ┌──────────────────┐
+  │ Target detection │                 │ Target detection │
+  │ Result: LOCAL ✓  │                 │ Result: REMOTE ✗ │
+  └────────┬─────────┘                 └────────┬─────────┘
+           │                                     │
+           ▼                                     ▼
+  ┌──────────────────┐                 ┌──────────────────┐
+  │ Phase 1: ARP     │                 │  ERROR MESSAGE   │
+  │ Discovers:       │                 │  exit(1)         │
+  │ - .1 (gateway)   │                 └──────────────────┘
+  │ - .10 (printer)  │
+  │ - .50 (laptop)   │
+  │                  │
+  │ ARP cache: 3     │
+  └────────┬─────────┘
+           │
+           ▼
+  ┌──────────────────┐
+  │ Phase 2: TCP     │
+  │ Targets:         │
+  │ - .1  ✓          │
+  │ - .10 ✓          │
+  │ - .50 ✓          │
+  │                  │
+  │ Skipped: 251     │
+  │ (no ARP resp)    │
+  └──────────────────┘
+```
+
+## Key Implementation Points
+
+1. **Early Detection**: Validate targets BEFORE workunit generation
+2. **Clear Feedback**: Error message explains L2 vs L3, not just "invalid"
+3. **Actionable Alternatives**: User knows exactly what to do next
+4. **Escape Hatch**: --force-remote for edge cases we can't predict
+5. **Performance**: Prevents wasted time on impossible ARP phase
+
+## References
+
+- ADR-001: Full architecture decision record
+- docs/research/compound-mode-remote-target-design.md: Detailed analysis
+- docs/research/masscan-high-performance-techniques-analysis.md: How masscan handles this
+
+---
+Generated: 2025-12-23
+Architect: System Architecture Designer (Claude Sonnet 4.5)
+```
