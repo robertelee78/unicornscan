@@ -1048,7 +1048,7 @@ static int workunit_match_iter(const void *a, const void *b) {
  *
  * Returns: estimated seconds for the phase, 0 on error
  */
-uint32_t calculate_phase_estimate(int phase_idx, double num_hosts) {
+uint32_t calculate_phase_estimate(int phase_idx, double num_hosts, const char *target_port_str) {
 	uint32_t pps=0, repeats=0, num_pkts=0, estimate=0;
 	uint8_t recv_timeout=0, mode=0;
 
@@ -1085,7 +1085,18 @@ uint32_t calculate_phase_estimate(int phase_idx, double num_hosts) {
 	}
 	else if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN) {
 		/* TCP/UDP: parse port string to get port count */
-		const char *port_str=s->gport_str;
+		const char *port_str=NULL;
+
+		/*
+		 * Use target-specific port string if provided (from target:port spec),
+		 * otherwise fall back to global port string (from -p option).
+		 */
+		if (target_port_str != NULL && strlen(target_port_str) > 0) {
+			port_str=target_port_str;
+		}
+		else {
+			port_str=s->gport_str;
+		}
 
 		/*
 		 * Expand 'q' placeholder to quickports.
