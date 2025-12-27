@@ -466,7 +466,7 @@ int main(int argc, char **argv) {
 	 * For single mode, use the accumulated total estimate.
 	 */
 	if (s->num_phases > 1) {
-		num_secs=calculate_phase_estimate(0, s->num_hosts);
+		num_secs=calculate_phase_estimate(0, s->num_hosts, NULL);
 	}
 	else {
 		num_secs=s->num_secs;
@@ -649,8 +649,18 @@ int main(int argc, char **argv) {
 							uint32_t p2_secs=0;
 							unsigned int p2_off=0;
 							char p2_est[128];
+							const char *port_spec=NULL;
 
-							p2_secs=calculate_phase_estimate(s->cur_phase + 1, (double)live_count);
+							/*
+							 * Extract port spec from first target for accurate
+							 * phase 2 time estimate. The target:port syntax
+							 * overrides s->gport_str.
+							 */
+							first_target_port=NULL;
+							fifo_walk(s->target_strs, get_first_target_port_spec);
+							port_spec=first_target_port;
+
+							p2_secs=calculate_phase_estimate(s->cur_phase + 1, (double)live_count, port_spec);
 							p2_est[0]='\0';
 							p2_off=0;
 
