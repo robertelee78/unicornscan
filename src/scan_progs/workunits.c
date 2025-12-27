@@ -1085,8 +1085,23 @@ uint32_t calculate_phase_estimate(int phase_idx, double num_hosts) {
 	}
 	else if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN) {
 		/* TCP/UDP: parse port string to get port count */
-		if (s->gport_str != NULL) {
-			parse_pstr(s->gport_str, &num_pkts);
+		const char *port_str=s->gport_str;
+
+		/*
+		 * Expand 'q' placeholder to quickports.
+		 * Same logic as workunit_add() uses.
+		 */
+		if (port_str != NULL && (port_str[0] == 'q' || port_str[0] == 'Q')) {
+			if (mode == MODE_TCPSCAN && s->tcpquickports != NULL) {
+				port_str=s->tcpquickports;
+			}
+			else if (mode == MODE_UDPSCAN && s->udpquickports != NULL) {
+				port_str=s->udpquickports;
+			}
+		}
+
+		if (port_str != NULL && strlen(port_str) > 0) {
+			parse_pstr(port_str, &num_pkts);
 		}
 		else {
 			num_pkts=1;

@@ -69,21 +69,76 @@ static void prepare_targets_for_phase(void) {
 }
 
 /*
+ * Extract the port specification from a target string.
+ * Handles formats: IP:port, IP/CIDR:port, IP:mMode,port
+ * Returns pointer into original string (not a copy), or NULL if no port spec.
+ */
+static const char *extract_target_port_spec(const char *target) {
+	const char *colon=NULL;
+
+	if (target == NULL) {
+		return NULL;
+	}
+
+	colon=strchr(target, ':');
+	if (colon == NULL) {
+		return NULL;
+	}
+
+	colon++; /* skip past the colon */
+
+	/* if it starts with 'm', it's a mode spec - look for comma separator */
+	if (*colon == 'm' || *colon == 'M') {
+		const char *comma=strchr(colon, ',');
+		if (comma != NULL) {
+			return comma + 1;
+		}
+		/* mode-only, no port spec */
+		return NULL;
+	}
+
+	return colon;
+}
+
+/*
+ * Static to hold extracted port spec during fifo_walk.
+ * Set by get_first_target_port_spec(), used by do_targets_from_arp_cache().
+ */
+static const char *first_target_port=NULL;
+
+static void get_first_target_port_spec(void *target) {
+	if (first_target_port == NULL) {
+		first_target_port=extract_target_port_spec((const char *)target);
+	}
+}
+
+/*
  * Callback for phase_filter_walk() to create a /32 workunit for each
  * IP that responded to ARP in phase 1.
+ *
+ * The ctx parameter is the port specification from the original target
+ * (e.g., "a" for all ports, "1-1000" for a range, or NULL for default).
  */
 static void add_workunit_for_arp_host(uint32_t ipaddr, void *ctx) {
 	char *estr=NULL;
-	char ip_str[24];
-	(void)ctx;
+	char ip_str[64];
+	const char *port_spec=(const char *)ctx;
 
 	/*
-	 * Format IP as dotted quad. ipaddr is in network byte order,
-	 * so first byte is lowest octet.
+	 * Format IP as dotted quad with optional port spec.
+	 * ipaddr is in network byte order, so first byte is lowest octet.
 	 */
-	snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
-		(ipaddr >> 0) & 0xff, (ipaddr >> 8) & 0xff,
-		(ipaddr >> 16) & 0xff, (ipaddr >> 24) & 0xff);
+	if (port_spec != NULL && strlen(port_spec) > 0) {
+		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u:%s",
+			(ipaddr >> 0) & 0xff, (ipaddr >> 8) & 0xff,
+			(ipaddr >> 16) & 0xff, (ipaddr >> 24) & 0xff,
+			port_spec);
+	}
+	else {
+		snprintf(ip_str, sizeof(ip_str), "%u.%u.%u.%u",
+			(ipaddr >> 0) & 0xff, (ipaddr >> 8) & 0xff,
+			(ipaddr >> 16) & 0xff, (ipaddr >> 24) & 0xff);
+	}
 
 	DBG(M_WRK, "phase 2+: adding /32 workunit for ARP responder %s", ip_str);
 
@@ -98,9 +153,13 @@ static void add_workunit_for_arp_host(uint32_t ipaddr, void *ctx) {
  * Instead of creating CIDR-based workunits that the sender would iterate,
  * we create individual /32 workunits for each host that responded to ARP.
  * This ensures phase 2+ only scans hosts discovered in phase 1.
+ *
+ * The port specification is extracted from the original target string(s)
+ * so that target:port syntax is honored in phase 2+.
  */
 static void do_targets_from_arp_cache(void) {
 	uint32_t count=0;
+	const char *port_spec=NULL;
 
 	count=phase_filter_count();
 	if (count == 0) {
@@ -108,8 +167,21 @@ static void do_targets_from_arp_cache(void) {
 		return;
 	}
 
+	/*
+	 * Extract port spec from original target(s). Uses first target's
+	 * port spec for all phase 2+ workunits. If no port spec was given
+	 * on the target, workunit_add() falls back to s->gport_str.
+	 */
+	first_target_port=NULL;
+	fifo_walk(s->target_strs, get_first_target_port_spec);
+	port_spec=first_target_port;
+
+	if (port_spec != NULL) {
+		DBG(M_WRK, "phase 2+: using port spec '%s' from original target", port_spec);
+	}
+
 	VRB(1, "phase 2+: creating workunits for %u ARP responders", count);
-	phase_filter_walk(add_workunit_for_arp_host, NULL);
+	phase_filter_walk(add_workunit_for_arp_host, (void *)port_spec);
 }
 
 int main(int argc, char **argv) {
