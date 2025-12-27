@@ -581,8 +581,8 @@ static int scan_parsemode_ext(const char *str, uint8_t *mode, uint16_t *flags, u
 		return -1;
 	}
 
-	/* initialize defaults */
-	*pps=s->pps;
+	/* initialize defaults - 0 means "use global setting" */
+	*pps=0;
 	*repeats=0;
 	*timeout=0;
 
