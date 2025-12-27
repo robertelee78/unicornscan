@@ -22,6 +22,8 @@
 #include <signal.h>
 #include <time.h>
 
+/* Include scanopts.h before settings.h so SCANPHASE is properly defined */
+#include <scan_progs/scanopts.h>
 #include <settings.h>
 #include <getconfig.h>
 
@@ -193,7 +195,17 @@ int main(int argc, char **argv) {
 	time_est[0]='\0';
 	time_off=0;
 
-	num_secs=s->num_secs;
+	/*
+	 * For compound mode, calculate and display phase 1 estimate only.
+	 * Phase 2+ estimates will be shown after phase 1 completes (see FR-2).
+	 * For single mode, use the accumulated total estimate.
+	 */
+	if (s->num_phases > 1) {
+		num_secs=calculate_phase_estimate(0, s->num_hosts);
+	}
+	else {
+		num_secs=s->num_secs;
+	}
 
 	if (num_secs > (60 * 60)) {
 		unsigned long long int hours=0;
@@ -222,11 +234,24 @@ int main(int argc, char **argv) {
 
 	snprintf(&time_est[time_off], sizeof(time_est) - (time_off + 1), "%u Seconds", num_secs);
 
-	VRB(0, "scaning %.2e total hosts with %.2e total packets, should take a little longer than %s",
-		s->num_hosts,
-		s->num_packets,
-		time_est
-	);
+	/*
+	 * Display time estimate: phase-specific for compound mode,
+	 * total estimate for single mode.
+	 */
+	if (s->num_phases > 1) {
+		VRB(0, "phase 1 (%s): ~%s for %.2e hosts",
+			strscanmode(s->phases[0].mode),
+			time_est,
+			s->num_hosts
+		);
+	}
+	else {
+		VRB(0, "scaning %.2e total hosts with %.2e total packets, should take a little longer than %s",
+			s->num_hosts,
+			s->num_packets,
+			time_est
+		);
+	}
 
 	if (GET_OVERRIDE()) {
 		/* the ip info is already filled in, so just complete the rest */
