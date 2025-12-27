@@ -75,7 +75,7 @@ int scan_setdefaults(void) {
 
 	s->ip_report_fmt=xstrdup("%-8r\t%16P[%5p]\t\tFrom %h %T ttl %t");
 	s->ip_imreport_fmt=xstrdup("%-8r %h:%p %T ttl %t");
-	s->arp_report_fmt=xstrdup("%M (%o) is %h");
+	s->arp_report_fmt=xstrdup("ARP %M (%o) from %h");
 	s->arp_imreport_fmt=xstrdup("%h at %M");
 	s->openstr=xstrdup("open");
 	s->closedstr=xstrdup("closed");
