@@ -371,15 +371,11 @@ int main(int argc, char **argv) {
 
 				/*
 				 * In compound mode, after completing an ARP phase,
-				 * output ARP results sorted by IP address.
+				 * display phase 2 time estimate using actual live host count.
+				 * ARP results will be output in final report_do(), grouped
+				 * with TCP results per-IP for cleaner output.
 				 */
 				if (s->num_phases > 1 && scan_getmode() == MODE_ARPSCAN) {
-					report_do_arp();
-
-					/*
-					 * Display phase 2 time estimate using actual live host count.
-					 * Only show if there's a next phase and hosts responded to ARP.
-					 */
 					if (s->cur_phase + 1 < s->num_phases) {
 						uint32_t live_count=0;
 
