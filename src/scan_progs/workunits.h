@@ -147,4 +147,7 @@ int  workunit_get_interfaces(void);
 void workunit_stir_sp(void);
 void workunit_stir_lp(void);
 
+/* Per-phase time estimation for compound mode */
+uint32_t calculate_phase_estimate(int /* phase_idx */, double /* num_hosts */);
+
 #endif

@@ -1037,5 +1037,84 @@ static int workunit_match_iter(const void *a, const void *b) {
 	return 1;
 }
 
+/*
+ * Calculate time estimate in seconds for a specific scan phase.
+ * Uses phase-specific settings (pps, repeats, timeout) when available,
+ * falling back to global settings.
+ *
+ * Parameters:
+ *   phase_idx  - phase index (0-based)
+ *   num_hosts  - number of hosts to scan
+ *
+ * Returns: estimated seconds for the phase, 0 on error
+ */
+uint32_t calculate_phase_estimate(int phase_idx, double num_hosts) {
+	uint32_t pps=0, repeats=0, num_pkts=0, estimate=0;
+	uint8_t recv_timeout=0, mode=0;
+
+	if (num_hosts <= 0) {
+		return 0;
+	}
+
+	/* Get phase settings if available */
+	if (phase_idx >= 0 && s->phases != NULL && phase_idx < s->num_phases) {
+		scan_phase_t *phase=&s->phases[phase_idx];
+		mode=phase->mode;
+		pps=(phase->pps > 0) ? phase->pps : s->pps;
+		repeats=(phase->repeats > 0) ? phase->repeats : s->repeats;
+		recv_timeout=(phase->recv_timeout > 0) ? phase->recv_timeout : s->ss->recv_timeout;
+	}
+	else {
+		/* Use global settings */
+		mode=s->ss->mode;
+		pps=s->pps;
+		repeats=s->repeats;
+		recv_timeout=s->ss->recv_timeout;
+	}
+
+	/* Sanity check pps */
+	if (pps == 0) {
+		ERR("calculate_phase_estimate: pps is zero");
+		return 0;
+	}
+
+	/* Determine packets per host based on mode */
+	if (mode == MODE_ARPSCAN) {
+		/* ARP: 1 request per host */
+		num_pkts=1;
+	}
+	else if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN) {
+		/* TCP/UDP: parse port string to get port count */
+		if (s->gport_str != NULL) {
+			parse_pstr(s->gport_str, &num_pkts);
+		}
+		else {
+			num_pkts=1;
+		}
+	}
+	else {
+		/* Other modes (ICMP, IP): 1 packet per host */
+		num_pkts=1;
+	}
+
+	/* Apply repeats multiplier */
+	if (repeats > 1) {
+		num_pkts *= repeats;
+	}
+
+	/* Apply TTL range multiplier */
+	if (s->ss->minttl != s->ss->maxttl) {
+		num_pkts *= (s->ss->maxttl - s->ss->minttl);
+	}
+
+	/* Calculate: (hosts * packets) / pps + timeout */
+	estimate=((uint32_t)(num_hosts * num_pkts) / pps) + recv_timeout;
+
+	DBG(M_WRK, "calculate_phase_estimate: phase %d, %.0f hosts, %u pkts/host, %u pps, %u timeout -> %u secs",
+		phase_idx, num_hosts, num_pkts, pps, recv_timeout, estimate);
+
+	return estimate;
+}
+
 #undef WU_L
 #undef WU_S
