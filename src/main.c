@@ -597,6 +597,7 @@ int main(int argc, char **argv) {
 	else {
 
 		report_init();
+		VRB(1, "connect mode: %s (options=0x%x)", GET_DOCONNECT() ? "enabled" : "disabled", s->options);
 		if (GET_DOCONNECT()) {
 			connect_init();
 		}

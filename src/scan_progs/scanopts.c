@@ -313,8 +313,8 @@ static int scan_parsemode_compound(const char *str) {
 		/* master flags (M_DO_CONNECT etc.) are global, OR them in */
 		s->options |= mf;
 
-		DBG(M_CNF, "compound mode: phase %d: mode=%s pps=%u repeats=%u timeout=%u",
-		    i + 1, strscanmode(mode), pps, repeats, timeout);
+		DBG(M_CNF, "compound mode: phase %d: mode=%s pps=%u repeats=%u timeout=%u mf=0x%x options=0x%x",
+		    i + 1, strscanmode(mode), pps, repeats, timeout, mf, s->options);
 	}
 
 	xfree(dup);
@@ -804,9 +804,19 @@ int load_phase_settings(int phase_index) {
 	s->ss->mode=phase->mode;
 	s->ss->tcphdrflgs=phase->tcphdrflgs;
 
-	/* Apply phase-specific send/recv options */
-	s->send_opts=phase->send_opts;
-	s->recv_opts=phase->recv_opts;
+	/*
+	 * Apply phase-specific send/recv options.
+	 * Preserve flags from -s option - these must persist across phases
+	 * so the phantom IP is used for all phases:
+	 * - S_SRC_OVERRIDE: tells drone_setup to keep user's source address
+	 * - L_USE_PROMISC: enables promiscuous mode to see phantom IP responses
+	 */
+	{
+		uint16_t preserve_override = s->send_opts & S_SRC_OVERRIDE;
+		uint16_t preserve_promisc = s->recv_opts & L_USE_PROMISC;
+		s->send_opts = phase->send_opts | preserve_override;
+		s->recv_opts = phase->recv_opts | preserve_promisc;
+	}
 
 	/* Apply phase-specific PPS if set, otherwise restore global -r rate */
 	if (phase->pps > 0) {
