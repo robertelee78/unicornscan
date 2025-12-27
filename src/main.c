@@ -375,6 +375,57 @@ int main(int argc, char **argv) {
 				 */
 				if (s->num_phases > 1 && scan_getmode() == MODE_ARPSCAN) {
 					report_do_arp();
+
+					/*
+					 * Display phase 2 time estimate using actual live host count.
+					 * Only show if there's a next phase and hosts responded to ARP.
+					 */
+					if (s->cur_phase + 1 < s->num_phases) {
+						uint32_t live_count=0;
+
+						live_count=phase_filter_count();
+						if (live_count > 0) {
+							uint32_t p2_secs=0;
+							unsigned int p2_off=0;
+							char p2_est[128];
+
+							p2_secs=calculate_phase_estimate(s->cur_phase + 1, (double)live_count);
+							p2_est[0]='\0';
+							p2_off=0;
+
+							if (p2_secs > (60 * 60)) {
+								unsigned long long int hours=0;
+								int sret=0;
+
+								hours=p2_secs / (60 * 60);
+								sret=snprintf(&p2_est[p2_off], sizeof(p2_est) - (p2_off + 1), "%llu Hours, ", hours);
+								assert(sret > 0);
+								p2_off += sret;
+								p2_secs -= hours * (60 * 60);
+							}
+							if (p2_secs > 60) {
+								unsigned long long int minutes=0;
+								int sret=0;
+
+								minutes=p2_secs / 60;
+								sret=snprintf(&p2_est[p2_off], sizeof(p2_est) - (p2_off + 1), "%llu Minutes, ", minutes);
+								assert(sret > 0);
+								p2_off += sret;
+								p2_secs -= minutes * 60;
+							}
+							snprintf(&p2_est[p2_off], sizeof(p2_est) - (p2_off + 1), "%u Seconds", p2_secs);
+
+							VRB(0, "phase %d (%s): ~%s for %u live hosts",
+								s->cur_phase + 2,
+								strscanmode(s->phases[s->cur_phase + 1].mode),
+								p2_est,
+								live_count);
+						}
+						else {
+							VRB(0, "phase %d: no hosts responded to ARP, skipping",
+								s->cur_phase + 2);
+						}
+					}
 				}
 			}
 		}
