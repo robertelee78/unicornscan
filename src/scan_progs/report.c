@@ -70,6 +70,13 @@ static const char *mmdb_search_paths[] = {
 #endif
 
 static void *report_t=NULL;
+
+/*
+ * Track last reported IP for visual grouping in compound mode.
+ * When IP changes between reports, output a blank line separator.
+ */
+static uint32_t last_reported_ip=0;
+
 static int do_report_nodefunc(uint64_t, void *, void *);
 static int do_arpreport_nodefunc(uint64_t, void *, void *);
 static void clean_report_extra(void *);
@@ -172,6 +179,9 @@ void report_do(void) {
 		s->arp_imreport_fmt,
 		rbsize(report_t)
 	);
+
+	/* reset IP grouping state for fresh output */
+	last_reported_ip=0;
 
 	rbwalk(report_t, do_report_nodefunc, 1, NULL);
 
@@ -415,18 +425,34 @@ static int do_report_nodefunc(uint64_t rkey, void *ptr, void *cbdata) {
 		arp_report_t *ar;
 		uint32_t *magic;
 	} r_u;
+	uint32_t this_ip=0;
 
 	assert(ptr != NULL);
 
 	r_u.ptr=ptr;
 
 	/*
-	 * In compound mode, ARP reports were already output sorted by IP
-	 * via report_do_arp(). Just free and skip to avoid duplicate output.
+	 * In compound mode, group reports by IP with blank line separators.
+	 * Extract IP from the report structure based on type.
 	 */
-	if (s->num_phases > 1 && *r_u.magic == ARP_REPORT_MAGIC) {
-		xfree(r_u.ptr);
-		return 1;
+	if (s->num_phases > 1) {
+		if (*r_u.magic == IP_REPORT_MAGIC) {
+			this_ip=r_u.ir->host_addr;
+		}
+		else if (*r_u.magic == ARP_REPORT_MAGIC) {
+			this_ip=r_u.ar->ipaddr;
+		}
+
+		/*
+		 * output blank line separator when IP changes,
+		 * but not before the very first report
+		 */
+		if (this_ip != last_reported_ip && last_reported_ip != 0) {
+			if ( ! GET_REPORTQUIET()) {
+				OUT("");
+			}
+		}
+		last_reported_ip=this_ip;
 	}
 
 	push_report_modules((const void *)r_u.ptr); /* ADD to it */
