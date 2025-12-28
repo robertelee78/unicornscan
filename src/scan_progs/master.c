@@ -310,7 +310,7 @@ void run_scan(void) {
 		}
 
 		/* pri work is created by reading so we do it here */
-		if (s->senders > 0 && master_state > MASTER_SENT_SENDER_WORKUNITS) {
+		if (s->senders > 0 && master_state >= MASTER_SENT_SENDER_WORKUNITS) {
 			dispatch_pri_work();
 		}
 
