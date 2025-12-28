@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.16
+Version:        0.4.17
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -84,28 +84,33 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %dir %{_localstatedir}/unicornscan
 
 %changelog
-* Mon Dec 23 2025 Robert Lee <robert@unicornscan.org> - 0.4.13-1
+* Fri Dec 27 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.17-1
+- Fix sf mode in compound mode (-mA+sf) not sending SYN flag
+- sf mode now defaults to TH_SYN like regular T mode
+- Fixes 0% ports found when using -mA+sf with -s phantom IP
+
+* Mon Dec 23 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.13-1
 - Add compound scan modes (-mA+T, -mA+U) for ARP-filtered TCP/UDP scanning
 - ARP discovery phase filters subsequent scan phases to responding hosts only
 - Eliminates kernel ARP blocking delays on sparse local networks
 - 95% packet reduction on networks with few live hosts
 - Clear error handling for remote targets in compound mode
 
-* Mon Dec 22 2025 Robert Lee <robert@unicornscan.org> - 0.4.12-1
+* Mon Dec 22 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.12-1
 - Use XDG_RUNTIME_DIR for per-user socket paths (secure non-root operation)
 - Replace deprecated libGeoIP with modern libmaxminddb
 - Add multi-path GeoIP database search
 
-* Sat Dec 21 2025 Robert Lee <robert@unicornscan.org> - 0.4.10-1
+* Sat Dec 21 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.10-1
 - Set Linux capabilities on install for non-root operation
 - Only disable receive offloads (GRO/LRO), restore on exit
 
-* Fri Dec 20 2025 Robert Lee <robert@unicornscan.org> - 0.4.9-1
+* Fri Dec 20 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.9-1
 - Disable NIC offload (GRO/LRO/TSO/GSO) for accurate packet capture
 - Add DLT_LINUX_SLL support for capturing on "any" interface
 - Add verbosity-based logging for packet parsing issues
 
-* Fri Dec 20 2025 Robert Lee <robert@unicornscan.org> - 0.4.8-1
+* Fri Dec 20 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.8-1
 - Fix libdumbnet/libdnet support for cross-platform builds
 - Add Supabase cloud database support
 - Fix NULL pointer dereferences in pgsqldb module

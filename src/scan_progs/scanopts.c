@@ -515,8 +515,8 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 		}
 		walk += 2;
 
-		/* check to see if the user specified TCP flags with TCP mode */
-		if (strlen(walk) > 0 && *walk != ':') {
+		/* check to see if the user specified TCP flags with sf mode */
+		if (strlen(walk) > 0 && !isdigit(*walk) && *walk != ':') {
 			ret=decode_tcpflags(walk);
 			if (ret < 0) {
 				ERR("bad tcp flags `%s'", str);
@@ -527,6 +527,10 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
 				;
 			}
+		}
+		else {
+			/* Default to SYN for sf mode (TCP connect scan) */
+			*flags=TH_SYN;
 		}
 	}
 	else {
@@ -632,8 +636,8 @@ static int scan_parsemode_ext(const char *str, uint8_t *mode, uint16_t *flags, u
 		}
 		walk += 2;
 
-		/* check to see if the user specified TCP flags with TCP mode */
-		if (strlen(walk) > 0 && *walk != ':') {
+		/* check to see if the user specified TCP flags with sf mode */
+		if (strlen(walk) > 0 && !isdigit(*walk) && *walk != ':') {
 			ret=decode_tcpflags(walk);
 			if (ret < 0) {
 				ERR("bad tcp flags `%s'", str);
@@ -644,6 +648,10 @@ static int scan_parsemode_ext(const char *str, uint8_t *mode, uint16_t *flags, u
 			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
 				;
 			}
+		}
+		else {
+			/* Default to SYN for sf mode (TCP connect scan) */
+			*flags=TH_SYN;
 		}
 	}
 	else {
