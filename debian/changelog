@@ -1,12 +1,17 @@
-unicornscan (0.4.17-1) unstable; urgency=medium
+unicornscan (0.4.18-1) unstable; urgency=medium
 
   * Fix priority work dispatch delay causing banner grab failures on larger
     target ranges (/27+) in compound mode with sf (banner grabbing)
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 27 Dec 2025 21:00:00 -0800
+
+unicornscan (0.4.17-1) unstable; urgency=medium
+
   * Fix sf mode in compound mode not sending SYN flag
   * Fix phantom IP (-s) not preserved in compound mode phases
   * Fix phase 2 inheriting config file PPS instead of global -r
 
- -- Robert E. Lee <robert@unicornscan.org>  Fri, 27 Dec 2025 21:00:00 -0800
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 27 Dec 2025 19:00:00 -0800
 
 unicornscan (0.4.8-1) unstable; urgency=medium
 
