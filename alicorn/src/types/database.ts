@@ -250,6 +250,84 @@ export interface SavedFilter {
 }
 
 // =============================================================================
+// GeoIP Types (v6 schema)
+// =============================================================================
+
+/**
+ * IP type classification for network intelligence
+ */
+export type IpType = 'residential' | 'datacenter' | 'vpn' | 'proxy' | 'tor' | 'mobile' | 'unknown'
+
+/**
+ * GeoIP provider identifiers
+ */
+export type GeoIPProvider = 'maxmind' | 'ip2location' | 'ipinfo'
+
+/**
+ * GeoIP record matching uni_geoip table (v6 schema)
+ * Stores geographic and network metadata at scan time for historical accuracy
+ */
+export interface GeoIPRecord {
+  geoip_id: number
+  host_ip: string
+  scans_id: number
+
+  // Geographic data
+  country_code: string | null
+  country_name: string | null
+  region_code: string | null
+  region_name: string | null
+  city: string | null
+  postal_code: string | null
+  latitude: number | null
+  longitude: number | null
+  timezone: string | null
+
+  // Network data (optional - requires paid databases)
+  ip_type: IpType | null
+  isp: string | null
+  organization: string | null
+  asn: number | null
+  as_org: string | null
+
+  // Metadata
+  provider: GeoIPProvider
+  database_version: string | null
+  lookup_time: string  // ISO timestamp
+  confidence: number | null  // 0-100
+  extra_data: Record<string, unknown> | null
+}
+
+/**
+ * Country statistics from v_geoip_stats view
+ */
+export interface GeoIPCountryStats {
+  scans_id: number
+  country_code: string | null
+  country_name: string | null
+  host_count: number
+  unique_asns: number
+  datacenter_count: number
+  residential_count: number
+  vpn_count: number
+  proxy_count: number
+  tor_count: number
+  mobile_count: number
+}
+
+/**
+ * Query options for GeoIP lookups
+ */
+export interface GeoIPQueryOptions {
+  countryCode?: string
+  ipType?: IpType
+  asn?: number
+  hasCoordinates?: boolean
+  limit?: number
+  offset?: number
+}
+
+// =============================================================================
 // Helper/View Types
 // =============================================================================
 

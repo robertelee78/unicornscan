@@ -10,7 +10,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note } from '@/types/database'
+import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note, GeoIPRecord, GeoIPCountryStats, GeoIPQueryOptions } from '@/types/database'
 import type {
   DashboardStats,
   PortCount,
@@ -115,6 +115,12 @@ export interface DatabaseClient {
   // Topology (network graph)
   getHops(scansId: number): Promise<Hop[]>
   getHopsForHosts(hostAddrs: string[]): Promise<Hop[]>
+
+  // GeoIP (v6 schema)
+  getGeoIPByHost(hostIp: string, scansId?: number): Promise<GeoIPRecord | null>
+  getGeoIPHistory(hostIp: string): Promise<GeoIPRecord[]>
+  getGeoIPByScan(scansId: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]>
+  getGeoIPCountryStats(scansId: number): Promise<GeoIPCountryStats[]>
 }
 
 // =============================================================================
@@ -660,6 +666,142 @@ class RestDatabase implements DatabaseClient {
     }
     return data as Hop[]
   }
+
+  // ===========================================================================
+  // GeoIP Methods (v6 schema)
+  // ===========================================================================
+
+  async getGeoIPByHost(hostIp: string, scansId?: number): Promise<GeoIPRecord | null> {
+    let query = this.client
+      .from('uni_geoip')
+      .select('*')
+      .eq('host_ip', hostIp)
+      .order('lookup_time', { ascending: false })
+      .limit(1)
+
+    if (scansId !== undefined) {
+      query = query.eq('scans_id', scansId)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      // Table might not exist yet (v5 database)
+      if (error.code === 'PGRST116' || error.code === '42P01') return null
+      throw error
+    }
+    return data && data.length > 0 ? (data[0] as GeoIPRecord) : null
+  }
+
+  async getGeoIPHistory(hostIp: string): Promise<GeoIPRecord[]> {
+    const { data, error } = await this.client
+      .from('uni_geoip')
+      .select('*')
+      .eq('host_ip', hostIp)
+      .order('lookup_time', { ascending: false })
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as GeoIPRecord[]
+  }
+
+  async getGeoIPByScan(scansId: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]> {
+    let query = this.client
+      .from('uni_geoip')
+      .select('*')
+      .eq('scans_id', scansId)
+
+    // Apply filters
+    if (options?.countryCode) {
+      query = query.eq('country_code', options.countryCode)
+    }
+    if (options?.ipType) {
+      query = query.eq('ip_type', options.ipType)
+    }
+    if (options?.asn) {
+      query = query.eq('asn', options.asn)
+    }
+    if (options?.hasCoordinates) {
+      query = query.not('latitude', 'is', null).not('longitude', 'is', null)
+    }
+
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit)
+    }
+    if (options?.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 100) - 1)
+    }
+
+    query = query.order('host_ip', { ascending: true })
+
+    const { data, error } = await query
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as GeoIPRecord[]
+  }
+
+  async getGeoIPCountryStats(scansId: number): Promise<GeoIPCountryStats[]> {
+    // Use the v_geoip_stats view if available, otherwise aggregate manually
+    const { data, error } = await this.client
+      .from('v_geoip_stats')
+      .select('*')
+      .eq('scans_id', scansId)
+      .order('host_count', { ascending: false })
+
+    if (error) {
+      // View might not exist - fall back to manual aggregation
+      if (error.code === 'PGRST116' || error.code === '42P01') {
+        // Get raw GeoIP records and aggregate in JS
+        const records = await this.getGeoIPByScan(scansId)
+        return this.aggregateCountryStats(scansId, records)
+      }
+      throw error
+    }
+    return data as GeoIPCountryStats[]
+  }
+
+  private aggregateCountryStats(scansId: number, records: GeoIPRecord[]): GeoIPCountryStats[] {
+    const countryMap = new Map<string, GeoIPCountryStats>()
+
+    for (const r of records) {
+      const key = r.country_code || 'XX'  // XX for unknown
+      const existing = countryMap.get(key)
+
+      if (existing) {
+        existing.host_count++
+        if (r.asn) existing.unique_asns++  // Simplified - doesn't track unique
+        if (r.ip_type === 'datacenter') existing.datacenter_count++
+        if (r.ip_type === 'residential') existing.residential_count++
+        if (r.ip_type === 'vpn') existing.vpn_count++
+        if (r.ip_type === 'proxy') existing.proxy_count++
+        if (r.ip_type === 'tor') existing.tor_count++
+        if (r.ip_type === 'mobile') existing.mobile_count++
+      } else {
+        countryMap.set(key, {
+          scans_id: scansId,
+          country_code: r.country_code,
+          country_name: r.country_name,
+          host_count: 1,
+          unique_asns: r.asn ? 1 : 0,
+          datacenter_count: r.ip_type === 'datacenter' ? 1 : 0,
+          residential_count: r.ip_type === 'residential' ? 1 : 0,
+          vpn_count: r.ip_type === 'vpn' ? 1 : 0,
+          proxy_count: r.ip_type === 'proxy' ? 1 : 0,
+          tor_count: r.ip_type === 'tor' ? 1 : 0,
+          mobile_count: r.ip_type === 'mobile' ? 1 : 0,
+        })
+      }
+    }
+
+    return Array.from(countryMap.values())
+      .sort((a, b) => b.host_count - a.host_count)
+  }
 }
 
 // =============================================================================
@@ -1186,6 +1328,154 @@ class DemoDatabase implements DatabaseClient {
   async getHopsForHosts(_hostAddrs: string[]): Promise<Hop[]> {
     await this.simulateDelay()
     return []
+  }
+
+  // ===========================================================================
+  // GeoIP Methods (v6 schema) - Demo data
+  // ===========================================================================
+
+  private mockGeoIP: GeoIPRecord[] = [
+    {
+      geoip_id: 1,
+      host_ip: '192.168.1.1',
+      scans_id: 1,
+      country_code: 'US',
+      country_name: 'United States',
+      region_code: 'CA',
+      region_name: 'California',
+      city: 'San Francisco',
+      postal_code: '94102',
+      latitude: 37.7749,
+      longitude: -122.4194,
+      timezone: 'America/Los_Angeles',
+      ip_type: 'datacenter',
+      isp: 'Demo ISP',
+      organization: 'Demo Datacenter',
+      asn: 13335,
+      as_org: 'Cloudflare Inc',
+      provider: 'maxmind',
+      database_version: 'GeoLite2-City-Demo',
+      lookup_time: new Date().toISOString(),
+      confidence: 85,
+      extra_data: null,
+    },
+    {
+      geoip_id: 2,
+      host_ip: '8.8.8.8',
+      scans_id: 1,
+      country_code: 'US',
+      country_name: 'United States',
+      region_code: 'CA',
+      region_name: 'California',
+      city: 'Mountain View',
+      postal_code: '94043',
+      latitude: 37.4056,
+      longitude: -122.0775,
+      timezone: 'America/Los_Angeles',
+      ip_type: 'datacenter',
+      isp: 'Google LLC',
+      organization: 'Google LLC',
+      asn: 15169,
+      as_org: 'Google LLC',
+      provider: 'maxmind',
+      database_version: 'GeoLite2-City-Demo',
+      lookup_time: new Date().toISOString(),
+      confidence: 95,
+      extra_data: null,
+    },
+    {
+      geoip_id: 3,
+      host_ip: '1.1.1.1',
+      scans_id: 1,
+      country_code: 'AU',
+      country_name: 'Australia',
+      region_code: 'NSW',
+      region_name: 'New South Wales',
+      city: 'Sydney',
+      postal_code: '2000',
+      latitude: -33.8688,
+      longitude: 151.2093,
+      timezone: 'Australia/Sydney',
+      ip_type: 'datacenter',
+      isp: 'Cloudflare',
+      organization: 'APNIC Research',
+      asn: 13335,
+      as_org: 'Cloudflare Inc',
+      provider: 'maxmind',
+      database_version: 'GeoLite2-City-Demo',
+      lookup_time: new Date().toISOString(),
+      confidence: 90,
+      extra_data: null,
+    },
+  ]
+
+  async getGeoIPByHost(hostIp: string, scansId?: number): Promise<GeoIPRecord | null> {
+    await this.simulateDelay()
+    let records = this.mockGeoIP.filter((r) => r.host_ip === hostIp)
+    if (scansId !== undefined) {
+      records = records.filter((r) => r.scans_id === scansId)
+    }
+    return records.length > 0 ? records[0] : null
+  }
+
+  async getGeoIPHistory(hostIp: string): Promise<GeoIPRecord[]> {
+    await this.simulateDelay()
+    return this.mockGeoIP.filter((r) => r.host_ip === hostIp)
+  }
+
+  async getGeoIPByScan(scansId: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]> {
+    await this.simulateDelay()
+    let records = this.mockGeoIP.filter((r) => r.scans_id === scansId)
+
+    if (options?.countryCode) {
+      records = records.filter((r) => r.country_code === options.countryCode)
+    }
+    if (options?.ipType) {
+      records = records.filter((r) => r.ip_type === options.ipType)
+    }
+    if (options?.asn) {
+      records = records.filter((r) => r.asn === options.asn)
+    }
+    if (options?.hasCoordinates) {
+      records = records.filter((r) => r.latitude !== null && r.longitude !== null)
+    }
+
+    const offset = options?.offset || 0
+    const limit = options?.limit || 100
+    return records.slice(offset, offset + limit)
+  }
+
+  async getGeoIPCountryStats(scansId: number): Promise<GeoIPCountryStats[]> {
+    await this.simulateDelay()
+    const records = this.mockGeoIP.filter((r) => r.scans_id === scansId)
+
+    // Aggregate by country
+    const countryMap = new Map<string, GeoIPCountryStats>()
+    for (const r of records) {
+      const key = r.country_code || 'XX'
+      const existing = countryMap.get(key)
+
+      if (existing) {
+        existing.host_count++
+      } else {
+        countryMap.set(key, {
+          scans_id: scansId,
+          country_code: r.country_code,
+          country_name: r.country_name,
+          host_count: 1,
+          unique_asns: 1,
+          datacenter_count: r.ip_type === 'datacenter' ? 1 : 0,
+          residential_count: r.ip_type === 'residential' ? 1 : 0,
+          vpn_count: r.ip_type === 'vpn' ? 1 : 0,
+          proxy_count: r.ip_type === 'proxy' ? 1 : 0,
+          tor_count: r.ip_type === 'tor' ? 1 : 0,
+          mobile_count: r.ip_type === 'mobile' ? 1 : 0,
+        })
+      }
+    }
+
+    return Array.from(countryMap.values())
+      .sort((a, b) => b.host_count - a.host_count)
   }
 
   private simulateDelay(): Promise<void> {
