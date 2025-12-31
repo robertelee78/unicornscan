@@ -188,7 +188,8 @@ sockaddr_list_t **stddns_getaddr(void *c, const char *name) {
 		stddns_context_t *c;
 	} c_u;
 	sockaddr_list_t **sl=NULL;
-	char *sstring=NULL, *ename=NULL;
+	const char *sstring=NULL;
+	char *ename=NULL;
 
 	if (name == NULL || c == NULL) {
 		return NULL;
@@ -251,7 +252,7 @@ sockaddr_list_t **stddns_getaddr(void *c, const char *name) {
 
 		/* XXX we dont get all the cnames this way */
 		sstring=cidr_saddrstr(walk->ai_addr);
-		DBG(M_DNS, "index %u for name `%s' ai_flags %d ai_family %d ai_socktype %d ai_protocol %d ai_addrlen %zu ai_addr %p (%s) ai_canonname %s ai_next %p", idx, name, walk->ai_flags, walk->ai_family, walk->ai_socktype, walk->ai_protocol, walk->ai_addrlen, walk->ai_addr, sstring != NULL ? sstring : "Nothing", walk->ai_canonname != NULL ? walk->ai_canonname : "Null", walk->ai_next);
+		DBG(M_DNS, "index %u for name `%s' ai_flags %d ai_family %d ai_socktype %d ai_protocol %d ai_addrlen %zu ai_addr %p (%s) ai_canonname %s ai_next %p", idx, name, walk->ai_flags, walk->ai_family, walk->ai_socktype, walk->ai_protocol, (size_t)walk->ai_addrlen, walk->ai_addr, sstring != NULL ? sstring : "Nothing", walk->ai_canonname != NULL ? walk->ai_canonname : "Null", walk->ai_next);
 
 		if (ename == NULL && EXACT && walk->ai_canonname != NULL) {
 			ename=walk->ai_canonname;
@@ -294,7 +295,8 @@ int stddns_getaddr_cb(void *c, const char *name) {
 	struct addrinfo hint;
 	int iret=0;
 	unsigned int idx=0;
-	char *sstring=NULL, *ename=NULL;
+	const char *sstring=NULL;
+	char *ename=NULL;
 	union {
 		void *p;
 		stddns_context_t *c;
@@ -344,7 +346,7 @@ int stddns_getaddr_cb(void *c, const char *name) {
 
 		/* XXX we dont get all the cnames this way */
 		sstring=cidr_saddrstr(walk->ai_addr);
-		DBG(M_DNS, "index %u for name `%s' ai_flags %d ai_family %d ai_socktype %d ai_protocol %d ai_addrlen %zu ai_addr %p (%s) ai_canonname %s ai_next %p", idx, name, walk->ai_flags, walk->ai_family, walk->ai_socktype, walk->ai_protocol, walk->ai_addrlen, walk->ai_addr, sstring != NULL ? sstring : "Nothing", walk->ai_canonname != NULL ? walk->ai_canonname : "Null", walk->ai_next);
+		DBG(M_DNS, "index %u for name `%s' ai_flags %d ai_family %d ai_socktype %d ai_protocol %d ai_addrlen %zu ai_addr %p (%s) ai_canonname %s ai_next %p", idx, name, walk->ai_flags, walk->ai_family, walk->ai_socktype, walk->ai_protocol, (size_t)walk->ai_addrlen, walk->ai_addr, sstring != NULL ? sstring : "Nothing", walk->ai_canonname != NULL ? walk->ai_canonname : "Null", walk->ai_next);
 
 		if (ename == NULL && EXACT == 1 && walk->ai_canonname != NULL) {
 

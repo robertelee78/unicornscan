@@ -81,7 +81,7 @@ size_t fifo_length(void *f __attribute__((unused))) { return 0; }
 void *fifo_delete_first(void *f __attribute__((unused))) { return NULL; }
 
 /* Stub for cidr functions */
-char *cidr_saddrstr(struct sockaddr_storage *ss __attribute__((unused))) {
+const char *cidr_saddrstr(const struct sockaddr *ss __attribute__((unused))) {
     static char buf[] = "0.0.0.0";
     return buf;
 }

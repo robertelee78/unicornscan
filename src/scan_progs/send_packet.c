@@ -262,7 +262,8 @@ static void  inc_nexthost(void) {
 }
 
 void send_packet(void) {
-	char conffile[512], *tmpchr=NULL;
+	char conffile[512];
+	const char *tmpchr=NULL;
 	float pps=0.00, tt=0.00;
 	uint8_t msg_type=0, *tmpptr=NULL, status=0;
 	int s_socket=0, worktodo=0;

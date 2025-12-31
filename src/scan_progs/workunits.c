@@ -604,12 +604,23 @@ static void workunit_append_interface(void *wptr) {
 	assert(w_u.w->magic == WK_MAGIC);
 	assert(w_u.w->s != NULL);
 
-	ret=getroutes(
-		&add,
-		(const struct sockaddr *)&w_u.w->s->target,
-		(const struct sockaddr *)&w_u.w->s->targetmask,
-		&gw
-	);
+	/*
+	 * Copy sockaddr_storage to aligned buffers before passing to getroutes().
+	 * send_workunit_t is packed for IPC, so embedded sockaddr_storage fields
+	 * may be unaligned, causing bus errors on strict-alignment architectures.
+	 */
+	{
+		struct sockaddr_storage aligned_target, aligned_targetmask;
+		memcpy(&aligned_target, &w_u.w->s->target, sizeof(aligned_target));
+		memcpy(&aligned_targetmask, &w_u.w->s->targetmask, sizeof(aligned_targetmask));
+
+		ret=getroutes(
+			&add,
+			(const struct sockaddr *)&aligned_target,
+			(const struct sockaddr *)&aligned_targetmask,
+			&gw
+		);
+	}
 
 	if (ret == 1 && add != NULL) {
 
@@ -618,7 +629,7 @@ static void workunit_append_interface(void *wptr) {
 		assert(add_len < sizeof(interfaces));
 
 		if (interfaces_off == 0) {
-			strncpy(interfaces, add, add_len);
+			memcpy(interfaces, add, add_len);
 			interfaces_off += add_len;
 		}
 		else {
@@ -629,9 +640,9 @@ static void workunit_append_interface(void *wptr) {
 				return;
 			}
 			interfaces[interfaces_off++]=',';
-			interfaces[interfaces_off]='\0';
-			strncat(interfaces + interfaces_off, add, add_len);
+			memcpy(interfaces + interfaces_off, add, add_len);
 			interfaces_off += add_len;
+			interfaces[interfaces_off]='\0';
 		}
 	}
 }
@@ -690,7 +701,16 @@ static void balance_recv_workunits(void *wptr) {
 	 */
 	memcpy(&w_u.w->r->listen_addr, &s->vi[0]->myaddr, sizeof(struct sockaddr_storage));
 	memcpy(&w_u.w->r->listen_mask, &s->vi[0]->mymask, sizeof(struct sockaddr_storage));
-	DBG(M_WRK, "listen_addr=`%s'", cidr_saddrstr((const struct sockaddr *)&w_u.w->r->listen_addr));
+	/*
+	 * Copy to aligned buffer before passing to cidr_saddrstr().
+	 * recv_workunit_t is packed for IPC, so embedded sockaddr_storage
+	 * may be unaligned, causing bus errors on strict-alignment architectures.
+	 */
+	{
+		struct sockaddr_storage aligned_listen_addr;
+		memcpy(&aligned_listen_addr, &w_u.w->r->listen_addr, sizeof(aligned_listen_addr));
+		DBG(M_WRK, "listen_addr=`%s'", cidr_saddrstr((const struct sockaddr *)&aligned_listen_addr));
+	}
 
 	w_u.w->r->ret_layers=s->ss->ret_layers;
 
@@ -706,18 +726,12 @@ void workunit_reject_lp(uint32_t wid) {
 }
 
 void workunit_destroy_sp(uint32_t wid) {
-	union {
-		struct wk_s *w;
-		void *ptr;
-	} w_u;
 	struct wk_s srch;
 	uint32_t flen=0, after=0;
 
 	memset(&srch, 0, sizeof(srch));
 	srch.wid=wid;
 	srch.magic=WK_MAGIC;
-
-	w_u.ptr=NULL;
 
 	flen=fifo_length(s->swu);
 
@@ -735,18 +749,12 @@ void workunit_destroy_sp(uint32_t wid) {
 }
 
 void workunit_destroy_lp(uint32_t wid) {
-	union {
-		struct wk_s *w;
-		void *ptr;
-	} w_u;
 	struct wk_s srch;
 	uint32_t flen=0, after=0;
 
 	memset(&srch, 0, sizeof(srch));
 	srch.wid=wid;
 	srch.magic=WK_MAGIC;
-
-	w_u.ptr=NULL;
 
 	flen=fifo_length(s->lwu);
 
@@ -780,10 +788,23 @@ char *strworkunit(const void *ptr, size_t wul) {
 		*w_u.magic == ARP_SEND_MAGIC ||
 		*w_u.magic == ICMP_SEND_MAGIC ||
 		*w_u.magic == IP_SEND_MAGIC) {
-		snprintf(target, sizeof(target) -1, "%s", cidr_saddrstr((const struct sockaddr *)&w_u.s->target));
-		snprintf(targetmask, sizeof(targetmask) -1, "%s", cidr_saddrstr((const struct sockaddr *)&w_u.s->targetmask));
-		snprintf(myaddr, sizeof(myaddr) -1, "%s", cidr_saddrstr((const struct sockaddr *)&w_u.s->myaddr));
-		snprintf(mymask, sizeof(mymask) -1, "%s", cidr_saddrstr((const struct sockaddr *)&w_u.s->mymask));
+		/*
+		 * Copy sockaddr_storage members to aligned local buffers before
+		 * passing to cidr_saddrstr(). send_workunit_t is packed for IPC,
+		 * so embedded sockaddr_storage fields may be unaligned, causing
+		 * bus errors on strict-alignment architectures (ARM).
+		 */
+		struct sockaddr_storage aligned_target, aligned_targetmask, aligned_myaddr, aligned_mymask;
+
+		memcpy(&aligned_target, &w_u.s->target, sizeof(aligned_target));
+		memcpy(&aligned_targetmask, &w_u.s->targetmask, sizeof(aligned_targetmask));
+		memcpy(&aligned_myaddr, &w_u.s->myaddr, sizeof(aligned_myaddr));
+		memcpy(&aligned_mymask, &w_u.s->mymask, sizeof(aligned_mymask));
+
+		snprintf(target, sizeof(target) -1, "%s", cidr_saddrstr((const struct sockaddr *)&aligned_target));
+		snprintf(targetmask, sizeof(targetmask) -1, "%s", cidr_saddrstr((const struct sockaddr *)&aligned_targetmask));
+		snprintf(myaddr, sizeof(myaddr) -1, "%s", cidr_saddrstr((const struct sockaddr *)&aligned_myaddr));
+		snprintf(mymask, sizeof(mymask) -1, "%s", cidr_saddrstr((const struct sockaddr *)&aligned_mymask));
 	}
 
 	switch (*w_u.magic) {

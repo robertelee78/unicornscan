@@ -56,6 +56,6 @@ int cidr_within(
 /*
  * returns a string describing the socket address structure
  */
-char *cidr_saddrstr(const struct sockaddr * /* address */);
+const char *cidr_saddrstr(const struct sockaddr * /* address */);
 
 #endif /* _CIDR_H */
