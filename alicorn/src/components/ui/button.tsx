@@ -53,4 +53,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 Button.displayName = 'Button'
 
+// Intentional: CVA variants exported with component (shadcn/ui pattern)
+// eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants }

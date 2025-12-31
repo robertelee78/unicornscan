@@ -8,10 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { TCP_FLAGS, decodeTcpFlags } from '@/types/database'
 
-interface TcpFlagBadgeProps {
-  flag: string
-  size?: 'sm' | 'md' | 'lg'
-}
+// =============================================================================
+// Constants
+// =============================================================================
 
 const FLAG_COLORS: Record<string, string> = {
   SYN: 'bg-emerald-600 text-white',
@@ -33,6 +32,15 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   URG: 'Urgent - Priority data',
   ECE: 'ECN-Echo - Congestion notification',
   CWR: 'Congestion Window Reduced',
+}
+
+// =============================================================================
+// Components
+// =============================================================================
+
+interface TcpFlagBadgeProps {
+  flag: string
+  size?: 'sm' | 'md' | 'lg'
 }
 
 /**
@@ -125,5 +133,4 @@ export function TcpFlagsCompact({ flags, className }: TcpFlagsCompactProps) {
   )
 }
 
-// Re-export TCP_FLAGS and decodeTcpFlags for convenience
-export { TCP_FLAGS, decodeTcpFlags }
+export default TcpFlagsDisplay

@@ -8,14 +8,19 @@
 export { PortBadge, PortNumber } from './PortBadge'
 export { ProtocolBadge, ProtocolText } from './ProtocolBadge'
 
-// TCP flag display
+// TCP flag display (components only)
 export { TcpFlagBadge, TcpFlagsDisplay, TcpFlagsCompact } from './TcpFlagBadge'
-export { TCP_FLAGS, decodeTcpFlags } from './TcpFlagBadge'
 
-// Response classification and display
+// Response display (components only)
 export { ResponseBadge, ResponseDisplay } from './ResponseDisplay'
-export { classifyResponse, getIcmpDescription, ICMP_TYPES } from './ResponseDisplay'
-export type { ResponseCategory } from './ResponseDisplay'
+
+// Response utilities (from separate utils file for Fast Refresh compatibility)
+export {
+  classifyResponse,
+  getIcmpDescription,
+  ICMP_TYPES,
+} from './response-utils'
+export type { ResponseCategory, ResponseClassification, IcmpTypeInfo } from './response-utils'
 
 // Service and payload display
 export { ServiceInfo, ServiceBadge } from './ServiceInfo'
@@ -31,10 +36,25 @@ export {
 } from './well-known-ports'
 export type { PortEntry } from './well-known-ports'
 
-// Port table
-export { PortTable, DETAILED_COLUMNS } from './PortTable'
-export { ipReportToPortTableRow, ipReportsToPortTableRows } from './PortTable'
-export type { PortTableColumn, PortTableSort, PortTableRow } from './PortTable'
+// Port table (component only)
+export { PortTable } from './PortTable'
+
+// Port table utilities (from separate utils file for Fast Refresh compatibility)
+export {
+  DETAILED_COLUMNS,
+  DEFAULT_COLUMNS,
+  COLUMN_CONFIG,
+  ipReportToPortTableRow,
+  ipReportsToPortTableRows,
+  getTtlColorClass,
+} from './port-utils'
+export type {
+  PortTableColumn,
+  PortTableSort,
+  PortTableRow,
+  SortDirection,
+  ColumnConfig,
+} from './port-utils'
 
 // Types
 export * from './types'
