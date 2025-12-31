@@ -239,6 +239,13 @@ typedef struct settings_s {
 	char *supabase_key;	/* Supabase API key (service role or anon) */
 	char *supabase_db_password;	/* Supabase database password (for PostgreSQL connection) */
 	char *supabase_region;	/* Supabase AWS region (e.g., us-west-2, us-east-1) */
+
+	/* GeoIP geographic/network lookup (v6) */
+	uint8_t geoip_enabled;		/* Enable GeoIP lookups during scan */
+	char *geoip_provider;		/* Provider name: "maxmind", "ip2location", "ipinfo" */
+	char *geoip_city_db;		/* Path to city/location database (e.g., GeoLite2-City.mmdb) */
+	char *geoip_asn_db;		/* Path to ASN database (e.g., GeoLite2-ASN.mmdb) */
+	char *geoip_anonymous_db;	/* Path to anonymous IP database (optional, paid) */
 } settings_t;
 
 #ifndef MODULE

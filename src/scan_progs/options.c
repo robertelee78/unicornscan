@@ -947,6 +947,83 @@ int scan_setsupabaseregion(const char *region) {
 	return 1;
 }
 
+/*
+ * GeoIP geographic lookup settings (v6)
+ */
+void scan_setgeoipenabled(int enabled) {
+	s->geoip_enabled = enabled ? 1 : 0;
+}
+
+int scan_setgeoipprovider(const char *provider) {
+	if (provider == NULL || strlen(provider) < 1) {
+		ERR("GeoIP provider name is empty");
+		return -1;
+	}
+
+	/* Validate provider name */
+	if (strcmp(provider, "maxmind") != 0 &&
+	    strcmp(provider, "ip2location") != 0 &&
+	    strcmp(provider, "ipinfo") != 0) {
+		ERR("GeoIP provider `%s' is not supported (use: maxmind, ip2location, ipinfo)", provider);
+		return -1;
+	}
+
+	if (s->geoip_provider != NULL) {
+		xfree(s->geoip_provider);
+	}
+
+	s->geoip_provider = xstrdup(provider);
+	s->geoip_enabled = 1; /* Implicitly enable GeoIP */
+
+	return 1;
+}
+
+int scan_setgeoipcitydb(const char *path) {
+	if (path == NULL || strlen(path) < 1) {
+		ERR("GeoIP city database path is empty");
+		return -1;
+	}
+
+	if (s->geoip_city_db != NULL) {
+		xfree(s->geoip_city_db);
+	}
+
+	s->geoip_city_db = xstrdup(path);
+	s->geoip_enabled = 1; /* Implicitly enable GeoIP */
+
+	return 1;
+}
+
+int scan_setgeoipasndb(const char *path) {
+	if (path == NULL || strlen(path) < 1) {
+		ERR("GeoIP ASN database path is empty");
+		return -1;
+	}
+
+	if (s->geoip_asn_db != NULL) {
+		xfree(s->geoip_asn_db);
+	}
+
+	s->geoip_asn_db = xstrdup(path);
+
+	return 1;
+}
+
+int scan_setgeoipanondb(const char *path) {
+	if (path == NULL || strlen(path) < 1) {
+		ERR("GeoIP anonymous IP database path is empty");
+		return -1;
+	}
+
+	if (s->geoip_anonymous_db != NULL) {
+		xfree(s->geoip_anonymous_db);
+	}
+
+	s->geoip_anonymous_db = xstrdup(path);
+
+	return 1;
+}
+
 char *scan_getgports(void) {
 	return s->gport_str;
 }

@@ -30,12 +30,15 @@
 #include <unilib/cidr.h>
 
 #include <arpa/inet.h>
+#include <math.h>
 
 #include <libpq-fe.h>
 
 #include "pgsql_schema_embedded.h"
+#include "geoip_provider.h"
 
 static int pgsql_disable=0;
+static int geoip_enabled=0; /* v6: GeoIP integration enabled */
 static unsigned long long int pgscanid=0;
 
 static mod_entry_t *_m=NULL;
@@ -696,6 +699,124 @@ static int pgsql_insert_phases(unsigned long long int scanid, const settings_t *
 	return 1;
 }
 
+/*
+ * v6: Insert uni_geoip record with GeoIP lookup data
+ */
+static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_addr) {
+	PGresult *res;
+	int ret = 0;
+	geoip_result_t geoip;
+	char *escaped_host = NULL;
+	char *escaped_country = NULL;
+	char *escaped_country_name = NULL;
+	char *escaped_region = NULL;
+	char *escaped_region_name = NULL;
+	char *escaped_city = NULL;
+	char *escaped_postal = NULL;
+	char *escaped_timezone = NULL;
+	char *escaped_ip_type = NULL;
+	char *escaped_isp = NULL;
+	char *escaped_org = NULL;
+	char *escaped_as_org = NULL;
+	char *escaped_provider = NULL;
+	char *escaped_db_version = NULL;
+	char lat_str[32], lon_str[32], asn_str[32], conf_str[16];
+
+	if (!geoip_enabled || host_addr == NULL || pgconn == NULL) {
+		return 0;
+	}
+
+	/* Perform GeoIP lookup */
+	if (geoip_lookup(host_addr, &geoip) != 0) {
+		return 0; /* Lookup failed or not found - not an error */
+	}
+
+	/* Escape all strings for SQL */
+	escaped_host = pgsql_escstr(host_addr);
+	escaped_country = pgsql_escstr(geoip.country_code);
+	escaped_country_name = pgsql_escstr(geoip.country_name);
+	escaped_region = pgsql_escstr(geoip.region_code);
+	escaped_region_name = pgsql_escstr(geoip.region_name);
+	escaped_city = pgsql_escstr(geoip.city);
+	escaped_postal = pgsql_escstr(geoip.postal_code);
+	escaped_timezone = pgsql_escstr(geoip.timezone);
+	escaped_ip_type = pgsql_escstr(geoip.ip_type);
+	escaped_isp = pgsql_escstr(geoip.isp);
+	escaped_org = pgsql_escstr(geoip.organization);
+	escaped_as_org = pgsql_escstr(geoip.as_org);
+	escaped_provider = pgsql_escstr(geoip.provider);
+	escaped_db_version = pgsql_escstr(geoip.db_version);
+
+	/* Format lat/long (handle NAN) */
+	if (isnan(geoip.latitude)) {
+		strncpy(lat_str, "NULL", sizeof(lat_str));
+	} else {
+		snprintf(lat_str, sizeof(lat_str), "%.6f", geoip.latitude);
+	}
+	if (isnan(geoip.longitude)) {
+		strncpy(lon_str, "NULL", sizeof(lon_str));
+	} else {
+		snprintf(lon_str, sizeof(lon_str), "%.6f", geoip.longitude);
+	}
+
+	/* Format ASN and confidence */
+	if (geoip.asn > 0) {
+		snprintf(asn_str, sizeof(asn_str), "%u", geoip.asn);
+	} else {
+		strncpy(asn_str, "NULL", sizeof(asn_str));
+	}
+	if (geoip.confidence >= 0) {
+		snprintf(conf_str, sizeof(conf_str), "%d", geoip.confidence);
+	} else {
+		strncpy(conf_str, "NULL", sizeof(conf_str));
+	}
+
+	snprintf(querybuf2, sizeof(querybuf2) - 1,
+		"INSERT INTO uni_geoip ("
+		"  host_ip, scans_id, "
+		"  country_code, country_name, region_code, region_name, city, postal_code, "
+		"  latitude, longitude, timezone, "
+		"  ip_type, isp, organization, asn, as_org, "
+		"  provider, database_version, confidence"
+		") VALUES ("
+		"  '%s', %llu, "
+		"  NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), "
+		"  %s, %s, NULLIF('%s',''), "
+		"  NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), %s, NULLIF('%s',''), "
+		"  '%s', NULLIF('%s',''), %s"
+		") ON CONFLICT (host_ip, scans_id) DO NOTHING;",
+		escaped_host ? escaped_host : "",
+		scans_id,
+		escaped_country ? escaped_country : "",
+		escaped_country_name ? escaped_country_name : "",
+		escaped_region ? escaped_region : "",
+		escaped_region_name ? escaped_region_name : "",
+		escaped_city ? escaped_city : "",
+		escaped_postal ? escaped_postal : "",
+		lat_str, lon_str,
+		escaped_timezone ? escaped_timezone : "",
+		escaped_ip_type ? escaped_ip_type : "",
+		escaped_isp ? escaped_isp : "",
+		escaped_org ? escaped_org : "",
+		asn_str,
+		escaped_as_org ? escaped_as_org : "",
+		escaped_provider ? escaped_provider : "unknown",
+		escaped_db_version ? escaped_db_version : "",
+		conf_str
+	);
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+		ret = 1;
+	}
+	else {
+		DBG(M_MOD, "uni_geoip insert failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return ret;
+}
+
 void pgsql_database_init(void);
 void pgsql_database_fini(void);
 
@@ -954,6 +1075,44 @@ static int supabase_migrate_schema(PGconn *conn, int from_version) {
 		}
 
 		VRB(0, "Supabase: schema migration to v5 complete (frontend support tables added)");
+	}
+
+	/* Migration from v5 to v6: add GeoIP integration */
+	if (from_version < 6) {
+		VRB(0, "Supabase: migrating schema from v%d to v6 (adding GeoIP integration)...", from_version);
+
+		/* Create uni_geoip_id_seq sequence */
+		if (!supabase_exec_ddl(conn, pgsql_schema_geoip_seq_ddl, "create uni_geoip_id_seq")) {
+			return 0;
+		}
+
+		/* Create uni_geoip table and indexes */
+		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v6_ddl, "create uni_geoip table")) {
+			return 0;
+		}
+
+		/* Add v6 foreign key constraints */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v6_constraints_ddl, "create v6 foreign key constraints")) {
+			return 0;
+		}
+
+		/* Enable RLS and create policies for v6 tables */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v6_rls_ddl, "enable v6 RLS and policies")) {
+			return 0;
+		}
+
+		/* Create v6 views */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v6_views_ddl, "create v6 views")) {
+			return 0;
+		}
+
+		/* Record new version */
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 6);
+		if (!supabase_exec_ddl(conn, version_sql, "record schema version 6")) {
+			return 0;
+		}
+
+		VRB(0, "Supabase: schema migration to v6 complete (GeoIP integration added)");
 	}
 
 	return 1;
@@ -1287,6 +1446,30 @@ void pgsql_database_init(void) {
 			}
 			else {
 				VRB(0, "Supabase: schema is up to date (v%d)", current_version);
+			}
+		}
+
+		/*
+		 * v6: Initialize GeoIP provider if configured
+		 * GeoIP lookups will be performed for each discovered host
+		 */
+		if (s->geoip_enabled) {
+			geoip_config_t geoip_cfg;
+			memset(&geoip_cfg, 0, sizeof(geoip_cfg));
+			geoip_cfg.enabled = 1;
+			geoip_cfg.provider = s->geoip_provider;
+			geoip_cfg.city_db = s->geoip_city_db;
+			geoip_cfg.asn_db = s->geoip_asn_db;
+			geoip_cfg.anonymous_db = s->geoip_anonymous_db;
+			geoip_cfg.store_in_db = 1;
+
+			if (geoip_init(&geoip_cfg) == 0) {
+				geoip_enabled = 1;
+				VRB(0, "GeoIP: initialized provider '%s' (db version: %s)",
+					geoip_get_provider_name(), geoip_get_db_version());
+			}
+			else {
+				VRB(0, "GeoIP: provider initialization failed - GeoIP lookups disabled");
 			}
 		}
 	}
@@ -1760,6 +1943,12 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	if (host_id > 0) {
 		/* Link host to this scan */
 		pgsql_insert_host_scan(host_id, pgscanid);
+
+		/*
+		 * v6: Perform GeoIP lookup and store results
+		 * Only done once per host per scan due to UNIQUE constraint
+		 */
+		pgsql_insert_geoip(pgscanid, host_addr);
 	}
 
 	/*
@@ -1990,6 +2179,12 @@ void pgsql_database_fini(void) {
 		return;
 	}
 	PQclear(pgres);
+
+	/* v6: Cleanup GeoIP provider */
+	if (geoip_enabled) {
+		geoip_cleanup();
+		geoip_enabled = 0;
+	}
 
 	PQfinish(pgconn);
 
