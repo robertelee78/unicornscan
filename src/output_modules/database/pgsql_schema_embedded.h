@@ -26,7 +26,12 @@
  * This schema is auto-created when using Supabase integration with
  * a fresh database. Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 5
+ * Schema version: 6
+ * - v6: Added GeoIP integration for geographic and network metadata
+ *       uni_geoip: Geographic and network data (country, region, city, lat/long, ISP, ASN, ip_type)
+ *       Supports multiple providers: MaxMind (GeoLite2/GeoIP2), IP2Location, IPinfo
+ *       IP type detection: residential, datacenter, vpn, proxy, tor, mobile
+ *       Historical accuracy: stores data at scan time for audit trails
  * - v5: Added frontend support tables for web/mobile interfaces
  *       uni_hosts: Aggregate host tracking with fn_upsert_host()
  *       uni_host_scans: Junction table linking hosts to scans
@@ -46,7 +51,7 @@
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 5
+#define PGSQL_SCHEMA_VERSION 6
 
 /*
  * Schema version tracking table - created first
@@ -72,7 +77,9 @@ static const char *pgsql_schema_sequences_ddl =
 	"CREATE SEQUENCE IF NOT EXISTS uni_osfingerprints_id_seq;\n"
 	"CREATE SEQUENCE IF NOT EXISTS uni_networks_id_seq;\n"
 	"CREATE SEQUENCE IF NOT EXISTS uni_notes_id_seq;\n"
-	"CREATE SEQUENCE IF NOT EXISTS uni_saved_filters_id_seq;\n";
+	"CREATE SEQUENCE IF NOT EXISTS uni_saved_filters_id_seq;\n"
+	/* v6: GeoIP sequence */
+	"CREATE SEQUENCE IF NOT EXISTS uni_geoip_id_seq;\n";
 
 /*
  * Main scan tracking table
@@ -1160,6 +1167,129 @@ static const char *pgsql_schema_v5_views_ddl =
 	"GROUP BY n.network_id, n.network_cidr, n.network_name, n.description,\n"
 	"         n.network_type, n.created_at, n.updated_at, n.extra_data\n"
 	"ORDER BY n.network_cidr;\n";
+
+/*
+ * Schema v6 migration - add GeoIP integration
+ * Stores geographic and network metadata at scan time for historical accuracy
+ * Supports multiple providers: MaxMind (MVP), IP2Location, IPinfo
+ */
+
+/* Sequence for v6 migration (needed before table creation) */
+static const char *pgsql_schema_geoip_seq_ddl =
+	"CREATE SEQUENCE IF NOT EXISTS uni_geoip_id_seq;\n";
+
+static const char *pgsql_schema_migration_v6_ddl =
+	/* uni_geoip: Geographic and network metadata */
+	"CREATE TABLE IF NOT EXISTS uni_geoip (\n"
+	"    geoip_id       BIGINT NOT NULL DEFAULT nextval('uni_geoip_id_seq'),\n"
+	"    host_ip        INET NOT NULL,\n"
+	"    scans_id       BIGINT NOT NULL,\n"
+	"\n"
+	"    /* Geographic data */\n"
+	"    country_code   CHAR(2),\n"
+	"    country_name   VARCHAR(100),\n"
+	"    region_code    VARCHAR(10),\n"
+	"    region_name    VARCHAR(100),\n"
+	"    city           VARCHAR(100),\n"
+	"    postal_code    VARCHAR(20),\n"
+	"    latitude       DECIMAL(9,6),\n"
+	"    longitude      DECIMAL(9,6),\n"
+	"    timezone       VARCHAR(64),\n"
+	"\n"
+	"    /* Network data (optional - requires paid databases) */\n"
+	"    ip_type        VARCHAR(20),\n"
+	"    isp            VARCHAR(200),\n"
+	"    organization   VARCHAR(200),\n"
+	"    asn            INTEGER,\n"
+	"    as_org         VARCHAR(200),\n"
+	"\n"
+	"    /* Metadata */\n"
+	"    provider       VARCHAR(50) NOT NULL,\n"
+	"    database_version VARCHAR(50),\n"
+	"    lookup_time    TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    confidence     SMALLINT CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 100)),\n"
+	"    extra_data     JSONB DEFAULT '{}'::jsonb,\n"
+	"\n"
+	"    PRIMARY KEY (geoip_id),\n"
+	"    CONSTRAINT uni_geoip_unique UNIQUE (host_ip, scans_id)\n"
+	");\n"
+	"\n"
+	/* Indexes for common query patterns */
+	"CREATE INDEX IF NOT EXISTS idx_geoip_host ON uni_geoip(host_ip);\n"
+	"CREATE INDEX IF NOT EXISTS idx_geoip_scan ON uni_geoip(scans_id);\n"
+	"CREATE INDEX IF NOT EXISTS idx_geoip_country ON uni_geoip(country_code);\n"
+	"CREATE INDEX IF NOT EXISTS idx_geoip_type ON uni_geoip(ip_type) WHERE ip_type IS NOT NULL;\n"
+	"CREATE INDEX IF NOT EXISTS idx_geoip_asn ON uni_geoip(asn) WHERE asn IS NOT NULL;\n"
+	"CREATE INDEX IF NOT EXISTS idx_geoip_location ON uni_geoip(latitude, longitude) WHERE latitude IS NOT NULL;\n";
+
+/*
+ * Schema v6 foreign key constraints
+ */
+static const char *pgsql_schema_v6_constraints_ddl =
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_geoip_scans_fk') THEN\n"
+	"        ALTER TABLE uni_geoip ADD CONSTRAINT uni_geoip_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n";
+
+/*
+ * Schema v6 RLS - enable RLS and create policies for GeoIP table
+ */
+static const char *pgsql_schema_v6_rls_ddl =
+	"ALTER TABLE uni_geoip ENABLE ROW LEVEL SECURITY;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to geoip\" ON uni_geoip;\n"
+	"CREATE POLICY \"Allow full access to geoip\" ON uni_geoip FOR ALL USING (true) WITH CHECK (true);\n";
+
+/*
+ * Schema v6 views - GeoIP data views for frontend
+ */
+static const char *pgsql_schema_v6_views_ddl =
+	/* v_geoip: Geographic data with scan context */
+	"CREATE OR REPLACE VIEW v_geoip WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    g.geoip_id,\n"
+	"    g.host_ip,\n"
+	"    g.scans_id,\n"
+	"    g.country_code,\n"
+	"    g.country_name,\n"
+	"    g.region_code,\n"
+	"    g.region_name,\n"
+	"    g.city,\n"
+	"    g.postal_code,\n"
+	"    g.latitude,\n"
+	"    g.longitude,\n"
+	"    g.timezone,\n"
+	"    g.ip_type,\n"
+	"    g.isp,\n"
+	"    g.organization,\n"
+	"    g.asn,\n"
+	"    g.as_org,\n"
+	"    g.provider,\n"
+	"    g.database_version,\n"
+	"    g.lookup_time,\n"
+	"    g.confidence,\n"
+	"    g.extra_data\n"
+	"FROM uni_geoip g\n"
+	"ORDER BY g.lookup_time DESC;\n"
+	"\n"
+	/* v_geoip_stats: Aggregated country/type statistics per scan */
+	"CREATE OR REPLACE VIEW v_geoip_stats WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    g.scans_id,\n"
+	"    g.country_code,\n"
+	"    g.country_name,\n"
+	"    COUNT(*) AS host_count,\n"
+	"    COUNT(DISTINCT g.asn) AS unique_asns,\n"
+	"    COUNT(CASE WHEN g.ip_type = 'datacenter' THEN 1 END) AS datacenter_count,\n"
+	"    COUNT(CASE WHEN g.ip_type = 'residential' THEN 1 END) AS residential_count,\n"
+	"    COUNT(CASE WHEN g.ip_type = 'vpn' THEN 1 END) AS vpn_count,\n"
+	"    COUNT(CASE WHEN g.ip_type = 'proxy' THEN 1 END) AS proxy_count,\n"
+	"    COUNT(CASE WHEN g.ip_type = 'tor' THEN 1 END) AS tor_count,\n"
+	"    COUNT(CASE WHEN g.ip_type = 'mobile' THEN 1 END) AS mobile_count\n"
+	"FROM uni_geoip g\n"
+	"GROUP BY g.scans_id, g.country_code, g.country_name\n"
+	"ORDER BY host_count DESC;\n";
 
 /*
  * Record schema version

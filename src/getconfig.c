@@ -102,6 +102,12 @@ int getconfig_argv(int argc, char ** argv) {
 #define OPT_SUPABASE_DB_PASSWORD	258
 #define OPT_SUPABASE_SETUP	259
 #define OPT_SUPABASE_REGION	260
+/* GeoIP integration (v6) */
+#define OPT_GEOIP_ENABLE	261
+#define OPT_GEOIP_PROVIDER	262
+#define OPT_GEOIP_CITY_DB	263
+#define OPT_GEOIP_ASN_DB	264
+#define OPT_GEOIP_ANON_DB	265
 
 #define OPTS	\
 		"b:" "B:" "c" "d:" "D" "e:" "E" "F" "G:" "h" "H:" "i:" "I" "j:" "l:" "L:" "m:" "M:" "N" "o:" "p:" "P:" "q:" "Q" \
@@ -153,6 +159,12 @@ int getconfig_argv(int argc, char ** argv) {
 		{"supabase-db-password", 1, NULL, OPT_SUPABASE_DB_PASSWORD},
 		{"supabase-region",	1, NULL, OPT_SUPABASE_REGION},
 		{"supabase-setup",	0, NULL, OPT_SUPABASE_SETUP},
+		/* GeoIP geographic/network lookup (v6) */
+		{"geoip",		0, NULL, OPT_GEOIP_ENABLE},
+		{"geoip-provider",	1, NULL, OPT_GEOIP_PROVIDER},
+		{"geoip-city-db",	1, NULL, OPT_GEOIP_CITY_DB},
+		{"geoip-asn-db",	1, NULL, OPT_GEOIP_ASN_DB},
+		{"geoip-anon-db",	1, NULL, OPT_GEOIP_ANON_DB},
 		{NULL,			0, NULL,  0 }
 	};
 #endif /* LONG OPTION SUPPORT */
@@ -439,6 +451,34 @@ int getconfig_argv(int argc, char ** argv) {
 				}
 				break;
 
+			case OPT_GEOIP_ENABLE: /* Enable GeoIP lookups */
+				scan_setgeoipenabled(1);
+				break;
+
+			case OPT_GEOIP_PROVIDER: /* GeoIP provider name */
+				if (scan_setgeoipprovider(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_GEOIP_CITY_DB: /* GeoIP city database path */
+				if (scan_setgeoipcitydb(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_GEOIP_ASN_DB: /* GeoIP ASN database path */
+				if (scan_setgeoipasndb(optarg) < 0) {
+					usage();
+				}
+				break;
+
+			case OPT_GEOIP_ANON_DB: /* GeoIP anonymous IP database path */
+				if (scan_setgeoipanondb(optarg) < 0) {
+					usage();
+				}
+				break;
+
 			default:
 				usage();
 				break;
@@ -648,6 +688,12 @@ static void usage(void) {
 	"\t    --supabase-key   *Supabase API key (env: UNICORNSCAN_SUPABASE_KEY or SUPABASE_KEY)\n"
 	"\t    --supabase-db-password *Database password (env: UNICORNSCAN_SUPABASE_DB_PASSWORD)\n"
 	"\t    --supabase-region *AWS region for pooler (e.g., us-west-2) (env: SUPABASE_REGION)\n"
+	"\n\tGeoIP Geographic Lookup (requires libmaxminddb):\n"
+	"\t    --geoip            Enable GeoIP lookups for discovered hosts\n"
+	"\t    --geoip-provider  *Provider: maxmind (default), ip2location, ipinfo\n"
+	"\t    --geoip-city-db   *Path to city database (e.g., /usr/share/GeoIP/GeoLite2-City.mmdb)\n"
+	"\t    --geoip-asn-db    *Path to ASN database (e.g., /usr/share/GeoIP/GeoLite2-ASN.mmdb)\n"
+	"\t    --geoip-anon-db   *Path to anonymous IP database (paid, optional)\n"
 	"*:\toptions with `*' require an argument following them\n\n"
 	"  address ranges are cidr like 1.2.3.4/8 for all of 1.?.?.?\n"
 	"  if you omit the cidr mask then /32 is implied\n"

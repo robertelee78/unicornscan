@@ -69,6 +69,13 @@ int scan_setsupabasekey(const char *);
 int scan_setsupabasedbpassword(const char *);
 int scan_setsupabaseregion(const char *);
 
+/* GeoIP geographic lookup (v6) */
+void scan_setgeoipenabled(int);
+int scan_setgeoipprovider(const char *);
+int scan_setgeoipcitydb(const char *);
+int scan_setgeoipasndb(const char *);
+int scan_setgeoipanondb(const char *);
+
 char *scan_getgports(void);
 char *scan_getdesthosts(void);
 
