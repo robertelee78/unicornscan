@@ -26,12 +26,27 @@
  * This schema is auto-created when using Supabase integration with
  * a fresh database. Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 3
+ * Schema version: 5
+ * - v5: Added frontend support tables for web/mobile interfaces
+ *       uni_hosts: Aggregate host tracking with fn_upsert_host()
+ *       uni_host_scans: Junction table linking hosts to scans
+ *       uni_hops: Traceroute hop data from trace_addr
+ *       uni_services: Structured service identification (parsed banners)
+ *       uni_os_fingerprints: Parsed OS fingerprint data
+ *       uni_networks: Network/subnet grouping
+ *       uni_scan_tags: Flexible tagging system
+ *       uni_notes: User annotations on any entity
+ *       uni_saved_filters: Saved filter configurations
+ * - v4: Added compound mode support (mode_str, mode_flags, num_phases, port_str,
+ *       interface, tcpflags, send_opts, recv_opts, pps, recv_timeout, repeats)
+ *       Added scan_notes for user annotations
+ *       Added uni_scan_phases table for per-phase configuration
+ *       Added v_scan_full and v_compound_phases views
  * - v3: Added RLS (Row Level Security) for Supabase compliance
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 3
+#define PGSQL_SCHEMA_VERSION 5
 
 /*
  * Schema version tracking table - created first
@@ -49,7 +64,15 @@ static const char *pgsql_schema_version_ddl =
 static const char *pgsql_schema_sequences_ddl =
 	"CREATE SEQUENCE IF NOT EXISTS uni_scans_id_seq;\n"
 	"CREATE SEQUENCE IF NOT EXISTS uni_ipreport_id_seq;\n"
-	"CREATE SEQUENCE IF NOT EXISTS uni_arpreport_id_seq;\n";
+	"CREATE SEQUENCE IF NOT EXISTS uni_arpreport_id_seq;\n"
+	/* v5: Sequences for frontend support tables */
+	"CREATE SEQUENCE IF NOT EXISTS uni_hosts_id_seq;\n"
+	"CREATE SEQUENCE IF NOT EXISTS uni_hops_id_seq;\n"
+	"CREATE SEQUENCE IF NOT EXISTS uni_services_id_seq;\n"
+	"CREATE SEQUENCE IF NOT EXISTS uni_osfingerprints_id_seq;\n"
+	"CREATE SEQUENCE IF NOT EXISTS uni_networks_id_seq;\n"
+	"CREATE SEQUENCE IF NOT EXISTS uni_notes_id_seq;\n"
+	"CREATE SEQUENCE IF NOT EXISTS uni_saved_filters_id_seq;\n";
 
 /*
  * Main scan tracking table
@@ -76,6 +99,18 @@ static const char *pgsql_schema_scans_ddl =
 	"    num_hosts   DOUBLE PRECISION NOT NULL,\n"
 	"    num_packets DOUBLE PRECISION NOT NULL,\n"
 	"    scan_metadata JSONB DEFAULT '{}'::jsonb,\n"
+	"    mode_str    VARCHAR(64),\n"        /* Human-readable mode (e.g., 'A+T', 'Tsf', 'U') */
+	"    mode_flags  SMALLINT DEFAULT 0,\n" /* Bitmask: MODE_TCPSCAN=1, MODE_UDPSCAN=2, MODE_ARPSCAN=4, etc */
+	"    num_phases  SMALLINT DEFAULT 1,\n" /* Number of phases (1 = normal, >1 = compound mode) */
+	"    port_str    TEXT,\n"               /* Port specification from -p argument */
+	"    interface   VARCHAR(64),\n"        /* Network interface used (-i) */
+	"    tcpflags    INTEGER DEFAULT 0,\n"  /* TCP header flags (TH_SYN, etc) */
+	"    send_opts   INTEGER DEFAULT 0,\n"  /* Send options (S_SHUFFLE_PORTS, etc) */
+	"    recv_opts   INTEGER DEFAULT 0,\n"  /* Receive options (L_WATCH_ERRORS, etc) */
+	"    pps         INTEGER DEFAULT 0,\n"  /* Global packets per second (-r) */
+	"    recv_timeout SMALLINT DEFAULT 0,\n"/* Global receive timeout in seconds (-L) */
+	"    repeats     INTEGER DEFAULT 1,\n"  /* Global repeat count (-R) */
+	"    scan_notes  TEXT,\n"               /* User-supplied notes/annotations */
 	"    PRIMARY KEY (scans_id)\n"
 	");\n";
 
@@ -129,6 +164,25 @@ static const char *pgsql_schema_lworkunits_ddl =
 	"    wid         BIGINT NOT NULL,\n"
 	"    status      SMALLINT NOT NULL,\n"
 	"    CONSTRAINT uni_lworkunit_uniq_comp_LK UNIQUE (scans_id, wid)\n"
+	");\n";
+
+/*
+ * Scan phases table for compound mode (e.g., -mA+T, -mA+T+U)
+ * Stores per-phase configuration when num_phases > 1
+ */
+static const char *pgsql_schema_scan_phases_ddl =
+	"CREATE TABLE IF NOT EXISTS uni_scan_phases (\n"
+	"    scans_id    BIGINT NOT NULL,\n"
+	"    phase_idx   SMALLINT NOT NULL,\n"  /* 0-indexed phase number */
+	"    mode        SMALLINT NOT NULL,\n"  /* MODE_TCPSCAN=1, MODE_UDPSCAN=2, MODE_ARPSCAN=4, etc */
+	"    mode_char   CHAR(1),\n"            /* 'T', 'U', 'A', 'I', 'P' */
+	"    tcpflags    INTEGER DEFAULT 0,\n"  /* TH_SYN, TH_FIN, etc (TCP modes only) */
+	"    send_opts   INTEGER DEFAULT 0,\n"  /* S_ flags for this phase */
+	"    recv_opts   INTEGER DEFAULT 0,\n"  /* L_ flags for this phase */
+	"    pps         INTEGER DEFAULT 0,\n"  /* Per-phase rate; 0 = use global */
+	"    repeats     INTEGER DEFAULT 0,\n"  /* Per-phase repeats; 0 = use global */
+	"    recv_timeout SMALLINT DEFAULT 0,\n"/* Per-phase timeout; 0 = use global */
+	"    CONSTRAINT uni_scan_phases_pk PRIMARY KEY (scans_id, phase_idx)\n"
 	");\n";
 
 /*
@@ -301,6 +355,13 @@ static const char *pgsql_schema_constraints_ddl =
 	"        ALTER TABLE uni_arppackets ADD CONSTRAINT uni_arppackets_uni_arpreport_FK\n"
 	"            FOREIGN KEY(arpreport_id) REFERENCES uni_arpreport(arpreport_id);\n"
 	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_scan_phases_uni_scans_fk') THEN\n"
+	"        ALTER TABLE uni_scan_phases ADD CONSTRAINT uni_scan_phases_uni_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id);\n"
+	"    END IF;\n"
 	"END $$;\n";
 
 /*
@@ -313,6 +374,7 @@ static const char *pgsql_schema_rls_ddl =
 	"ALTER TABLE uni_scans ENABLE ROW LEVEL SECURITY;\n"
 	"ALTER TABLE uni_sworkunits ENABLE ROW LEVEL SECURITY;\n"
 	"ALTER TABLE uni_lworkunits ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_scan_phases ENABLE ROW LEVEL SECURITY;\n"
 	"ALTER TABLE uni_workunitstats ENABLE ROW LEVEL SECURITY;\n"
 	"ALTER TABLE uni_output ENABLE ROW LEVEL SECURITY;\n"
 	"ALTER TABLE uni_ipreport ENABLE ROW LEVEL SECURITY;\n"
@@ -331,6 +393,7 @@ static const char *pgsql_schema_rls_policies_ddl =
 	"DROP POLICY IF EXISTS \"Allow full access to scans\" ON uni_scans;\n"
 	"DROP POLICY IF EXISTS \"Allow full access to sworkunits\" ON uni_sworkunits;\n"
 	"DROP POLICY IF EXISTS \"Allow full access to lworkunits\" ON uni_lworkunits;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to scan_phases\" ON uni_scan_phases;\n"
 	"DROP POLICY IF EXISTS \"Allow full access to workunitstats\" ON uni_workunitstats;\n"
 	"DROP POLICY IF EXISTS \"Allow full access to output\" ON uni_output;\n"
 	"DROP POLICY IF EXISTS \"Allow full access to ipreport\" ON uni_ipreport;\n"
@@ -344,6 +407,7 @@ static const char *pgsql_schema_rls_policies_ddl =
 	"CREATE POLICY \"Allow full access to scans\" ON uni_scans FOR ALL USING (true) WITH CHECK (true);\n"
 	"CREATE POLICY \"Allow full access to sworkunits\" ON uni_sworkunits FOR ALL USING (true) WITH CHECK (true);\n"
 	"CREATE POLICY \"Allow full access to lworkunits\" ON uni_lworkunits FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to scan_phases\" ON uni_scan_phases FOR ALL USING (true) WITH CHECK (true);\n"
 	"CREATE POLICY \"Allow full access to workunitstats\" ON uni_workunitstats FOR ALL USING (true) WITH CHECK (true);\n"
 	"CREATE POLICY \"Allow full access to output\" ON uni_output FOR ALL USING (true) WITH CHECK (true);\n"
 	"CREATE POLICY \"Allow full access to ipreport\" ON uni_ipreport FOR ALL USING (true) WITH CHECK (true);\n"
@@ -432,7 +496,52 @@ static const char *pgsql_schema_views_ddl =
 	"    a.extra_data\n"
 	"FROM uni_scans s\n"
 	"JOIN uni_arpreport a ON s.scans_id = a.scans_id\n"
-	"ORDER BY s.s_time DESC, a.host_addr;\n";
+	"ORDER BY s.s_time DESC, a.host_addr;\n"
+	"\n"
+	/* v_scan_full: Complete scan details including compound mode info */
+	"CREATE OR REPLACE VIEW v_scan_full WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    to_timestamp(s.s_time) AS started,\n"
+	"    to_timestamp(NULLIF(s.e_time, 0)) AS completed,\n"
+	"    s.profile,\n"
+	"    s.\"user\" AS scan_user,\n"
+	"    s.mode_str,\n"
+	"    s.mode_flags,\n"
+	"    s.num_phases,\n"
+	"    s.port_str,\n"
+	"    s.interface,\n"
+	"    s.tcpflags,\n"
+	"    s.send_opts,\n"
+	"    s.recv_opts,\n"
+	"    s.pps,\n"
+	"    s.recv_timeout,\n"
+	"    s.repeats,\n"
+	"    s.scan_notes,\n"
+	"    s.num_hosts AS target_hosts,\n"
+	"    s.num_packets AS packets_sent,\n"
+	"    s.scan_metadata\n"
+	"FROM uni_scans s\n"
+	"ORDER BY s.s_time DESC;\n"
+	"\n"
+	/* v_compound_phases: Phase details for compound mode scans */
+	"CREATE OR REPLACE VIEW v_compound_phases WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    s.mode_str AS scan_mode,\n"
+	"    s.num_phases,\n"
+	"    p.phase_idx,\n"
+	"    p.mode_char,\n"
+	"    p.mode,\n"
+	"    p.tcpflags AS phase_tcpflags,\n"
+	"    p.pps AS phase_pps,\n"
+	"    p.repeats AS phase_repeats,\n"
+	"    p.recv_timeout AS phase_timeout,\n"
+	"    to_timestamp(s.s_time) AS scan_time\n"
+	"FROM uni_scans s\n"
+	"JOIN uni_scan_phases p ON s.scans_id = p.scans_id\n"
+	"WHERE s.num_phases > 1\n"
+	"ORDER BY s.s_time DESC, p.phase_idx;\n";
 
 /*
  * Schema v2 migration - add JSONB columns and new indexes to existing databases
@@ -513,6 +622,544 @@ static const char *pgsql_schema_migration_v3_ddl =
 	"ALTER VIEW v_recent_scans SET (security_invoker = true);\n"
 	"ALTER VIEW v_host_history SET (security_invoker = true);\n"
 	"ALTER VIEW v_arp_results SET (security_invoker = true);\n";
+
+/*
+ * Schema v4 migration - add compound mode support and scan notes
+ * Adds new columns to uni_scans for mode info, phases table, and user notes
+ */
+static const char *pgsql_schema_migration_v4_ddl =
+	/* Add new columns to uni_scans for compound mode support */
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN mode_str VARCHAR(64);\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN mode_flags SMALLINT DEFAULT 0;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN num_phases SMALLINT DEFAULT 1;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN port_str TEXT;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN interface VARCHAR(64);\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN tcpflags INTEGER DEFAULT 0;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN send_opts INTEGER DEFAULT 0;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN recv_opts INTEGER DEFAULT 0;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN pps INTEGER DEFAULT 0;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN recv_timeout SMALLINT DEFAULT 0;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN repeats INTEGER DEFAULT 1;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    ALTER TABLE uni_scans ADD COLUMN scan_notes TEXT;\n"
+	"EXCEPTION WHEN duplicate_column THEN NULL;\n"
+	"END $$;\n"
+	"\n"
+	/* Create uni_scan_phases table for compound mode phase tracking */
+	"CREATE TABLE IF NOT EXISTS uni_scan_phases (\n"
+	"    scans_id    BIGINT NOT NULL,\n"
+	"    phase_idx   SMALLINT NOT NULL,\n"
+	"    mode        SMALLINT NOT NULL,\n"
+	"    mode_char   CHAR(1),\n"
+	"    tcpflags    INTEGER DEFAULT 0,\n"
+	"    send_opts   INTEGER DEFAULT 0,\n"
+	"    recv_opts   INTEGER DEFAULT 0,\n"
+	"    pps         INTEGER DEFAULT 0,\n"
+	"    repeats     INTEGER DEFAULT 0,\n"
+	"    recv_timeout SMALLINT DEFAULT 0,\n"
+	"    CONSTRAINT uni_scan_phases_pk PRIMARY KEY (scans_id, phase_idx)\n"
+	");\n"
+	"\n"
+	/* Add foreign key constraint for uni_scan_phases */
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_scan_phases_uni_scans_fk') THEN\n"
+	"        ALTER TABLE uni_scan_phases ADD CONSTRAINT uni_scan_phases_uni_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id);\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	/* Enable RLS on uni_scan_phases */
+	"ALTER TABLE uni_scan_phases ENABLE ROW LEVEL SECURITY;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to scan_phases\" ON uni_scan_phases;\n"
+	"CREATE POLICY \"Allow full access to scan_phases\" ON uni_scan_phases FOR ALL USING (true) WITH CHECK (true);\n"
+	"\n"
+	/* Create new views for compound mode */
+	"CREATE OR REPLACE VIEW v_scan_full WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    to_timestamp(s.s_time) AS started,\n"
+	"    to_timestamp(NULLIF(s.e_time, 0)) AS completed,\n"
+	"    s.profile,\n"
+	"    s.\"user\" AS scan_user,\n"
+	"    s.mode_str,\n"
+	"    s.mode_flags,\n"
+	"    s.num_phases,\n"
+	"    s.port_str,\n"
+	"    s.interface,\n"
+	"    s.tcpflags,\n"
+	"    s.send_opts,\n"
+	"    s.recv_opts,\n"
+	"    s.pps,\n"
+	"    s.recv_timeout,\n"
+	"    s.repeats,\n"
+	"    s.scan_notes,\n"
+	"    s.num_hosts AS target_hosts,\n"
+	"    s.num_packets AS packets_sent,\n"
+	"    s.scan_metadata\n"
+	"FROM uni_scans s\n"
+	"ORDER BY s.s_time DESC;\n"
+	"\n"
+	"CREATE OR REPLACE VIEW v_compound_phases WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    s.scans_id,\n"
+	"    s.mode_str AS scan_mode,\n"
+	"    s.num_phases,\n"
+	"    p.phase_idx,\n"
+	"    p.mode_char,\n"
+	"    p.mode,\n"
+	"    p.tcpflags AS phase_tcpflags,\n"
+	"    p.pps AS phase_pps,\n"
+	"    p.repeats AS phase_repeats,\n"
+	"    p.recv_timeout AS phase_timeout,\n"
+	"    to_timestamp(s.s_time) AS scan_time\n"
+	"FROM uni_scans s\n"
+	"JOIN uni_scan_phases p ON s.scans_id = p.scans_id\n"
+	"WHERE s.num_phases > 1\n"
+	"ORDER BY s.s_time DESC, p.phase_idx;\n";
+
+/*
+ * Schema v5 migration - add frontend support tables
+ * Adds hosts tracking, services, OS fingerprints, networks, tags, notes, filters
+ */
+static const char *pgsql_schema_migration_v5_ddl =
+	/* uni_hosts: Aggregate host tracking */
+	"CREATE TABLE IF NOT EXISTS uni_hosts (\n"
+	"    host_id     BIGINT NOT NULL DEFAULT nextval('uni_hosts_id_seq'),\n"
+	"    host_addr   INET NOT NULL,\n"
+	"    mac_addr    MACADDR,\n"
+	"    hostname    VARCHAR(255),\n"
+	"    first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n"
+	"    last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n"
+	"    scan_count  INTEGER NOT NULL DEFAULT 1,\n"
+	"    port_count  INTEGER NOT NULL DEFAULT 0,\n"
+	"    extra_data  JSONB DEFAULT '{}'::jsonb,\n"
+	"    PRIMARY KEY (host_id)\n"
+	");\n"
+	"\n"
+	/* uni_host_scans: Junction table host ↔ scan */
+	"CREATE TABLE IF NOT EXISTS uni_host_scans (\n"
+	"    host_id        BIGINT NOT NULL,\n"
+	"    scans_id       BIGINT NOT NULL,\n"
+	"    first_response TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    response_count INTEGER DEFAULT 1,\n"
+	"    PRIMARY KEY (host_id, scans_id)\n"
+	");\n"
+	"\n"
+	/* uni_hops: Traceroute hop data */
+	"CREATE TABLE IF NOT EXISTS uni_hops (\n"
+	"    hop_id       BIGINT NOT NULL DEFAULT nextval('uni_hops_id_seq'),\n"
+	"    ipreport_id  BIGINT NOT NULL,\n"
+	"    scans_id     BIGINT NOT NULL,\n"
+	"    target_addr  INET NOT NULL,\n"
+	"    hop_addr     INET NOT NULL,\n"
+	"    hop_number   SMALLINT,\n"
+	"    ttl_observed SMALLINT NOT NULL,\n"
+	"    rtt_us       INTEGER,\n"
+	"    extra_data   JSONB DEFAULT '{}'::jsonb,\n"
+	"    PRIMARY KEY (hop_id)\n"
+	");\n"
+	"\n"
+	/* uni_services: Structured service identification */
+	"CREATE TABLE IF NOT EXISTS uni_services (\n"
+	"    service_id     BIGINT NOT NULL DEFAULT nextval('uni_services_id_seq'),\n"
+	"    host_addr      INET NOT NULL,\n"
+	"    port           INTEGER NOT NULL,\n"
+	"    proto          SMALLINT NOT NULL,\n"
+	"    scans_id       BIGINT NOT NULL,\n"
+	"    ipreport_id    BIGINT,\n"
+	"    service_name   VARCHAR(64),\n"
+	"    product        VARCHAR(128),\n"
+	"    version        VARCHAR(64),\n"
+	"    extra_info     VARCHAR(256),\n"
+	"    banner_raw     TEXT,\n"
+	"    confidence     SMALLINT DEFAULT 0 CHECK (confidence >= 0 AND confidence <= 100),\n"
+	"    payload_module VARCHAR(64),\n"
+	"    detected_at    TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    extra_data     JSONB DEFAULT '{}'::jsonb,\n"
+	"    PRIMARY KEY (service_id)\n"
+	");\n"
+	"\n"
+	/* uni_os_fingerprints: Parsed OS fingerprint data */
+	"CREATE TABLE IF NOT EXISTS uni_os_fingerprints (\n"
+	"    osfingerprint_id   BIGINT NOT NULL DEFAULT nextval('uni_osfingerprints_id_seq'),\n"
+	"    host_addr          INET NOT NULL,\n"
+	"    scans_id           BIGINT NOT NULL,\n"
+	"    ipreport_id        BIGINT,\n"
+	"    os_family          VARCHAR(64),\n"
+	"    os_name            VARCHAR(128),\n"
+	"    os_version         VARCHAR(64),\n"
+	"    os_full            TEXT,\n"
+	"    device_type        VARCHAR(64),\n"
+	"    ttl_observed       SMALLINT,\n"
+	"    window_size        INTEGER,\n"
+	"    confidence         SMALLINT DEFAULT 0 CHECK (confidence >= 0 AND confidence <= 100),\n"
+	"    fingerprint_source VARCHAR(32) DEFAULT 'unicornscan',\n"
+	"    detected_at        TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    extra_data         JSONB DEFAULT '{}'::jsonb,\n"
+	"    PRIMARY KEY (osfingerprint_id)\n"
+	");\n"
+	"\n"
+	/* uni_networks: Network/subnet grouping */
+	"CREATE TABLE IF NOT EXISTS uni_networks (\n"
+	"    network_id   BIGINT NOT NULL DEFAULT nextval('uni_networks_id_seq'),\n"
+	"    network_cidr CIDR NOT NULL UNIQUE,\n"
+	"    network_name VARCHAR(128),\n"
+	"    description  TEXT,\n"
+	"    network_type VARCHAR(32),\n"
+	"    created_at   TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    updated_at   TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    extra_data   JSONB DEFAULT '{}'::jsonb,\n"
+	"    PRIMARY KEY (network_id)\n"
+	");\n"
+	"\n"
+	/* uni_host_networks: Junction host ↔ network */
+	"CREATE TABLE IF NOT EXISTS uni_host_networks (\n"
+	"    host_id    BIGINT NOT NULL,\n"
+	"    network_id BIGINT NOT NULL,\n"
+	"    added_at   TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    PRIMARY KEY (host_id, network_id)\n"
+	");\n"
+	"\n"
+	/* uni_scan_tags: Flexible tagging system */
+	"CREATE TABLE IF NOT EXISTS uni_scan_tags (\n"
+	"    scans_id   BIGINT NOT NULL,\n"
+	"    tag_name   VARCHAR(64) NOT NULL,\n"
+	"    tag_value  VARCHAR(256),\n"
+	"    created_at TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    PRIMARY KEY (scans_id, tag_name)\n"
+	");\n"
+	"\n"
+	/* uni_notes: User annotations */
+	"CREATE TABLE IF NOT EXISTS uni_notes (\n"
+	"    note_id     BIGINT NOT NULL DEFAULT nextval('uni_notes_id_seq'),\n"
+	"    entity_type VARCHAR(32) NOT NULL,\n"
+	"    entity_id   BIGINT NOT NULL,\n"
+	"    note_text   TEXT NOT NULL,\n"
+	"    created_at  TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    updated_at  TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    created_by  VARCHAR(128),\n"
+	"    PRIMARY KEY (note_id)\n"
+	");\n"
+	"\n"
+	/* uni_saved_filters: Saved filter configurations */
+	"CREATE TABLE IF NOT EXISTS uni_saved_filters (\n"
+	"    filter_id     BIGINT NOT NULL DEFAULT nextval('uni_saved_filters_id_seq'),\n"
+	"    filter_name   VARCHAR(128) NOT NULL,\n"
+	"    filter_type   VARCHAR(32) NOT NULL,\n"
+	"    filter_config JSONB NOT NULL,\n"
+	"    is_default    BOOLEAN DEFAULT FALSE,\n"
+	"    created_at    TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    updated_at    TIMESTAMPTZ DEFAULT NOW(),\n"
+	"    created_by    VARCHAR(128),\n"
+	"    PRIMARY KEY (filter_id)\n"
+	");\n"
+	"\n"
+	/* Indexes for v5 tables */
+	"CREATE UNIQUE INDEX IF NOT EXISTS uni_hosts_addr_mac_uniq ON uni_hosts(host_addr, COALESCE(mac_addr, '00:00:00:00:00:00'::macaddr));\n"
+	"CREATE INDEX IF NOT EXISTS uni_hosts_addr_idx ON uni_hosts(host_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_hosts_last_seen_idx ON uni_hosts(last_seen);\n"
+	"CREATE INDEX IF NOT EXISTS uni_host_scans_scansid_idx ON uni_host_scans(scans_id);\n"
+	"CREATE INDEX IF NOT EXISTS uni_hops_scansid_idx ON uni_hops(scans_id);\n"
+	"CREATE INDEX IF NOT EXISTS uni_hops_target_idx ON uni_hops(target_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_hops_hop_idx ON uni_hops(hop_addr);\n"
+	"CREATE UNIQUE INDEX IF NOT EXISTS uni_services_uniq ON uni_services(host_addr, port, proto, scans_id);\n"
+	"CREATE INDEX IF NOT EXISTS uni_services_host_idx ON uni_services(host_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_services_port_idx ON uni_services(port);\n"
+	"CREATE INDEX IF NOT EXISTS uni_services_scansid_idx ON uni_services(scans_id);\n"
+	"CREATE INDEX IF NOT EXISTS uni_osfingerprints_host_idx ON uni_os_fingerprints(host_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_osfingerprints_scansid_idx ON uni_os_fingerprints(scans_id);\n"
+	"CREATE INDEX IF NOT EXISTS uni_scan_tags_name_idx ON uni_scan_tags(tag_name);\n"
+	"CREATE INDEX IF NOT EXISTS uni_notes_entity_idx ON uni_notes(entity_type, entity_id);\n"
+	"CREATE INDEX IF NOT EXISTS uni_saved_filters_name_idx ON uni_saved_filters(filter_name);\n"
+	"CREATE INDEX IF NOT EXISTS uni_saved_filters_config_gin ON uni_saved_filters USING gin(filter_config);\n";
+
+/*
+ * Schema v5 constraints - foreign keys for new tables
+ */
+static const char *pgsql_schema_v5_constraints_ddl =
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_host_scans_hosts_fk') THEN\n"
+	"        ALTER TABLE uni_host_scans ADD CONSTRAINT uni_host_scans_hosts_FK\n"
+	"            FOREIGN KEY(host_id) REFERENCES uni_hosts(host_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_host_scans_scans_fk') THEN\n"
+	"        ALTER TABLE uni_host_scans ADD CONSTRAINT uni_host_scans_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_hops_ipreport_fk') THEN\n"
+	"        ALTER TABLE uni_hops ADD CONSTRAINT uni_hops_ipreport_FK\n"
+	"            FOREIGN KEY(ipreport_id) REFERENCES uni_ipreport(ipreport_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_hops_scans_fk') THEN\n"
+	"        ALTER TABLE uni_hops ADD CONSTRAINT uni_hops_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_services_scans_fk') THEN\n"
+	"        ALTER TABLE uni_services ADD CONSTRAINT uni_services_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_services_ipreport_fk') THEN\n"
+	"        ALTER TABLE uni_services ADD CONSTRAINT uni_services_ipreport_FK\n"
+	"            FOREIGN KEY(ipreport_id) REFERENCES uni_ipreport(ipreport_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_osfingerprints_scans_fk') THEN\n"
+	"        ALTER TABLE uni_os_fingerprints ADD CONSTRAINT uni_osfingerprints_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_osfingerprints_ipreport_fk') THEN\n"
+	"        ALTER TABLE uni_os_fingerprints ADD CONSTRAINT uni_osfingerprints_ipreport_FK\n"
+	"            FOREIGN KEY(ipreport_id) REFERENCES uni_ipreport(ipreport_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_host_networks_hosts_fk') THEN\n"
+	"        ALTER TABLE uni_host_networks ADD CONSTRAINT uni_host_networks_hosts_FK\n"
+	"            FOREIGN KEY(host_id) REFERENCES uni_hosts(host_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_host_networks_networks_fk') THEN\n"
+	"        ALTER TABLE uni_host_networks ADD CONSTRAINT uni_host_networks_networks_FK\n"
+	"            FOREIGN KEY(network_id) REFERENCES uni_networks(network_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_scan_tags_scans_fk') THEN\n"
+	"        ALTER TABLE uni_scan_tags ADD CONSTRAINT uni_scan_tags_scans_FK\n"
+	"            FOREIGN KEY(scans_id) REFERENCES uni_scans(scans_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n";
+
+/*
+ * Schema v5 RLS - enable RLS and create policies for new tables
+ */
+static const char *pgsql_schema_v5_rls_ddl =
+	/* Enable RLS on new tables */
+	"ALTER TABLE uni_hosts ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_host_scans ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_hops ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_services ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_os_fingerprints ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_networks ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_host_networks ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_scan_tags ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_notes ENABLE ROW LEVEL SECURITY;\n"
+	"ALTER TABLE uni_saved_filters ENABLE ROW LEVEL SECURITY;\n"
+	"\n"
+	/* Drop and recreate policies */
+	"DROP POLICY IF EXISTS \"Allow full access to hosts\" ON uni_hosts;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to host_scans\" ON uni_host_scans;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to hops\" ON uni_hops;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to services\" ON uni_services;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to os_fingerprints\" ON uni_os_fingerprints;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to networks\" ON uni_networks;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to host_networks\" ON uni_host_networks;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to scan_tags\" ON uni_scan_tags;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to notes\" ON uni_notes;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to saved_filters\" ON uni_saved_filters;\n"
+	"\n"
+	"CREATE POLICY \"Allow full access to hosts\" ON uni_hosts FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to host_scans\" ON uni_host_scans FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to hops\" ON uni_hops FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to services\" ON uni_services FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to os_fingerprints\" ON uni_os_fingerprints FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to networks\" ON uni_networks FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to host_networks\" ON uni_host_networks FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to scan_tags\" ON uni_scan_tags FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to notes\" ON uni_notes FOR ALL USING (true) WITH CHECK (true);\n"
+	"CREATE POLICY \"Allow full access to saved_filters\" ON uni_saved_filters FOR ALL USING (true) WITH CHECK (true);\n";
+
+/*
+ * Schema v5 function - fn_upsert_host for auto-populating uni_hosts
+ */
+static const char *pgsql_schema_v5_functions_ddl =
+	"CREATE OR REPLACE FUNCTION fn_upsert_host(\n"
+	"    p_host_addr INET,\n"
+	"    p_mac_addr MACADDR DEFAULT NULL\n"
+	") RETURNS BIGINT\n"
+	"LANGUAGE plpgsql\n"
+	"AS $$\n"
+	"DECLARE\n"
+	"    v_host_id BIGINT;\n"
+	"    v_mac_coalesce MACADDR;\n"
+	"BEGIN\n"
+	"    v_mac_coalesce := COALESCE(p_mac_addr, '00:00:00:00:00:00'::macaddr);\n"
+	"    SELECT host_id INTO v_host_id\n"
+	"    FROM uni_hosts\n"
+	"    WHERE host_addr = p_host_addr\n"
+	"      AND COALESCE(mac_addr, '00:00:00:00:00:00'::macaddr) = v_mac_coalesce;\n"
+	"    IF v_host_id IS NOT NULL THEN\n"
+	"        UPDATE uni_hosts\n"
+	"        SET last_seen = NOW(),\n"
+	"            scan_count = scan_count + 1\n"
+	"        WHERE host_id = v_host_id;\n"
+	"    ELSE\n"
+	"        INSERT INTO uni_hosts (host_addr, mac_addr, first_seen, last_seen, scan_count)\n"
+	"        VALUES (p_host_addr, p_mac_addr, NOW(), NOW(), 1)\n"
+	"        RETURNING host_id INTO v_host_id;\n"
+	"    END IF;\n"
+	"    RETURN v_host_id;\n"
+	"END;\n"
+	"$$;\n";
+
+/*
+ * Schema v5 views - views for frontend support tables
+ */
+static const char *pgsql_schema_v5_views_ddl =
+	/* v_hosts: Aggregate host information */
+	"CREATE OR REPLACE VIEW v_hosts WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    h.host_id,\n"
+	"    h.host_addr,\n"
+	"    h.mac_addr,\n"
+	"    h.hostname,\n"
+	"    h.first_seen,\n"
+	"    h.last_seen,\n"
+	"    h.scan_count,\n"
+	"    h.port_count,\n"
+	"    h.extra_data\n"
+	"FROM uni_hosts h\n"
+	"ORDER BY h.last_seen DESC;\n"
+	"\n"
+	/* v_services: Service identification */
+	"CREATE OR REPLACE VIEW v_services WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    svc.service_id,\n"
+	"    svc.host_addr,\n"
+	"    svc.port,\n"
+	"    CASE svc.proto WHEN 6 THEN 'TCP' WHEN 17 THEN 'UDP' ELSE 'OTHER' END AS protocol,\n"
+	"    svc.service_name,\n"
+	"    svc.product,\n"
+	"    svc.version,\n"
+	"    svc.extra_info,\n"
+	"    svc.banner_raw,\n"
+	"    svc.confidence,\n"
+	"    svc.payload_module,\n"
+	"    svc.detected_at,\n"
+	"    svc.scans_id,\n"
+	"    svc.extra_data\n"
+	"FROM uni_services svc\n"
+	"ORDER BY svc.detected_at DESC;\n"
+	"\n"
+	/* v_os_fingerprints: OS detection results */
+	"CREATE OR REPLACE VIEW v_os_fingerprints WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    osf.osfingerprint_id,\n"
+	"    osf.host_addr,\n"
+	"    osf.os_family,\n"
+	"    osf.os_name,\n"
+	"    osf.os_version,\n"
+	"    osf.os_full,\n"
+	"    osf.device_type,\n"
+	"    osf.ttl_observed,\n"
+	"    osf.window_size,\n"
+	"    osf.confidence,\n"
+	"    osf.fingerprint_source,\n"
+	"    osf.detected_at,\n"
+	"    osf.scans_id,\n"
+	"    osf.extra_data\n"
+	"FROM uni_os_fingerprints osf\n"
+	"ORDER BY osf.detected_at DESC;\n"
+	"\n"
+	/* v_hops: Network hop data */
+	"CREATE OR REPLACE VIEW v_hops WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    hp.hop_id,\n"
+	"    hp.target_addr,\n"
+	"    hp.hop_addr,\n"
+	"    hp.hop_number,\n"
+	"    hp.ttl_observed,\n"
+	"    hp.rtt_us,\n"
+	"    hp.scans_id,\n"
+	"    hp.extra_data\n"
+	"FROM uni_hops hp\n"
+	"ORDER BY hp.target_addr, hp.hop_number;\n"
+	"\n"
+	/* v_networks: Networks with host counts */
+	"CREATE OR REPLACE VIEW v_networks WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    n.network_id,\n"
+	"    n.network_cidr,\n"
+	"    n.network_name,\n"
+	"    n.description,\n"
+	"    n.network_type,\n"
+	"    n.created_at,\n"
+	"    n.updated_at,\n"
+	"    COUNT(DISTINCT hn.host_id) AS host_count,\n"
+	"    n.extra_data\n"
+	"FROM uni_networks n\n"
+	"LEFT JOIN uni_host_networks hn ON n.network_id = hn.network_id\n"
+	"GROUP BY n.network_id, n.network_cidr, n.network_name, n.description,\n"
+	"         n.network_type, n.created_at, n.updated_at, n.extra_data\n"
+	"ORDER BY n.network_cidr;\n";
 
 /*
  * Record schema version
