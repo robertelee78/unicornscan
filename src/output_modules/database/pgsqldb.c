@@ -49,6 +49,653 @@ static const settings_t *s=NULL;
 static char querybuf[1024 * 8];
 static char db_os[4096], db_banner[4096];
 
+/* v5: Additional query buffer for secondary inserts */
+static char querybuf2[1024 * 4];
+
+/*
+ * Helper function to get mode character from mode flag
+ * Returns: 'T' for TCP, 'U' for UDP, 'A' for ARP, 'I' for ICMP, 'P' for IP
+ */
+static char mode_to_char(uint8_t mode) {
+	switch (mode) {
+		case 1:  return 'T'; /* MODE_TCPSCAN */
+		case 2:  return 'U'; /* MODE_UDPSCAN */
+		case 4:  return 'A'; /* MODE_ARPSCAN */
+		case 8:  return 'I'; /* MODE_ICMPSCAN */
+		case 16: return 'P'; /* MODE_IPSCAN */
+		default: return '?';
+	}
+}
+
+/*
+ * Build mode_str from phases array or single mode
+ * Examples: "T" (TCP SYN), "Tsf" (TCP SYN+FIN), "A+T" (ARP then TCP), "A+T+U" (ARP, TCP, UDP)
+ * Returns: pointer to static buffer containing mode string
+ */
+static const char *build_mode_str(const settings_t *settings) {
+	static char mode_str[64];
+	scan_phase_t *phases;
+	int i;
+	char *p = mode_str;
+	size_t remaining = sizeof(mode_str) - 1;
+
+	memset(mode_str, 0, sizeof(mode_str));
+
+	if (settings->num_phases > 1 && settings->phases != NULL) {
+		/* Compound mode: build from phases array */
+		phases = (scan_phase_t *)settings->phases;
+		for (i = 0; i < settings->num_phases && remaining > 2; i++) {
+			if (i > 0) {
+				*p++ = '+';
+				remaining--;
+			}
+			*p++ = mode_to_char(phases[i].mode);
+			remaining--;
+
+			/* Add TCP flag suffixes for TCP mode */
+			if (phases[i].mode == 1 && remaining > 0) { /* MODE_TCPSCAN */
+				/* Check for common TCP flag combinations */
+				uint16_t flags = phases[i].tcphdrflgs;
+				if (flags & 0x02) { /* TH_SYN */ }
+				if ((flags & 0x01) && remaining > 0) { *p++ = 'f'; remaining--; } /* TH_FIN */
+				if ((flags & 0x04) && remaining > 0) { *p++ = 'r'; remaining--; } /* TH_RST */
+				if ((flags & 0x08) && remaining > 0) { *p++ = 'p'; remaining--; } /* TH_PSH */
+				if ((flags & 0x10) && remaining > 0) { *p++ = 'a'; remaining--; } /* TH_ACK */
+				if ((flags & 0x20) && remaining > 0) { *p++ = 'u'; remaining--; } /* TH_URG */
+			}
+		}
+	}
+	else if (settings->ss != NULL) {
+		/* Single mode: use ss->mode */
+		*p++ = mode_to_char(settings->ss->mode);
+
+		/* Add TCP flag suffixes */
+		if (settings->ss->mode == 1) { /* MODE_TCPSCAN */
+			uint16_t flags = settings->ss->tcphdrflgs;
+			if ((flags & 0x01) && remaining > 0) { *p++ = 'f'; remaining--; } /* TH_FIN */
+			if ((flags & 0x04) && remaining > 0) { *p++ = 'r'; remaining--; } /* TH_RST */
+			if ((flags & 0x08) && remaining > 0) { *p++ = 'p'; remaining--; } /* TH_PSH */
+			if ((flags & 0x10) && remaining > 0) { *p++ = 'a'; remaining--; } /* TH_ACK */
+			if ((flags & 0x20) && remaining > 0) { *p++ = 'u'; remaining--; } /* TH_URG */
+		}
+	}
+	else {
+		strcpy(mode_str, "?");
+	}
+
+	return mode_str;
+}
+
+/*
+ * Compute mode_flags as OR of all phase modes
+ * Returns: bitmask of all modes used in the scan
+ */
+static uint8_t compute_mode_flags(const settings_t *settings) {
+	uint8_t flags = 0;
+	scan_phase_t *phases;
+	int i;
+
+	if (settings->num_phases > 1 && settings->phases != NULL) {
+		phases = (scan_phase_t *)settings->phases;
+		for (i = 0; i < settings->num_phases; i++) {
+			flags |= phases[i].mode;
+		}
+	}
+	else if (settings->ss != NULL) {
+		flags = settings->ss->mode;
+	}
+
+	return flags;
+}
+
+/*
+ * v5: Call fn_upsert_host() to insert/update host and return host_id
+ * Parameters:
+ *   host_addr: IP address string (e.g., "192.168.1.1")
+ *   mac_addr: MAC address string or NULL (e.g., "00:11:22:33:44:55")
+ * Returns: host_id on success, 0 on failure
+ */
+static unsigned long long int pgsql_upsert_host(const char *host_addr, const char *mac_addr) {
+	PGresult *res;
+	unsigned long long int host_id = 0;
+	char *escaped_host = NULL;
+	char *escaped_mac = NULL;
+
+	if (host_addr == NULL || pgconn == NULL) {
+		return 0;
+	}
+
+	escaped_host = pgsql_escstr(host_addr);
+	if (escaped_host == NULL) {
+		return 0;
+	}
+
+	if (mac_addr != NULL) {
+		escaped_mac = pgsql_escstr(mac_addr);
+		snprintf(querybuf2, sizeof(querybuf2) - 1,
+			"SELECT fn_upsert_host('%s'::inet, '%s'::macaddr);",
+			escaped_host, escaped_mac ? escaped_mac : "00:00:00:00:00:00"
+		);
+	}
+	else {
+		snprintf(querybuf2, sizeof(querybuf2) - 1,
+			"SELECT fn_upsert_host('%s'::inet, NULL);",
+			escaped_host
+		);
+	}
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) == 1) {
+		const char *val = PQgetvalue(res, 0, 0);
+		if (val != NULL) {
+			sscanf(val, "%llu", &host_id);
+		}
+	}
+	else {
+		DBG(M_MOD, "fn_upsert_host failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return host_id;
+}
+
+/*
+ * v5: Insert uni_host_scans junction record (host ↔ scan relationship)
+ * Uses ON CONFLICT to handle duplicates gracefully
+ */
+static int pgsql_insert_host_scan(unsigned long long int host_id, unsigned long long int scans_id) {
+	PGresult *res;
+	int ret = 0;
+
+	if (host_id == 0 || scans_id == 0 || pgconn == NULL) {
+		return 0;
+	}
+
+	snprintf(querybuf2, sizeof(querybuf2) - 1,
+		"INSERT INTO uni_host_scans (host_id, scans_id, first_response, response_count) "
+		"VALUES (%llu, %llu, NOW(), 1) "
+		"ON CONFLICT (host_id, scans_id) DO UPDATE SET response_count = uni_host_scans.response_count + 1;",
+		host_id, scans_id
+	);
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+		ret = 1;
+	}
+	else {
+		DBG(M_MOD, "uni_host_scans insert failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return ret;
+}
+
+/*
+ * v5: Insert uni_hops record when trace_addr != host_addr (intermediate hop detected)
+ */
+static int pgsql_insert_hop(unsigned long long int ipreport_id, unsigned long long int scans_id,
+                            const char *target_addr, const char *hop_addr, int ttl) {
+	PGresult *res;
+	int ret = 0;
+	char *escaped_target = NULL;
+	char *escaped_hop = NULL;
+
+	if (target_addr == NULL || hop_addr == NULL || pgconn == NULL) {
+		return 0;
+	}
+
+	escaped_target = pgsql_escstr(target_addr);
+	escaped_hop = pgsql_escstr(hop_addr);
+
+	if (escaped_target == NULL || escaped_hop == NULL) {
+		return 0;
+	}
+
+	snprintf(querybuf2, sizeof(querybuf2) - 1,
+		"INSERT INTO uni_hops (ipreport_id, scans_id, target_addr, hop_addr, ttl_observed) "
+		"VALUES (%llu, %llu, '%s', '%s', %d);",
+		ipreport_id, scans_id, escaped_target, escaped_hop, ttl
+	);
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+		ret = 1;
+	}
+	else {
+		DBG(M_MOD, "uni_hops insert failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return ret;
+}
+
+/*
+ * v5: Parse banner string and extract service identification fields
+ * Common banner patterns:
+ *   HTTP/1.1 200 OK\r\nServer: Apache/2.4.41\r\n...
+ *   SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.1
+ *   220 smtp.example.com ESMTP Postfix
+ *   FTP 220 ProFTPD 1.3.5 Server
+ *
+ * Returns 1 if service identified, 0 otherwise
+ * Output parameters are filled with parsed data (caller owns buffers)
+ */
+static int pgsql_parse_banner(const char *banner, int port, int proto,
+                              char *service_name, size_t sn_len,
+                              char *product, size_t prod_len,
+                              char *version, size_t ver_len) {
+	const char *p;
+
+	if (banner == NULL || strlen(banner) < 3) {
+		return 0;
+	}
+
+	/* Initialize output buffers */
+	service_name[0] = '\0';
+	product[0] = '\0';
+	version[0] = '\0';
+
+	/* HTTP detection */
+	if (strncmp(banner, "HTTP/", 5) == 0) {
+		strncpy(service_name, "http", sn_len - 1);
+		/* Look for Server: header */
+		p = strstr(banner, "Server:");
+		if (p == NULL) p = strstr(banner, "server:");
+		if (p != NULL) {
+			p += 7; /* Skip "Server:" */
+			while (*p == ' ') p++; /* Skip whitespace */
+			/* Extract product name (up to / or space or newline) */
+			size_t i = 0;
+			while (p[i] && p[i] != '/' && p[i] != ' ' && p[i] != '\r' && p[i] != '\n' && i < prod_len - 1) {
+				product[i] = p[i];
+				i++;
+			}
+			product[i] = '\0';
+			/* Extract version if present */
+			if (p[i] == '/') {
+				p += i + 1;
+				i = 0;
+				while (p[i] && p[i] != ' ' && p[i] != '\r' && p[i] != '\n' && i < ver_len - 1) {
+					version[i] = p[i];
+					i++;
+				}
+				version[i] = '\0';
+			}
+		}
+		return 1;
+	}
+
+	/* SSH detection */
+	if (strncmp(banner, "SSH-", 4) == 0) {
+		strncpy(service_name, "ssh", sn_len - 1);
+		/* SSH-2.0-OpenSSH_8.2p1 format */
+		p = strchr(banner, '-');
+		if (p) p = strchr(p + 1, '-'); /* Skip to product name */
+		if (p) {
+			p++; /* Skip the '-' */
+			size_t i = 0;
+			while (p[i] && p[i] != '_' && p[i] != ' ' && p[i] != '\r' && p[i] != '\n' && i < prod_len - 1) {
+				product[i] = p[i];
+				i++;
+			}
+			product[i] = '\0';
+			/* Version after underscore */
+			if (p[i] == '_') {
+				p += i + 1;
+				i = 0;
+				while (p[i] && p[i] != ' ' && p[i] != '\r' && p[i] != '\n' && i < ver_len - 1) {
+					version[i] = p[i];
+					i++;
+				}
+				version[i] = '\0';
+			}
+		}
+		return 1;
+	}
+
+	/* FTP detection (220 response) */
+	if (strncmp(banner, "220", 3) == 0 && (proto == 6 || port == 21)) {
+		strncpy(service_name, "ftp", sn_len - 1);
+		/* Try to extract server name from 220 response */
+		p = banner + 4; /* Skip "220 " */
+		if (*p) {
+			/* Look for common FTP server names */
+			if (strstr(p, "ProFTPD")) {
+				strncpy(product, "ProFTPD", prod_len - 1);
+			}
+			else if (strstr(p, "vsftpd")) {
+				strncpy(product, "vsftpd", prod_len - 1);
+			}
+			else if (strstr(p, "FileZilla")) {
+				strncpy(product, "FileZilla", prod_len - 1);
+			}
+			else if (strstr(p, "Pure-FTPd")) {
+				strncpy(product, "Pure-FTPd", prod_len - 1);
+			}
+		}
+		return 1;
+	}
+
+	/* SMTP detection (220 response with SMTP/ESMTP) */
+	if (strncmp(banner, "220", 3) == 0 && (strstr(banner, "SMTP") || strstr(banner, "smtp") || port == 25 || port == 587)) {
+		strncpy(service_name, "smtp", sn_len - 1);
+		if (strstr(banner, "Postfix")) {
+			strncpy(product, "Postfix", prod_len - 1);
+		}
+		else if (strstr(banner, "Exim")) {
+			strncpy(product, "Exim", prod_len - 1);
+		}
+		else if (strstr(banner, "Sendmail")) {
+			strncpy(product, "Sendmail", prod_len - 1);
+		}
+		return 1;
+	}
+
+	/* MySQL detection */
+	if (port == 3306 && banner[0] >= 0x30 && banner[0] <= 0x39) {
+		strncpy(service_name, "mysql", sn_len - 1);
+		strncpy(product, "MySQL", prod_len - 1);
+		return 1;
+	}
+
+	/* Port-based fallback identification */
+	switch (port) {
+		case 22:  strncpy(service_name, "ssh", sn_len - 1); break;
+		case 23:  strncpy(service_name, "telnet", sn_len - 1); break;
+		case 25:
+		case 587: strncpy(service_name, "smtp", sn_len - 1); break;
+		case 53:  strncpy(service_name, "domain", sn_len - 1); break;
+		case 80:
+		case 8080: strncpy(service_name, "http", sn_len - 1); break;
+		case 110: strncpy(service_name, "pop3", sn_len - 1); break;
+		case 143: strncpy(service_name, "imap", sn_len - 1); break;
+		case 443:
+		case 8443: strncpy(service_name, "https", sn_len - 1); break;
+		case 993: strncpy(service_name, "imaps", sn_len - 1); break;
+		case 995: strncpy(service_name, "pop3s", sn_len - 1); break;
+		case 3306: strncpy(service_name, "mysql", sn_len - 1); break;
+		case 5432: strncpy(service_name, "postgresql", sn_len - 1); break;
+		case 6379: strncpy(service_name, "redis", sn_len - 1); break;
+		default:
+			/* Unknown service - no identification */
+			return 0;
+	}
+
+	return (service_name[0] != '\0') ? 1 : 0;
+}
+
+/*
+ * v5: Insert uni_services record with parsed banner data
+ */
+static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned long long int scans_id,
+                                const char *host_addr, int port, int proto, const char *banner) {
+	PGresult *res;
+	int ret = 0;
+	char service_name[64], product[128], version[64];
+	char *escaped_host = NULL;
+	char *escaped_banner = NULL;
+	char *escaped_svc = NULL;
+	char *escaped_prod = NULL;
+	char *escaped_ver = NULL;
+
+	if (host_addr == NULL || banner == NULL || pgconn == NULL) {
+		return 0;
+	}
+
+	/* Parse the banner to extract service identification */
+	if (!pgsql_parse_banner(banner, port, proto, service_name, sizeof(service_name),
+	                        product, sizeof(product), version, sizeof(version))) {
+		/* Could not identify service from banner - store raw banner only */
+		service_name[0] = '\0';
+		product[0] = '\0';
+		version[0] = '\0';
+	}
+
+	escaped_host = pgsql_escstr(host_addr);
+	escaped_banner = pgsql_escstr(banner);
+	escaped_svc = pgsql_escstr(service_name);
+	escaped_prod = pgsql_escstr(product);
+	escaped_ver = pgsql_escstr(version);
+
+	snprintf(querybuf2, sizeof(querybuf2) - 1,
+		"INSERT INTO uni_services (host_addr, port, proto, scans_id, ipreport_id, "
+		"service_name, product, version, banner_raw, detected_at) "
+		"VALUES ('%s', %d, %d, %llu, %llu, "
+		"NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), '%s', NOW()) "
+		"ON CONFLICT (host_addr, port, proto, scans_id) DO UPDATE SET "
+		"service_name = COALESCE(NULLIF(EXCLUDED.service_name,''), uni_services.service_name), "
+		"product = COALESCE(NULLIF(EXCLUDED.product,''), uni_services.product), "
+		"version = COALESCE(NULLIF(EXCLUDED.version,''), uni_services.version), "
+		"banner_raw = EXCLUDED.banner_raw;",
+		escaped_host ? escaped_host : "",
+		port, proto, scans_id, ipreport_id,
+		escaped_svc ? escaped_svc : "",
+		escaped_prod ? escaped_prod : "",
+		escaped_ver ? escaped_ver : "",
+		escaped_banner ? escaped_banner : ""
+	);
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+		ret = 1;
+	}
+	else {
+		DBG(M_MOD, "uni_services insert failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return ret;
+}
+
+/*
+ * v5: Parse OS fingerprint string and extract identification fields
+ * Unicornscan OS strings are typically derived from TTL/window size analysis
+ * Format varies but often: "Linux 2.6.x" or "Windows XP" or specific signatures
+ *
+ * Returns 1 if OS identified, 0 otherwise
+ */
+static int pgsql_parse_os_fingerprint(const char *os_str, int ttl, int window_size,
+                                      char *os_family, size_t fam_len,
+                                      char *os_name, size_t name_len,
+                                      char *os_version, size_t ver_len,
+                                      char *device_type, size_t dev_len) {
+	if (os_str == NULL || strlen(os_str) < 2) {
+		return 0;
+	}
+
+	/* Initialize output buffers */
+	os_family[0] = '\0';
+	os_name[0] = '\0';
+	os_version[0] = '\0';
+	device_type[0] = '\0';
+
+	/* Linux detection */
+	if (strstr(os_str, "Linux") || strstr(os_str, "linux")) {
+		strncpy(os_family, "Linux", fam_len - 1);
+		strncpy(os_name, os_str, name_len - 1);
+		strncpy(device_type, "general purpose", dev_len - 1);
+		/* Try to extract version like "2.6.x" or "5.x" */
+		const char *p = strstr(os_str, "Linux");
+		if (p == NULL) p = strstr(os_str, "linux");
+		if (p) {
+			p += 5; /* Skip "Linux" */
+			while (*p == ' ') p++;
+			if (*p >= '0' && *p <= '9') {
+				size_t i = 0;
+				while (p[i] && p[i] != ' ' && i < ver_len - 1) {
+					os_version[i] = p[i];
+					i++;
+				}
+				os_version[i] = '\0';
+			}
+		}
+		return 1;
+	}
+
+	/* Windows detection */
+	if (strstr(os_str, "Windows") || strstr(os_str, "windows") || strstr(os_str, "Win")) {
+		strncpy(os_family, "Windows", fam_len - 1);
+		strncpy(os_name, os_str, name_len - 1);
+		strncpy(device_type, "general purpose", dev_len - 1);
+		return 1;
+	}
+
+	/* BSD detection */
+	if (strstr(os_str, "BSD") || strstr(os_str, "FreeBSD") || strstr(os_str, "OpenBSD") || strstr(os_str, "NetBSD")) {
+		strncpy(os_family, "BSD", fam_len - 1);
+		strncpy(os_name, os_str, name_len - 1);
+		strncpy(device_type, "general purpose", dev_len - 1);
+		return 1;
+	}
+
+	/* macOS/Darwin detection */
+	if (strstr(os_str, "macOS") || strstr(os_str, "Mac OS") || strstr(os_str, "Darwin")) {
+		strncpy(os_family, "macOS", fam_len - 1);
+		strncpy(os_name, os_str, name_len - 1);
+		strncpy(device_type, "general purpose", dev_len - 1);
+		return 1;
+	}
+
+	/* Cisco IOS detection */
+	if (strstr(os_str, "Cisco") || strstr(os_str, "IOS")) {
+		strncpy(os_family, "Cisco IOS", fam_len - 1);
+		strncpy(os_name, os_str, name_len - 1);
+		strncpy(device_type, "router", dev_len - 1);
+		return 1;
+	}
+
+	/* TTL-based inference as fallback */
+	if (os_family[0] == '\0' && ttl > 0) {
+		if (ttl <= 64) {
+			strncpy(os_family, "Linux/Unix", fam_len - 1);
+			strncpy(device_type, "general purpose", dev_len - 1);
+		}
+		else if (ttl <= 128) {
+			strncpy(os_family, "Windows", fam_len - 1);
+			strncpy(device_type, "general purpose", dev_len - 1);
+		}
+		else if (ttl <= 255) {
+			strncpy(os_family, "Network Device", fam_len - 1);
+			strncpy(device_type, "router/switch", dev_len - 1);
+		}
+		/* Store original string as os_name even for TTL-inferred */
+		strncpy(os_name, os_str, name_len - 1);
+		return 1;
+	}
+
+	/* Generic fallback - store as-is */
+	strncpy(os_name, os_str, name_len - 1);
+	return (os_name[0] != '\0') ? 1 : 0;
+}
+
+/*
+ * v5: Insert uni_os_fingerprints record with parsed OS data
+ */
+static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsigned long long int scans_id,
+                                       const char *host_addr, const char *os_str, int ttl, int window_size) {
+	PGresult *res;
+	int ret = 0;
+	char os_family[64], os_name[128], os_version[64], device_type[64];
+	char *escaped_host = NULL;
+	char *escaped_os_str = NULL;
+	char *escaped_family = NULL;
+	char *escaped_name = NULL;
+	char *escaped_version = NULL;
+	char *escaped_device = NULL;
+
+	if (host_addr == NULL || os_str == NULL || pgconn == NULL) {
+		return 0;
+	}
+
+	/* Parse the OS string to extract identification */
+	if (!pgsql_parse_os_fingerprint(os_str, ttl, window_size,
+	                                os_family, sizeof(os_family),
+	                                os_name, sizeof(os_name),
+	                                os_version, sizeof(os_version),
+	                                device_type, sizeof(device_type))) {
+		/* Could not identify OS - store raw string only */
+		os_family[0] = '\0';
+		os_name[0] = '\0';
+		os_version[0] = '\0';
+		device_type[0] = '\0';
+	}
+
+	escaped_host = pgsql_escstr(host_addr);
+	escaped_os_str = pgsql_escstr(os_str);
+	escaped_family = pgsql_escstr(os_family);
+	escaped_name = pgsql_escstr(os_name);
+	escaped_version = pgsql_escstr(os_version);
+	escaped_device = pgsql_escstr(device_type);
+
+	snprintf(querybuf2, sizeof(querybuf2) - 1,
+		"INSERT INTO uni_os_fingerprints (host_addr, scans_id, ipreport_id, "
+		"os_family, os_name, os_version, os_full, device_type, "
+		"ttl_observed, window_size, detected_at) "
+		"VALUES ('%s', %llu, %llu, "
+		"NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), '%s', NULLIF('%s',''), "
+		"%d, %d, NOW());",
+		escaped_host ? escaped_host : "",
+		scans_id, ipreport_id,
+		escaped_family ? escaped_family : "",
+		escaped_name ? escaped_name : "",
+		escaped_version ? escaped_version : "",
+		escaped_os_str ? escaped_os_str : "",
+		escaped_device ? escaped_device : "",
+		ttl, window_size
+	);
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+		ret = 1;
+	}
+	else {
+		DBG(M_MOD, "uni_os_fingerprints insert failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return ret;
+}
+
+/*
+ * Insert phase data into uni_scan_phases table
+ * Called after scan is created, only for compound mode scans
+ */
+static int pgsql_insert_phases(unsigned long long int scanid, const settings_t *settings) {
+	scan_phase_t *phases;
+	int i;
+
+	if (settings->num_phases <= 1 || settings->phases == NULL) {
+		return 1; /* Nothing to insert for single-phase scans */
+	}
+
+	phases = (scan_phase_t *)settings->phases;
+
+	for (i = 0; i < settings->num_phases; i++) {
+		snprintf(querybuf, sizeof(querybuf) - 1,
+			"INSERT INTO uni_scan_phases ("
+			"    scans_id, phase_idx, mode, mode_char, tcpflags, "
+			"    send_opts, recv_opts, pps, repeats, recv_timeout"
+			") VALUES ("
+			"    %llu, %d, %d, '%c', %u, "
+			"    %u, %u, %u, %u, %u"
+			");",
+			scanid, i, phases[i].mode, mode_to_char(phases[i].mode), phases[i].tcphdrflgs,
+			phases[i].send_opts, phases[i].recv_opts, phases[i].pps, phases[i].repeats, phases[i].recv_timeout
+		);
+
+		pgres = PQexec(pgconn, querybuf);
+		pgret = PQresultStatus(pgres);
+		if (pgret != PGRES_COMMAND_OK) {
+			ERR("PostgreSQL phase insert failed: %s: %s", PQresStatus(pgret), PQresultErrorMessage(pgres));
+			PQclear(pgres);
+			return 0;
+		}
+		PQclear(pgres);
+	}
+
+	return 1;
+}
+
 void pgsql_database_init(void);
 void pgsql_database_fini(void);
 
@@ -237,6 +884,76 @@ static int supabase_migrate_schema(PGconn *conn, int from_version) {
 		}
 
 		VRB(0, "Supabase: schema migration to v3 complete (RLS enabled)");
+		from_version = 3;
+	}
+
+	/* Migration from v3 to v4: add compound mode support and scan notes */
+	if (from_version < 4) {
+		VRB(0, "Supabase: migrating schema from v%d to v4 (adding compound mode support)...", from_version);
+
+		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v4_ddl, "migrate to v4 (compound mode and scan notes)")) {
+			return 0;
+		}
+
+		/* Record new version */
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 4);
+		if (!supabase_exec_ddl(conn, version_sql, "record schema version 4")) {
+			return 0;
+		}
+
+		VRB(0, "Supabase: schema migration to v4 complete (compound mode support added)");
+		from_version = 4;
+	}
+
+	/* Migration from v4 to v5: add frontend support tables */
+	if (from_version < 5) {
+		VRB(0, "Supabase: migrating schema from v%d to v5 (adding frontend support tables)...", from_version);
+
+		/* Create v5 sequences first (already in sequences_ddl but need to ensure they exist) */
+		if (!supabase_exec_ddl(conn,
+			"CREATE SEQUENCE IF NOT EXISTS uni_hosts_id_seq;\n"
+			"CREATE SEQUENCE IF NOT EXISTS uni_hops_id_seq;\n"
+			"CREATE SEQUENCE IF NOT EXISTS uni_services_id_seq;\n"
+			"CREATE SEQUENCE IF NOT EXISTS uni_osfingerprints_id_seq;\n"
+			"CREATE SEQUENCE IF NOT EXISTS uni_networks_id_seq;\n"
+			"CREATE SEQUENCE IF NOT EXISTS uni_notes_id_seq;\n"
+			"CREATE SEQUENCE IF NOT EXISTS uni_saved_filters_id_seq;\n",
+			"create v5 sequences")) {
+			return 0;
+		}
+
+		/* Create v5 tables */
+		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v5_ddl, "create v5 tables and indexes")) {
+			return 0;
+		}
+
+		/* Add v5 foreign key constraints */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v5_constraints_ddl, "create v5 foreign key constraints")) {
+			return 0;
+		}
+
+		/* Enable RLS and create policies for v5 tables */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v5_rls_ddl, "enable v5 RLS and policies")) {
+			return 0;
+		}
+
+		/* Create fn_upsert_host function */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v5_functions_ddl, "create fn_upsert_host function")) {
+			return 0;
+		}
+
+		/* Create v5 views */
+		if (!supabase_exec_ddl(conn, pgsql_schema_v5_views_ddl, "create v5 views")) {
+			return 0;
+		}
+
+		/* Record new version */
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 5);
+		if (!supabase_exec_ddl(conn, version_sql, "record schema version 5")) {
+			return 0;
+		}
+
+		VRB(0, "Supabase: schema migration to v5 complete (frontend support tables added)");
 	}
 
 	return 1;
@@ -329,6 +1046,10 @@ static int supabase_create_schema(PGconn *conn) {
 		return 0;
 	}
 
+	if (!supabase_exec_ddl(conn, pgsql_schema_scan_phases_ddl, "create uni_scan_phases table")) {
+		return 0;
+	}
+
 	if (!supabase_exec_ddl(conn, pgsql_schema_stats_ddl, "create stats tables")) {
 		return 0;
 	}
@@ -374,6 +1095,31 @@ static int supabase_create_schema(PGconn *conn) {
 		return 0;
 	}
 
+	/* Create v5 frontend support tables (uni_hosts, uni_host_scans, uni_hops, uni_services, uni_os_fingerprints) */
+	if (!supabase_exec_ddl(conn, pgsql_schema_migration_v5_ddl, "create v5 frontend support tables")) {
+		return 0;
+	}
+
+	/* Add v5 foreign key constraints */
+	if (!supabase_exec_ddl(conn, pgsql_schema_v5_constraints_ddl, "create v5 foreign key constraints")) {
+		return 0;
+	}
+
+	/* Enable RLS on v5 tables */
+	if (!supabase_exec_ddl(conn, pgsql_schema_v5_rls_ddl, "enable v5 row level security")) {
+		return 0;
+	}
+
+	/* Create v5 helper functions (fn_upsert_host, fn_parse_banner, etc.) */
+	if (!supabase_exec_ddl(conn, pgsql_schema_v5_functions_ddl, "create v5 helper functions")) {
+		return 0;
+	}
+
+	/* Create v5 frontend views */
+	if (!supabase_exec_ddl(conn, pgsql_schema_v5_views_ddl, "create v5 frontend views")) {
+		return 0;
+	}
+
 	/* Record schema version */
 	snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, PGSQL_SCHEMA_VERSION);
 	if (!supabase_exec_ddl(conn, version_sql, "record schema version")) {
@@ -412,6 +1158,9 @@ void pgsql_database_init(void) {
 	char *connstr=NULL, *escres=NULL;
 	int connstr_allocated=0; /* track if we need to free connstr */
 	char profile[200], dronestr[200], modules[200], user[200], pcap_dumpfile[200], pcap_readfile[200];
+	char mode_str_buf[64], interface_str[64], port_str_buf[4096];
+	const char *mode_str_ptr;
+	uint8_t mode_flags;
 	long long int est_e_time=0;
 
 	grab_keyvals(_m);
@@ -580,6 +1329,35 @@ void pgsql_database_init(void) {
 		strncpy(pcap_readfile, escres, sizeof(pcap_readfile) -1);
 	}
 
+	/* Build mode string and compute mode flags for compound mode support */
+	mode_str_ptr = build_mode_str(s);
+	mode_str_buf[0] = '\0';
+	if (mode_str_ptr != NULL) {
+		escres = pgsql_escstr(mode_str_ptr);
+		if (escres != NULL) {
+			strncpy(mode_str_buf, escres, sizeof(mode_str_buf) - 1);
+		}
+	}
+	mode_flags = compute_mode_flags(s);
+
+	/* Get interface string */
+	interface_str[0] = '\0';
+	if (s->interface_str != NULL) {
+		escres = pgsql_escstr(s->interface_str);
+		if (escres != NULL) {
+			strncpy(interface_str, escres, sizeof(interface_str) - 1);
+		}
+	}
+
+	/* Get port string */
+	port_str_buf[0] = '\0';
+	if (s->ss != NULL && s->ss->port_str != NULL) {
+		escres = pgsql_escstr(s->ss->port_str);
+		if (escres != NULL) {
+			strncpy(port_str_buf, escres, sizeof(port_str_buf) - 1);
+		}
+	}
+
 	est_e_time=(long long int )s->s_time + (long long int )s->ss->recv_timeout + (long long int )s->num_secs;
 
 	snprintf(querybuf, sizeof(querybuf) -1,
@@ -588,21 +1366,30 @@ void pgsql_database_init(void) {
 		"\"listeners\",		\"scan_iter\",		\"profile\",		\"options\",	"
 		"\"payload_group\",	\"dronestr\",		\"covertness\",		\"modules\",	"
 		"\"user\",		\"pcap_dumpfile\",	\"pcap_readfile\",	\"tickrate\",	"
-		"\"num_hosts\",		\"num_packets\"							"
+		"\"num_hosts\",		\"num_packets\",	\"mode_str\",		\"mode_flags\",	"
+		"\"num_phases\",	\"port_str\",		\"interface\",		\"tcpflags\",	"
+		"\"send_opts\",		\"recv_opts\",		\"pps\",		\"recv_timeout\","
+		"\"repeats\"									"
 	") 												"
 	"values(											"
 		"%lld,			%lld,			%lld,			%d,		"
 		"%d,			%d,			'%s',			%hu,		"
 		"%hu,			'%s',			%hu,			'%s',		"
 		"'%s',			'%s',			'%s',			%hu,		"
-		"%f,			%f								"
+		"%f,			%f,			'%s',			%hu,		"
+		"%hu,			'%s',			'%s',			%u,		"
+		"%hu,			%hu,			%u,			%hu,		"
+		"%u										"
 	");												"
 	"select currval('uni_scans_id_seq') as scanid;							",
 	(long long int )s->s_time,	(long long int )0,	est_e_time,		s->senders,
 	s->listeners,			s->scan_iter,		profile,		s->options,
 	s->payload_group,		dronestr,		s->covertness,		modules,
 	user,				pcap_dumpfile,		pcap_readfile,		s->master_tickrate,
-	s->num_hosts,			s->num_packets
+	s->num_hosts,			s->num_packets,		mode_str_buf,		mode_flags,
+	s->num_phases,			port_str_buf,		interface_str,		s->ss->tcphdrflgs,
+	s->send_opts,			s->recv_opts,		s->pps,			s->ss->recv_timeout,
+	s->repeats
 	);
 
 	pgres=PQexec(pgconn, querybuf);
@@ -636,6 +1423,17 @@ void pgsql_database_init(void) {
 		}
 	}
 	PQclear(pgres);
+
+	/* Insert phase data for compound mode scans */
+	if (s->num_phases > 1 && s->phases != NULL) {
+		if (!pgsql_insert_phases(pgscanid, s)) {
+			ERR("Failed to insert scan phases, continuing anyway");
+			/* Don't disable - phases are supplementary info */
+		}
+		else {
+			VRB(1, "PostgreSQL: inserted %d phases for scan %llu", s->num_phases, pgscanid);
+		}
+	}
 
 	return;
 }
@@ -699,41 +1497,55 @@ static int pgsql_dealwith_sworkunit(uint32_t wid, const send_workunit_t *w) {
 	blank[0]='\0';
 
 	if (w->tcpoptions_len > 0) {
-		tcpopts=PQescapeBytea(w->tcpoptions, w->tcpoptions_len, &tcpopts_len);
+		tcpopts=(char *)PQescapeBytea(w->tcpoptions, w->tcpoptions_len, &tcpopts_len);
 	}
 	else {
 		tcpopts=blank;
 	}
 
 	if (w->ipoptions_len > 0) {
-		ipopts=PQescapeBytea(w->ipoptions, w->ipoptions_len, &ipopts_len);
+		ipopts=(char *)PQescapeBytea(w->ipoptions, w->ipoptions_len, &ipopts_len);
 	}
 	else {
 		ipopts=blank;
 	}
 
-	myaddr[0]='\0';
-	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->myaddr));
-	if (escret != NULL) {
-		strncpy(myaddr, escret, sizeof(myaddr) -1);
-	}
+	/*
+	 * Copy sockaddr_storage members to aligned local buffer before passing
+	 * to cidr_saddrstr(). The send_workunit_t struct is packed for IPC, so
+	 * embedded sockaddr_storage fields may be unaligned. Direct pointer
+	 * access would cause bus errors on strict-alignment architectures (ARM).
+	 */
+	{
+		struct sockaddr_storage aligned_ss;
 
-	mymask[0]='\0';
-	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->mymask));
-	if (escret != NULL) {
-		strncpy(mymask, escret, sizeof(mymask) -1);
-	}
+		myaddr[0]='\0';
+		memcpy(&aligned_ss, &w->myaddr, sizeof(aligned_ss));
+		escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&aligned_ss));
+		if (escret != NULL) {
+			strncpy(myaddr, escret, sizeof(myaddr) -1);
+		}
 
-	target[0]='\0';
-	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->target));
-	if (escret != NULL) {
-		strncpy(target, escret, sizeof(target) -1);
-	}
+		mymask[0]='\0';
+		memcpy(&aligned_ss, &w->mymask, sizeof(aligned_ss));
+		escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&aligned_ss));
+		if (escret != NULL) {
+			strncpy(mymask, escret, sizeof(mymask) -1);
+		}
 
-	targetmask[0]='\0';
-	escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&w->targetmask));
-	if (escret != NULL) {
-		strncpy(targetmask, escret, sizeof(targetmask) -1);
+		target[0]='\0';
+		memcpy(&aligned_ss, &w->target, sizeof(aligned_ss));
+		escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&aligned_ss));
+		if (escret != NULL) {
+			strncpy(target, escret, sizeof(target) -1);
+		}
+
+		targetmask[0]='\0';
+		memcpy(&aligned_ss, &w->targetmask, sizeof(aligned_ss));
+		escret=pgsql_escstr(cidr_saddrstr((const struct sockaddr *)&aligned_ss));
+		if (escret != NULL) {
+			strncpy(targetmask, escret, sizeof(targetmask) -1);
+		}
 	}
 
 	pstr=workunit_pstr_get(w);
@@ -872,6 +1684,7 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	uint32_t tv_sec=0, tv_usec=0;
 	char send_addr[128], host_addr[128], trace_addr[128];
 	unsigned long long int ipreportid=0;
+	unsigned long long int host_id=0; /* v5: for uni_hosts */
 	struct in_addr ia;
 
 	ia.s_addr=i->send_addr;
@@ -940,6 +1753,24 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	PQclear(pgres);
 
 	/*
+	 * v5: Populate uni_hosts and uni_host_scans for frontend support
+	 * Call fn_upsert_host() to insert/update host record
+	 */
+	host_id = pgsql_upsert_host(host_addr, NULL); /* NULL for MAC - IP reports don't have MAC */
+	if (host_id > 0) {
+		/* Link host to this scan */
+		pgsql_insert_host_scan(host_id, pgscanid);
+	}
+
+	/*
+	 * v5: Detect intermediate hops when trace_addr != host_addr
+	 * This indicates the response came from a router (ICMP Time Exceeded, etc)
+	 */
+	if (i->trace_addr != i->host_addr && i->trace_addr != 0) {
+		pgsql_insert_hop(ipreportid, pgscanid, host_addr, trace_addr, i->ttl);
+	}
+
+	/*
 	 * trust problem
 	 */
 	if (i->doff > 0) {
@@ -956,7 +1787,7 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 		d_u.i++;
 		packet=d_u.p;
 
-		packet_str=PQescapeBytea(packet, packet_len, &packet_strlen);
+		packet_str=(char *)PQescapeBytea(packet, packet_len, &packet_strlen);
 
 		snprintf(querybuf, sizeof(querybuf) -1,
 			"insert into uni_ippackets (\"ipreport_id\", \"packet\") values(%llu, '%s');",
@@ -992,6 +1823,11 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
                         return -1;
                 }
                 PQclear(pgres);
+
+		/*
+		 * v5: Also insert into uni_services with parsed banner data
+		 */
+		pgsql_insert_service(ipreportid, pgscanid, host_addr, i->dport, i->proto, db_banner);
         }
 
         if (strlen(db_os)) {
@@ -1005,6 +1841,11 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
                         return -1;
                 }
                 PQclear(pgres);
+
+		/*
+		 * v5: Also insert into uni_os_fingerprints with parsed OS data
+		 */
+		pgsql_insert_os_fingerprint(ipreportid, pgscanid, host_addr, db_os, i->ttl, i->window_size);
         }
 
 	return 1;
@@ -1015,9 +1856,10 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
  */
 static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 	uint32_t tv_sec=0, tv_usec=0;
-	char host_addr[128], hwaddr[32], *str=NULL;
+	char host_addr[128], hwaddr[32];
 	struct in_addr ia;
 	long long unsigned int arpreportid=0;
+	unsigned long long int host_id=0; /* v5: for uni_hosts */
 
 	ia.s_addr=a->ipaddr;
 
@@ -1079,6 +1921,16 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 	PQclear(pgres);
 
 	/*
+	 * v5: Populate uni_hosts and uni_host_scans for frontend support
+	 * ARP reports have MAC addresses - use IP+MAC for host identity
+	 */
+	host_id = pgsql_upsert_host(host_addr, hwaddr);
+	if (host_id > 0) {
+		/* Link host to this scan */
+		pgsql_insert_host_scan(host_id, pgscanid);
+	}
+
+	/*
 	 * trust problem
 	 */
 	if (a->doff > 0) {
@@ -1095,7 +1947,7 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 		d_u.a++;
 		packet=d_u.p;
 
-		packet_str=PQescapeBytea(packet, packet_len, &packet_strlen);
+		packet_str=(char *)PQescapeBytea(packet, packet_len, &packet_strlen);
 
 		snprintf(querybuf, sizeof(querybuf) -1,
 			"insert into uni_arppackets (\"arpreport_id\", \"packet\") values(%llu, '%s');",
