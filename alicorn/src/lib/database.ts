@@ -11,6 +11,11 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Scan, IpReport, Host, ScanSummary, HostSummary } from '@/types/database'
+import type {
+  DashboardStats,
+  PortCount,
+  ScanTimelinePoint,
+} from '@/features/dashboard/types'
 
 // =============================================================================
 // Configuration
@@ -73,15 +78,11 @@ export interface DatabaseClient {
   getHostByIp(ip: string): Promise<Host | null>
   getHostSummaries(scansId?: number): Promise<HostSummary[]>
 
-  // Stats
-  getStats(): Promise<DatabaseStats>
-}
-
-export interface DatabaseStats {
-  totalScans: number
-  totalHosts: number
-  totalPorts: number
-  recentScans: number
+  // Dashboard (time-filtered)
+  getDashboardStats(options: { since: number | null }): Promise<DashboardStats>
+  getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]>
+  getScanTimeline(options: { since: number | null }): Promise<ScanTimelinePoint[]>
+  getRecentScans(options: { limit: number; since: number | null }): Promise<ScanSummary[]>
 }
 
 // =============================================================================
@@ -294,23 +295,178 @@ class RestDatabase implements DatabaseClient {
     }))
   }
 
-  async getStats(): Promise<DatabaseStats> {
-    const now = Math.floor(Date.now() / 1000)
-    const yesterday = now - 86400
+  async getDashboardStats(options: { since: number | null }): Promise<DashboardStats> {
+    const { since } = options
 
-    const [scansResult, hostsResult, portsResult, recentResult] = await Promise.all([
-      this.client.from('uni_scans').select('*', { count: 'exact', head: true }),
-      this.client.from('uni_hosts').select('*', { count: 'exact', head: true }),
-      this.client.from('uni_ipreport').select('*', { count: 'exact', head: true }),
-      this.client.from('uni_scans').select('*', { count: 'exact', head: true }).gte('s_time', yesterday),
+    // Build queries with optional time filter
+    const scansQuery = this.client.from('uni_scans').select('*', { count: 'exact', head: true })
+    const hostsQuery = this.client.from('uni_hosts').select('*', { count: 'exact', head: true })
+    const responsesQuery = this.client.from('uni_ipreport').select('*', { count: 'exact', head: true })
+    const portsQuery = this.client.from('uni_ipreport').select('dport')
+
+    if (since !== null) {
+      scansQuery.gte('s_time', since)
+      hostsQuery.gte('last_seen', since)
+      responsesQuery.gte('tstamp', since)
+      portsQuery.gte('tstamp', since)
+    }
+
+    const [scansResult, hostsResult, responsesResult, portsResult] = await Promise.all([
+      scansQuery,
+      hostsQuery,
+      responsesQuery,
+      portsQuery,
     ])
+
+    // Count unique ports
+    const uniquePorts = new Set(portsResult.data?.map((r) => r.dport) || [])
 
     return {
       totalScans: scansResult.count || 0,
       totalHosts: hostsResult.count || 0,
-      totalPorts: portsResult.count || 0,
-      recentScans: recentResult.count || 0,
+      totalResponses: responsesResult.count || 0,
+      uniquePorts: uniquePorts.size,
     }
+  }
+
+  async getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]> {
+    const { limit, since } = options
+
+    // Get all port reports, then aggregate in JS (PostgREST doesn't support GROUP BY)
+    const query = this.client.from('uni_ipreport').select('dport, proto')
+
+    if (since !== null) {
+      query.gte('tstamp', since)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    // Aggregate counts by port and protocol
+    const portCounts = new Map<string, { port: number; protocol: 'tcp' | 'udp'; count: number }>()
+    for (const row of data || []) {
+      const proto = row.proto === 6 ? 'tcp' : row.proto === 17 ? 'udp' : 'tcp'
+      const key = `${proto}-${row.dport}`
+      const existing = portCounts.get(key)
+      if (existing) {
+        existing.count++
+      } else {
+        portCounts.set(key, { port: row.dport, protocol: proto, count: 1 })
+      }
+    }
+
+    // Sort by count descending and take top N
+    return Array.from(portCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+  }
+
+  async getScanTimeline(options: { since: number | null }): Promise<ScanTimelinePoint[]> {
+    const { since } = options
+
+    // Get scans within time range
+    const scansQuery = this.client.from('uni_scans').select('scans_id, s_time')
+    const reportsQuery = this.client.from('uni_ipreport').select('scans_id, tstamp')
+
+    if (since !== null) {
+      scansQuery.gte('s_time', since)
+      reportsQuery.gte('tstamp', since)
+    }
+
+    const [scansResult, reportsResult] = await Promise.all([scansQuery, reportsQuery])
+
+    if (scansResult.error) throw scansResult.error
+    if (reportsResult.error) throw reportsResult.error
+
+    // Aggregate by day
+    const dayMap = new Map<string, { scans: number; responses: number; timestamp: number }>()
+
+    for (const scan of scansResult.data || []) {
+      const date = new Date(scan.s_time * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayStart = new Date(dateStr).getTime() / 1000
+      const existing = dayMap.get(dateStr)
+      if (existing) {
+        existing.scans++
+      } else {
+        dayMap.set(dateStr, { scans: 1, responses: 0, timestamp: dayStart })
+      }
+    }
+
+    for (const report of reportsResult.data || []) {
+      const date = new Date(report.tstamp * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayStart = new Date(dateStr).getTime() / 1000
+      const existing = dayMap.get(dateStr)
+      if (existing) {
+        existing.responses++
+      } else {
+        dayMap.set(dateStr, { scans: 0, responses: 1, timestamp: dayStart })
+      }
+    }
+
+    // Convert to array and sort by date
+    return Array.from(dayMap.entries())
+      .map(([date, data]) => ({
+        date,
+        timestamp: data.timestamp,
+        scans: data.scans,
+        responses: data.responses,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp)
+  }
+
+  async getRecentScans(options: { limit: number; since: number | null }): Promise<ScanSummary[]> {
+    const { limit, since } = options
+
+    const query = this.client
+      .from('uni_scans')
+      .select('scans_id, s_time, e_time, profile, target_str, mode_str')
+      .order('s_time', { ascending: false })
+      .limit(limit)
+
+    if (since !== null) {
+      query.gte('s_time', since)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    const summaries: ScanSummary[] = await Promise.all(
+      (data || []).map(async (scan) => {
+        const [portResult, hostsResult, tagsResult] = await Promise.all([
+          this.client
+            .from('uni_ipreport')
+            .select('*', { count: 'exact', head: true })
+            .eq('scans_id', scan.scans_id),
+          this.client
+            .from('uni_ipreport')
+            .select('host_addr')
+            .eq('scans_id', scan.scans_id),
+          this.client
+            .from('uni_scan_tags')
+            .select('tag')
+            .eq('scans_id', scan.scans_id),
+        ])
+
+        const uniqueHosts = new Set(hostsResult.data?.map((h) => h.host_addr) || [])
+
+        return {
+          scans_id: scan.scans_id,
+          s_time: scan.s_time,
+          e_time: scan.e_time,
+          profile: scan.profile,
+          target_str: scan.target_str,
+          mode_str: scan.mode_str,
+          host_count: uniqueHosts.size,
+          port_count: portResult.count || 0,
+          open_count: 0,
+          tags: tagsResult.data?.map((t) => t.tag) || [],
+        }
+      })
+    )
+
+    return summaries
   }
 }
 
@@ -554,14 +710,131 @@ class DemoDatabase implements DatabaseClient {
     ]
   }
 
-  async getStats(): Promise<DatabaseStats> {
+  async getDashboardStats(options: { since: number | null }): Promise<DashboardStats> {
     await this.simulateDelay()
+    const { since } = options
+
+    // Filter scans by time if specified
+    const filteredScans = since
+      ? this.mockScans.filter((s) => s.s_time >= since)
+      : this.mockScans
+
+    const filteredReports = since
+      ? this.mockReports.filter((r) => r.tstamp >= since)
+      : this.mockReports
+
+    const uniquePorts = new Set(filteredReports.map((r) => r.dport))
+    const uniqueHosts = new Set(filteredReports.map((r) => r.host_addr))
+
     return {
-      totalScans: 2,
-      totalHosts: 1,
-      totalPorts: 3,
-      recentScans: 1,
+      totalScans: filteredScans.length,
+      totalHosts: uniqueHosts.size,
+      totalResponses: filteredReports.length,
+      uniquePorts: uniquePorts.size,
     }
+  }
+
+  async getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]> {
+    await this.simulateDelay()
+    const { limit, since } = options
+
+    const filteredReports = since
+      ? this.mockReports.filter((r) => r.tstamp >= since)
+      : this.mockReports
+
+    // Count ports
+    const portCounts = new Map<string, PortCount>()
+    for (const report of filteredReports) {
+      const proto = report.proto === 6 ? 'tcp' : report.proto === 17 ? 'udp' : 'tcp'
+      const key = `${proto}-${report.dport}`
+      const existing = portCounts.get(key)
+      if (existing) {
+        existing.count++
+      } else {
+        portCounts.set(key, { port: report.dport, protocol: proto, count: 1 })
+      }
+    }
+
+    return Array.from(portCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+  }
+
+  async getScanTimeline(options: { since: number | null }): Promise<ScanTimelinePoint[]> {
+    await this.simulateDelay()
+    const { since } = options
+
+    const filteredScans = since
+      ? this.mockScans.filter((s) => s.s_time >= since)
+      : this.mockScans
+
+    const filteredReports = since
+      ? this.mockReports.filter((r) => r.tstamp >= since)
+      : this.mockReports
+
+    // Aggregate by day
+    const dayMap = new Map<string, { scans: number; responses: number; timestamp: number }>()
+
+    for (const scan of filteredScans) {
+      const date = new Date(scan.s_time * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayStart = new Date(dateStr).getTime() / 1000
+      const existing = dayMap.get(dateStr)
+      if (existing) {
+        existing.scans++
+      } else {
+        dayMap.set(dateStr, { scans: 1, responses: 0, timestamp: dayStart })
+      }
+    }
+
+    for (const report of filteredReports) {
+      const date = new Date(report.tstamp * 1000)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayStart = new Date(dateStr).getTime() / 1000
+      const existing = dayMap.get(dateStr)
+      if (existing) {
+        existing.responses++
+      } else {
+        dayMap.set(dateStr, { scans: 0, responses: 1, timestamp: dayStart })
+      }
+    }
+
+    return Array.from(dayMap.entries())
+      .map(([date, data]) => ({
+        date,
+        timestamp: data.timestamp,
+        scans: data.scans,
+        responses: data.responses,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp)
+  }
+
+  async getRecentScans(options: { limit: number; since: number | null }): Promise<ScanSummary[]> {
+    await this.simulateDelay()
+    const { limit, since } = options
+
+    const filteredScans = since
+      ? this.mockScans.filter((s) => s.s_time >= since)
+      : this.mockScans
+
+    return filteredScans
+      .slice(0, limit)
+      .map((scan) => {
+        const scanReports = this.mockReports.filter((r) => r.scans_id === scan.scans_id)
+        const uniqueHosts = new Set(scanReports.map((r) => r.host_addr))
+        return {
+          scans_id: scan.scans_id,
+          s_time: scan.s_time,
+          e_time: scan.e_time,
+          profile: scan.profile,
+          target_str: scan.target_str,
+          mode_str: scan.mode_str,
+          host_count: uniqueHosts.size,
+          port_count: scanReports.length,
+          open_count: scanReports.length,
+          tags: scan.scans_id === 1 ? ['demo', 'local'] : [],
+        }
+      })
   }
 
   private simulateDelay(): Promise<void> {

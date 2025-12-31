@@ -4,7 +4,7 @@
  */
 
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { getDatabase, type DatabaseStats } from '@/lib/database'
+import { getDatabase } from '@/lib/database'
 import type { Scan, ScanSummary, IpReport } from '@/types/database'
 
 const db = getDatabase()
@@ -25,7 +25,6 @@ export const scanKeys = {
   reports: (id: number) => [...scanKeys.all, 'reports', id] as const,
   reportsByHost: (id: number, host: string) =>
     [...scanKeys.all, 'reports', id, host] as const,
-  stats: () => [...scanKeys.all, 'stats'] as const,
 }
 
 // =============================================================================
@@ -87,17 +86,6 @@ export function useIpReportsByHost(
     queryKey: scanKeys.reportsByHost(scansId, hostAddr),
     queryFn: () => db.getIpReportsByHost(scansId, hostAddr),
     enabled: scansId > 0 && !!hostAddr,
-    ...queryOptions,
-  })
-}
-
-export function useDatabaseStats(
-  queryOptions?: Omit<UseQueryOptions<DatabaseStats, Error>, 'queryKey' | 'queryFn'>
-) {
-  return useQuery({
-    queryKey: scanKeys.stats(),
-    queryFn: () => db.getStats(),
-    staleTime: 30000, // Stats are fresh for 30 seconds
     ...queryOptions,
   })
 }
