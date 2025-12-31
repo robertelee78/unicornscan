@@ -10,7 +10,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Scan, IpReport, Host, ScanSummary, HostSummary } from '@/types/database'
+import type { Scan, IpReport, ArpReport, Host, ScanSummary, HostSummary, Note } from '@/types/database'
 import type {
   DashboardStats,
   PortCount,
@@ -93,6 +93,12 @@ export interface DatabaseClient {
   // IP Reports (ports/responses)
   getIpReports(scansId: number): Promise<IpReport[]>
   getIpReportsByHost(scansId: number, hostAddr: string): Promise<IpReport[]>
+
+  // ARP Reports
+  getArpReports(scansId: number): Promise<ArpReport[]>
+
+  // Notes
+  getNotes(entityType: 'scan' | 'host' | 'port' | 'service', entityId: number): Promise<Note[]>
 
   // Hosts
   getHosts(options?: { limit?: number }): Promise<Host[]>
@@ -358,6 +364,33 @@ class RestDatabase implements DatabaseClient {
 
     if (error) throw error
     return data as IpReport[]
+  }
+
+  async getArpReports(scansId: number): Promise<ArpReport[]> {
+    const { data, error } = await this.client
+      .from('uni_arpreport')
+      .select('*')
+      .eq('scans_id', scansId)
+      .order('host_addr', { ascending: true })
+
+    if (error) throw error
+    return data as ArpReport[]
+  }
+
+  async getNotes(entityType: 'scan' | 'host' | 'port' | 'service', entityId: number): Promise<Note[]> {
+    const { data, error } = await this.client
+      .from('uni_notes')
+      .select('*')
+      .eq('entity_type', entityType)
+      .eq('entity_id', entityId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      // Table might not exist yet - return empty array
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as Note[]
   }
 
   async getHosts(options?: { limit?: number }): Promise<Host[]> {
@@ -871,6 +904,42 @@ class DemoDatabase implements DatabaseClient {
   async getIpReportsByHost(scansId: number, hostAddr: string): Promise<IpReport[]> {
     await this.simulateDelay()
     return this.mockReports.filter((r) => r.scans_id === scansId && r.host_addr === hostAddr)
+  }
+
+  async getArpReports(scansId: number): Promise<ArpReport[]> {
+    await this.simulateDelay()
+    // Demo ARP reports for local network scan demo
+    if (scansId === 1) {
+      return [
+        {
+          arpreport_id: 1,
+          scans_id: 1,
+          magic: 0x12345678,
+          host_addr: '192.168.1.1',
+          hwaddr: '00:11:22:33:44:55',
+          tstamp: Math.floor(Date.now() / 1000) - 3550,
+          utstamp: 0,
+          extra_data: null,
+        },
+        {
+          arpreport_id: 2,
+          scans_id: 1,
+          magic: 0x12345678,
+          host_addr: '192.168.1.100',
+          hwaddr: 'AA:BB:CC:DD:EE:FF',
+          tstamp: Math.floor(Date.now() / 1000) - 3545,
+          utstamp: 0,
+          extra_data: null,
+        },
+      ]
+    }
+    return []
+  }
+
+  async getNotes(_entityType: 'scan' | 'host' | 'port' | 'service', _entityId: number): Promise<Note[]> {
+    await this.simulateDelay()
+    // Demo notes - empty for now
+    return []
   }
 
   async getHosts(_options?: { limit?: number }): Promise<Host[]> {
