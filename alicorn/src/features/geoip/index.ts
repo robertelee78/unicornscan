@@ -26,7 +26,24 @@ export {
   getIpTypeConfig,
 } from './types'
 
-// Hooks
+// Live GeoIP types and service
+export type {
+  GeoIPProviderType,
+  LiveGeoIPResult,
+  GeoIPServiceConfig,
+  GeoIPServiceStatus,
+  GeoIPDatabaseInfo,
+  GeoIPComparisonResult,
+} from '@/lib/geoip'
+
+export {
+  DEFAULT_GEOIP_CONFIG,
+  GEOIP_CONFIG_STORAGE_KEY,
+  getGeoIPService,
+  initializeGeoIPService,
+} from '@/lib/geoip'
+
+// Hooks - Database GeoIP
 export {
   geoipKeys,
   useGeoIP,
@@ -39,6 +56,17 @@ export {
   useGeoIPAsnBreakdown,
   useHasGeoIP,
 } from './hooks'
+
+// Hooks - Live GeoIP Lookups
+export {
+  liveGeoipKeys,
+  useGeoIPService,
+  useLiveGeoIPLookup,
+  useLiveGeoIPBatch,
+  useLiveGeoIPMutation,
+  useGeoIPComparison,
+  useGeoIPStatus,
+} from './live-hooks'
 
 // Components
 export {

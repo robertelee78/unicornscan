@@ -142,12 +142,13 @@ typedef struct geoip_provider {
 
 #ifdef HAVE_LIBMAXMINDDB
 extern geoip_provider_t geoip_maxmind_provider;
+/* IPinfo uses MMDB format, so it also requires libmaxminddb */
+extern geoip_provider_t geoip_ipinfo_provider;
 #endif
 
-/* Future providers (not yet implemented)
+#ifdef HAVE_IP2LOCATION
 extern geoip_provider_t geoip_ip2location_provider;
-extern geoip_provider_t geoip_ipinfo_provider;
-*/
+#endif
 
 /* ==========================================================================
  * Global GeoIP API - wraps active provider
@@ -189,6 +190,12 @@ void geoip_cleanup(void);
  * Returns: provider name or "none"
  */
 const char *geoip_get_provider_name(void);
+
+/*
+ * Get cache statistics
+ * Any parameter can be NULL if not needed
+ */
+void geoip_cache_stats(unsigned long *hits, unsigned long *misses, size_t *size);
 
 /* ==========================================================================
  * Utility functions

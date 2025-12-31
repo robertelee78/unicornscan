@@ -7,8 +7,8 @@ DBTYPES=@DBTYPES@
 G_LDPATH=-L$(BUILD_DIR)/src/unilib -L$(BUILD_DIR)/src/parse -L$(BUILD_DIR)/src/scan_progs
 CFLAGS += -DMODULE=1 @PG_CPPFLAGS@
 
-# GeoIP support (v6) - uses libmaxminddb if available
-GEOIP_OBJS=geoip.lo geoip_maxmind.lo
+# GeoIP support (v6) - libmaxminddb (MaxMind, IPinfo) and IP2Location
+GEOIP_OBJS=geoip.lo geoip_maxmind.lo geoip_ipinfo.lo geoip_ip2location.lo
 GEOIP_LDFLAGS=@GEOIP_LIBS@
 
 all: $(DBTYPES)
@@ -29,6 +29,8 @@ clean:
 	done
 	$(LIBTOOL) --mode=clean rm -f geoip.la geoip.lo
 	$(LIBTOOL) --mode=clean rm -f geoip_maxmind.la geoip_maxmind.lo
+	$(LIBTOOL) --mode=clean rm -f geoip_ipinfo.la geoip_ipinfo.lo
+	$(LIBTOOL) --mode=clean rm -f geoip_ip2location.la geoip_ip2location.lo
 
 distclean: clean
 	rm -f template.h
