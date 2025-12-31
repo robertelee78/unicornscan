@@ -48,60 +48,25 @@ export function formatIP(ip: string): string {
   return ip
 }
 
+// =============================================================================
+// Port Utilities
+// Re-export from ports feature for backward compatibility
+// =============================================================================
+
+// Import from the comprehensive ports database
+import { getServiceName as _getServiceName } from '@/features/ports/well-known-ports'
+
 /**
- * Get well-known port name
+ * Get well-known port name (hint only - actual service may differ)
  */
-const WELL_KNOWN_PORTS: Record<number, string> = {
-  20: 'ftp-data',
-  21: 'ftp',
-  22: 'ssh',
-  23: 'telnet',
-  25: 'smtp',
-  53: 'dns',
-  67: 'dhcp',
-  68: 'dhcp',
-  69: 'tftp',
-  80: 'http',
-  110: 'pop3',
-  111: 'rpc',
-  119: 'nntp',
-  123: 'ntp',
-  135: 'msrpc',
-  137: 'netbios-ns',
-  138: 'netbios-dgm',
-  139: 'netbios-ssn',
-  143: 'imap',
-  161: 'snmp',
-  162: 'snmptrap',
-  389: 'ldap',
-  443: 'https',
-  445: 'smb',
-  465: 'smtps',
-  514: 'syslog',
-  515: 'printer',
-  587: 'submission',
-  631: 'ipp',
-  636: 'ldaps',
-  993: 'imaps',
-  995: 'pop3s',
-  1433: 'mssql',
-  1521: 'oracle',
-  3306: 'mysql',
-  3389: 'rdp',
-  5432: 'postgresql',
-  5900: 'vnc',
-  6379: 'redis',
-  8080: 'http-alt',
-  8443: 'https-alt',
-  27017: 'mongodb',
-}
-
 export function getPortName(port: number): string | undefined {
-  return WELL_KNOWN_PORTS[port]
+  const name = _getServiceName(port)
+  // Return undefined if it's just "port-N" (unknown)
+  return name.startsWith('port-') ? undefined : name
 }
 
 /**
- * Format port with optional service name
+ * Format port with optional service name hint
  */
 export function formatPort(port: number): string {
   const name = getPortName(port)
