@@ -1,0 +1,137 @@
+/**
+ * Scan detail header with metadata
+ * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ */
+
+import { Link } from 'react-router-dom'
+import { ArrowLeft, Clock, User, Gauge, Target, Layers } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { formatTimestamp } from '@/lib/utils'
+import type { Scan } from '@/types/database'
+
+interface ScanDetailHeaderProps {
+  scan: Scan
+  reportCount: number
+  hostCount: number
+}
+
+function formatDuration(start: number, end: number): string {
+  const seconds = end - start
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
+  }
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+}
+
+export function ScanDetailHeader({ scan, reportCount, hostCount }: ScanDetailHeaderProps) {
+  const duration = formatDuration(scan.s_time, scan.e_time)
+
+  return (
+    <div className="space-y-4">
+      {/* Back link and title */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" asChild className="h-8 px-2">
+          <Link to="/scans">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Scans
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-3">
+            Scan #{scan.scans_id}
+            {scan.mode_str && (
+              <Badge variant="outline" className="text-sm font-normal">
+                {scan.mode_str}
+              </Badge>
+            )}
+          </h1>
+          <p className="text-muted mt-1 font-mono">{scan.target_str}</p>
+        </div>
+      </div>
+
+      {/* Metadata cards */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <MetadataItem
+              icon={<Clock className="h-4 w-4" />}
+              label="Started"
+              value={formatTimestamp(scan.s_time)}
+            />
+            <MetadataItem
+              icon={<Clock className="h-4 w-4" />}
+              label="Duration"
+              value={duration}
+            />
+            <MetadataItem
+              icon={<User className="h-4 w-4" />}
+              label="User"
+              value={scan.user}
+            />
+            <MetadataItem
+              icon={<Gauge className="h-4 w-4" />}
+              label="PPS"
+              value={scan.pps.toLocaleString()}
+            />
+            <MetadataItem
+              icon={<Target className="h-4 w-4" />}
+              label="Ports"
+              value={scan.port_str}
+            />
+            <MetadataItem
+              icon={<Layers className="h-4 w-4" />}
+              label="Profile"
+              value={scan.profile}
+            />
+          </div>
+
+          {/* Stats row */}
+          <div className="flex gap-6 mt-4 pt-4 border-t border-border text-sm">
+            <div>
+              <span className="text-muted">Hosts:</span>{' '}
+              <span className="font-mono font-medium">{hostCount}</span>
+            </div>
+            <div>
+              <span className="text-muted">Responses:</span>{' '}
+              <span className="font-mono font-medium">{reportCount}</span>
+            </div>
+            {scan.scan_notes && (
+              <div className="flex-1 text-right">
+                <span className="text-muted">Note:</span>{' '}
+                <span className="text-sm">{scan.scan_notes}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+interface MetadataItemProps {
+  icon: React.ReactNode
+  label: string
+  value: string
+}
+
+function MetadataItem({ icon, label, value }: MetadataItemProps) {
+  return (
+    <div className="flex items-start gap-2">
+      <div className="text-muted mt-0.5">{icon}</div>
+      <div>
+        <p className="text-xs text-muted">{label}</p>
+        <p className="font-mono text-sm">{value}</p>
+      </div>
+    </div>
+  )
+}
