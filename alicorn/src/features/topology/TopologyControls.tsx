@@ -4,7 +4,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -226,30 +226,33 @@ interface TimeRangeSelectProps {
 }
 
 function TimeRangeSelect({ value, onChange }: TimeRangeSelectProps) {
-  const now = Math.floor(Date.now() / 1000)
+  // Capture initial timestamp - useState initializer runs only once on mount
+  const [mountTime] = useState(() => Math.floor(Date.now() / 1000))
 
-  const getTimestamp = (opt: string): number | undefined => {
+  const getTimestamp = useCallback((opt: string): number | undefined => {
+    // Use fresh timestamp when user selects an option
+    const currentTime = Math.floor(Date.now() / 1000)
     switch (opt) {
-      case '1h': return now - 3600
-      case '24h': return now - 86400
-      case '7d': return now - 604800
-      case '30d': return now - 2592000
+      case '1h': return currentTime - 3600
+      case '24h': return currentTime - 86400
+      case '7d': return currentTime - 604800
+      case '30d': return currentTime - 2592000
       default: return undefined
     }
-  }
+  }, [])
 
-  const getCurrentValue = (): string => {
+  const getCurrentValue = useMemo((): string => {
     if (!value) return 'all'
-    const diff = now - value
+    const diff = mountTime - value
     if (diff <= 3600) return '1h'
     if (diff <= 86400) return '24h'
     if (diff <= 604800) return '7d'
     if (diff <= 2592000) return '30d'
     return 'all'
-  }
+  }, [value, mountTime])
 
   return (
-    <Select value={getCurrentValue()} onValueChange={(v: string) => onChange(getTimestamp(v))}>
+    <Select value={getCurrentValue} onValueChange={(v: string) => onChange(getTimestamp(v))}>
       <SelectTrigger className="h-8">
         <SelectValue />
       </SelectTrigger>

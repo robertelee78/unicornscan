@@ -1,6 +1,6 @@
 /**
  * Statistics page - Advanced network scan statistics
- * Service distribution, TTL analysis, window size, and port activity heatmaps
+ * Service distribution, TTL analysis, window size, port activity heatmaps, and GeoIP
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
@@ -16,6 +16,7 @@ import {
   usePortActivityHeatmap,
 } from '@/features/charts'
 import { TimeRangeSelect, type TimeRange } from '@/features/dashboard'
+import { GeoIPSection } from '@/features/geoip'
 
 export function Statistics() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d')
@@ -114,6 +115,11 @@ export function Statistics() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* GeoIP Section - Scan-specific geographic intelligence */}
+      <div className="border-t border-border pt-6">
+        <GeoIPSection />
       </div>
     </div>
   )
