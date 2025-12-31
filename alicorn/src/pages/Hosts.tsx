@@ -1,16 +1,46 @@
 /**
- * Hosts list page
+ * Hosts list page - thin wrapper over hosts feature module
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { Link } from 'react-router-dom'
-import { useHosts } from '@/hooks'
-import { formatRelativeTime } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  HostTable,
+  HostFilterBar,
+  Pagination,
+  useHostList,
+  DEFAULT_FILTERS,
+  DEFAULT_SORT,
+  DEFAULT_PAGINATION,
+  type HostFilters,
+  type SortState,
+  type SortField,
+  type PaginationState,
+} from '@/features/hosts'
 
 export function Hosts() {
-  const { data: hosts, isLoading, error } = useHosts(100)
+  const [filters, setFilters] = useState<HostFilters>(DEFAULT_FILTERS)
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
+  const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
+
+  const { data: hosts, total, isLoading, error } = useHostList(filters, sort, pagination)
+
+  // Handle column header click for sorting
+  const handleSort = useCallback((field: SortField) => {
+    setSort((prev) => ({
+      field,
+      direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc',
+    }))
+    // Reset to first page when sorting changes
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [])
+
+  // Reset to first page when filters change
+  const handleFilterChange = useCallback((newFilters: HostFilters) => {
+    setFilters(newFilters)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [])
 
   if (error) {
     return (
@@ -28,52 +58,24 @@ export function Hosts() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Host Inventory</CardTitle>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Host Inventory</CardTitle>
+          </div>
+          <HostFilterBar filters={filters} onChange={handleFilterChange} />
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-muted">Loading hosts...</div>
-          ) : hosts?.length === 0 ? (
-            <div className="text-muted">No hosts found</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border text-left text-sm text-muted">
-                    <th className="pb-3 font-medium">IP Address</th>
-                    <th className="pb-3 font-medium">Hostname</th>
-                    <th className="pb-3 font-medium">OS</th>
-                    <th className="pb-3 font-medium">Open Ports</th>
-                    <th className="pb-3 font-medium">Scans</th>
-                    <th className="pb-3 font-medium">Last Seen</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono text-sm">
-                  {hosts?.map((host) => (
-                    <tr key={host.host_id} className="border-b border-border/50 hover:bg-surface-light/50">
-                      <td className="py-3">
-                        <Link to={`/hosts/${host.host_id}`} className="text-primary hover:underline">
-                          {host.ip_addr}
-                        </Link>
-                      </td>
-                      <td className="py-3 text-muted">{host.hostname || '—'}</td>
-                      <td className="py-3">
-                        {host.os_guess ? (
-                          <Badge variant="outline">{host.os_guess}</Badge>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td className="py-3">{host.open_port_count}</td>
-                      <td className="py-3">{host.scan_count}</td>
-                      <td className="py-3">{formatRelativeTime(host.last_seen)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <CardContent className="space-y-4">
+          <HostTable
+            hosts={hosts}
+            sort={sort}
+            onSort={handleSort}
+            isLoading={isLoading}
+          />
+          <Pagination
+            pagination={pagination}
+            total={total}
+            onChange={setPagination}
+          />
         </CardContent>
       </Card>
     </div>
