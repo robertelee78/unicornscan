@@ -18,6 +18,13 @@ import {
   type SortField,
   type PaginationState,
 } from '@/features/scans'
+import {
+  ExportDialog,
+  ExportDropdown,
+  useExportDialog,
+  useScansListExport,
+  type ExportFormat,
+} from '@/features/export'
 
 export function Scans() {
   const [filters, setFilters] = useState<ScanFilters>(DEFAULT_FILTERS)
@@ -25,6 +32,15 @@ export function Scans() {
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
 
   const { data: scans, total, isLoading, error } = useScanList(filters, sort, pagination)
+
+  // Export functionality
+  const exportDialog = useExportDialog()
+  const { exportScansList, isExporting } = useScansListExport(scans)
+
+  // Quick export handler
+  const handleQuickExport = useCallback((format: ExportFormat) => {
+    exportScansList({ ...exportDialog.options, format })
+  }, [exportScansList, exportDialog.options])
 
   // Handle column header click for sorting
   const handleSort = useCallback((field: SortField) => {
@@ -61,6 +77,11 @@ export function Scans() {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Scan History</CardTitle>
+            <ExportDropdown
+              onExport={handleQuickExport}
+              onOpenDialog={exportDialog.openDialog}
+              disabled={scans.length === 0}
+            />
           </div>
           <ScanFilterBar filters={filters} onChange={handleFilterChange} />
         </CardHeader>
@@ -78,6 +99,20 @@ export function Scans() {
           />
         </CardContent>
       </Card>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialog.isOpen}
+        onOpenChange={(open) => !open && exportDialog.closeDialog()}
+        context="scan-list"
+        onExport={(options) => {
+          exportScansList(options)
+          exportDialog.closeDialog()
+        }}
+        isExporting={isExporting}
+        filteredCount={scans.length}
+        totalCount={total}
+      />
     </div>
   )
 }

@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useScan, useIpReports } from '@/hooks'
 import {
@@ -18,6 +18,13 @@ import {
   useScanNotes,
   type Tab,
 } from '@/features/scans'
+import {
+  ExportDialog,
+  useScanExport,
+  useExportDialog,
+  quickExportScan,
+  type ExportFormat,
+} from '@/features/export'
 import { Card, CardContent } from '@/components/ui/card'
 
 type TabId = 'results' | 'hosts' | 'raw' | 'notes'
@@ -32,6 +39,17 @@ export function ScanDetail() {
   const { data: reports = [], isLoading: reportsLoading } = useIpReports(scansId)
   const { data: arpReports = [], isLoading: arpLoading } = useArpReports(scansId)
   const { data: notes = [], isLoading: notesLoading } = useScanNotes(scansId)
+
+  // Export functionality
+  const exportDialog = useExportDialog()
+  const { exportScan, isExporting } = useScanExport(scan ?? null, reports)
+
+  // Quick export handler
+  const handleQuickExport = useCallback((format: ExportFormat) => {
+    if (scan) {
+      quickExportScan(scan, reports, format)
+    }
+  }, [scan, reports])
 
   // Calculate host count
   const hostCount = useMemo(() => {
@@ -82,6 +100,20 @@ export function ScanDetail() {
         scan={scan}
         reportCount={reports.length}
         hostCount={hostCount}
+        onQuickExport={handleQuickExport}
+        onAdvancedExport={exportDialog.openDialog}
+      />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialog.isOpen}
+        onOpenChange={(open) => !open && exportDialog.closeDialog()}
+        context="scan-detail"
+        onExport={(options) => {
+          exportScan(options)
+          exportDialog.closeDialog()
+        }}
+        isExporting={isExporting}
       />
 
       {/* ARP results (shown above tabs if present) */}
