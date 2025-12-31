@@ -1,6 +1,12 @@
 /**
- * Database client abstraction
- * Supports both Supabase (hosted) and direct PostgreSQL connections
+ * Database client abstraction for Alicorn
+ *
+ * Supports multiple backends:
+ * - Supabase (hosted or self-hosted)
+ * - PostgREST (standalone, pointed at PostgreSQL)
+ * - Demo mode (mock data for development)
+ *
+ * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
@@ -10,32 +16,48 @@ import type { Scan, IpReport, Host, ScanSummary, HostSummary } from '@/types/dat
 // Configuration
 // =============================================================================
 
-const DB_BACKEND = import.meta.env.VITE_DB_BACKEND || 'supabase'
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const DATABASE_URL = import.meta.env.VITE_DATABASE_URL
+export type DatabaseBackend = 'supabase' | 'postgrest' | 'demo'
 
-// =============================================================================
-// Supabase Client
-// =============================================================================
-
-let supabaseClient: SupabaseClient | null = null
-
-function getSupabaseClient(): SupabaseClient {
-  if (!supabaseClient) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      throw new Error('Supabase URL and Anon Key must be configured in .env')
-    }
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  }
-  return supabaseClient
+export interface DatabaseConfig {
+  backend: DatabaseBackend
+  supabaseUrl?: string
+  supabaseAnonKey?: string
+  postgrestUrl?: string
+  isConfigured: boolean
 }
+
+function getConfig(): DatabaseConfig {
+  const backend = (import.meta.env.VITE_DB_BACKEND || 'demo') as DatabaseBackend
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const postgrestUrl = import.meta.env.VITE_POSTGREST_URL
+
+  const isConfigured =
+    backend === 'demo' ||
+    (backend === 'supabase' && !!supabaseUrl && !!supabaseAnonKey) ||
+    (backend === 'postgrest' && !!postgrestUrl)
+
+  return {
+    backend,
+    supabaseUrl,
+    supabaseAnonKey,
+    postgrestUrl,
+    isConfigured,
+  }
+}
+
+export const config = getConfig()
 
 // =============================================================================
 // Database Interface
 // =============================================================================
 
 export interface DatabaseClient {
+  readonly backend: DatabaseBackend
+
+  // Health
+  checkConnection(): Promise<boolean>
+
   // Scans
   getScans(options?: { limit?: number; offset?: number }): Promise<Scan[]>
   getScan(scansId: number): Promise<Scan | null>
@@ -59,18 +81,60 @@ export interface DatabaseStats {
   totalScans: number
   totalHosts: number
   totalPorts: number
-  recentScans: number // Last 24 hours
+  recentScans: number
 }
 
 // =============================================================================
-// Supabase Implementation
+// Supabase/PostgREST Implementation
 // =============================================================================
 
-class SupabaseDatabase implements DatabaseClient {
-  private client: SupabaseClient
+let supabaseClient: SupabaseClient | null = null
 
-  constructor() {
+function getSupabaseClient(): SupabaseClient {
+  if (!supabaseClient) {
+    let url: string
+    let key: string
+
+    if (config.backend === 'postgrest') {
+      if (!config.postgrestUrl) {
+        throw new Error('PostgREST URL must be configured in .env')
+      }
+      url = config.postgrestUrl
+      key = 'anon' // PostgREST doesn't need a real key for public tables
+    } else {
+      if (!config.supabaseUrl || !config.supabaseAnonKey) {
+        throw new Error('Supabase URL and Anon Key must be configured in .env')
+      }
+      url = config.supabaseUrl
+      key = config.supabaseAnonKey
+    }
+
+    supabaseClient = createClient(url, key, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+  }
+  return supabaseClient
+}
+
+class RestDatabase implements DatabaseClient {
+  private client: SupabaseClient
+  readonly backend: DatabaseBackend
+
+  constructor(backend: 'supabase' | 'postgrest') {
+    this.backend = backend
     this.client = getSupabaseClient()
+  }
+
+  async checkConnection(): Promise<boolean> {
+    try {
+      const { error } = await this.client.from('uni_scans').select('scans_id', { head: true })
+      return !error
+    } catch {
+      return false
+    }
   }
 
   async getScans(options?: { limit?: number; offset?: number }): Promise<Scan[]> {
@@ -95,50 +159,39 @@ class SupabaseDatabase implements DatabaseClient {
       .single()
 
     if (error) {
-      if (error.code === 'PGRST116') return null // Not found
+      if (error.code === 'PGRST116') return null
       throw error
     }
     return data as Scan
   }
 
   async getScanSummaries(options?: { limit?: number }): Promise<ScanSummary[]> {
-    // Use the view if available, otherwise aggregate manually
     const { data, error } = await this.client
       .from('uni_scans')
-      .select(`
-        scans_id,
-        s_time,
-        e_time,
-        profile,
-        target_str,
-        mode_str
-      `)
+      .select('scans_id, s_time, e_time, profile, target_str, mode_str')
       .order('s_time', { ascending: false })
       .limit(options?.limit || 50)
 
     if (error) throw error
 
-    // Get counts for each scan
     const summaries: ScanSummary[] = await Promise.all(
       (data || []).map(async (scan) => {
-        const { count: portCount } = await this.client
-          .from('uni_ipreport')
-          .select('*', { count: 'exact', head: true })
-          .eq('scans_id', scan.scans_id)
+        const [portResult, hostsResult, tagsResult] = await Promise.all([
+          this.client
+            .from('uni_ipreport')
+            .select('*', { count: 'exact', head: true })
+            .eq('scans_id', scan.scans_id),
+          this.client
+            .from('uni_ipreport')
+            .select('host_addr')
+            .eq('scans_id', scan.scans_id),
+          this.client
+            .from('uni_scan_tags')
+            .select('tag')
+            .eq('scans_id', scan.scans_id),
+        ])
 
-        // Count unique hosts
-        const { data: hosts } = await this.client
-          .from('uni_ipreport')
-          .select('host_addr')
-          .eq('scans_id', scan.scans_id)
-
-        const uniqueHosts = new Set(hosts?.map(h => h.host_addr) || [])
-
-        // Get tags
-        const { data: tags } = await this.client
-          .from('uni_scan_tags')
-          .select('tag')
-          .eq('scans_id', scan.scans_id)
+        const uniqueHosts = new Set(hostsResult.data?.map((h) => h.host_addr) || [])
 
         return {
           scans_id: scan.scans_id,
@@ -148,9 +201,9 @@ class SupabaseDatabase implements DatabaseClient {
           target_str: scan.target_str,
           mode_str: scan.mode_str,
           host_count: uniqueHosts.size,
-          port_count: portCount || 0,
-          open_count: 0, // TODO: Calculate from response type
-          tags: tags?.map(t => t.tag) || [],
+          port_count: portResult.count || 0,
+          open_count: 0,
+          tags: tagsResult.data?.map((t) => t.tag) || [],
         }
       })
     )
@@ -235,7 +288,7 @@ class SupabaseDatabase implements DatabaseClient {
       ip_addr: host.ip_addr,
       hostname: host.hostname,
       os_guess: host.os_guess,
-      open_ports: [], // TODO: Get from joins
+      open_ports: [],
       last_seen: host.last_seen,
       scan_count: host.scan_count,
     }))
@@ -262,6 +315,246 @@ class SupabaseDatabase implements DatabaseClient {
 }
 
 // =============================================================================
+// Demo/Mock Implementation
+// =============================================================================
+
+class DemoDatabase implements DatabaseClient {
+  readonly backend: DatabaseBackend = 'demo'
+
+  private mockScans: Scan[] = [
+    {
+      scans_id: 1,
+      s_time: Math.floor(Date.now() / 1000) - 3600,
+      e_time: Math.floor(Date.now() / 1000) - 3500,
+      est_e_time: 0,
+      senders: 1,
+      listeners: 1,
+      scan_iter: 1,
+      profile: 'default',
+      options: 0,
+      payload_group: 0,
+      dronestr: 'local',
+      covertness: 0,
+      modules: '',
+      user: 'demo',
+      pcap_dumpfile: null,
+      pcap_readfile: null,
+      target_str: '192.168.1.0/24',
+      port_str: '1-1024',
+      pps: 1000,
+      src_port: 0,
+      mode: 'T',
+      mode_str: 'TCP SYN',
+      mode_flags: null,
+      num_phases: 1,
+      scan_metadata: null,
+      scan_notes: 'Demo scan for development',
+    },
+    {
+      scans_id: 2,
+      s_time: Math.floor(Date.now() / 1000) - 86400,
+      e_time: Math.floor(Date.now() / 1000) - 86300,
+      est_e_time: 0,
+      senders: 1,
+      listeners: 1,
+      scan_iter: 1,
+      profile: 'default',
+      options: 0,
+      payload_group: 0,
+      dronestr: 'local',
+      covertness: 0,
+      modules: '',
+      user: 'demo',
+      pcap_dumpfile: null,
+      pcap_readfile: null,
+      target_str: '10.0.0.0/24',
+      port_str: 'quick',
+      pps: 500,
+      src_port: 0,
+      mode: 'U',
+      mode_str: 'UDP',
+      mode_flags: null,
+      num_phases: 1,
+      scan_metadata: null,
+      scan_notes: null,
+    },
+  ]
+
+  private mockReports: IpReport[] = [
+    {
+      ipreport_id: 1,
+      scans_id: 1,
+      type: 1,
+      subtype: 18,
+      protocol: 6,
+      ttl: 64,
+      host_addr: '192.168.1.1',
+      trace_addr: '192.168.1.1',
+      dport: 22,
+      sport: 54321,
+      tseq: 12345,
+      mseq: 67890,
+      window_size: 65535,
+      t_tstamp: Math.floor(Date.now() / 1000) - 3550,
+      m_tstamp: 0,
+      extra_data: null,
+    },
+    {
+      ipreport_id: 2,
+      scans_id: 1,
+      type: 1,
+      subtype: 18,
+      protocol: 6,
+      ttl: 64,
+      host_addr: '192.168.1.1',
+      trace_addr: '192.168.1.1',
+      dport: 80,
+      sport: 54322,
+      tseq: 12346,
+      mseq: 67891,
+      window_size: 65535,
+      t_tstamp: Math.floor(Date.now() / 1000) - 3549,
+      m_tstamp: 0,
+      extra_data: null,
+    },
+    {
+      ipreport_id: 3,
+      scans_id: 1,
+      type: 1,
+      subtype: 18,
+      protocol: 6,
+      ttl: 64,
+      host_addr: '192.168.1.1',
+      trace_addr: '192.168.1.1',
+      dport: 443,
+      sport: 54323,
+      tseq: 12347,
+      mseq: 67892,
+      window_size: 65535,
+      t_tstamp: Math.floor(Date.now() / 1000) - 3548,
+      m_tstamp: 0,
+      extra_data: null,
+    },
+  ]
+
+  async checkConnection(): Promise<boolean> {
+    return true
+  }
+
+  async getScans(options?: { limit?: number; offset?: number }): Promise<Scan[]> {
+    await this.simulateDelay()
+    const start = options?.offset || 0
+    const end = start + (options?.limit || 50)
+    return this.mockScans.slice(start, end)
+  }
+
+  async getScan(scansId: number): Promise<Scan | null> {
+    await this.simulateDelay()
+    return this.mockScans.find((s) => s.scans_id === scansId) || null
+  }
+
+  async getScanSummaries(options?: { limit?: number }): Promise<ScanSummary[]> {
+    await this.simulateDelay()
+    return this.mockScans.slice(0, options?.limit || 50).map((scan) => ({
+      scans_id: scan.scans_id,
+      s_time: scan.s_time,
+      e_time: scan.e_time,
+      profile: scan.profile,
+      target_str: scan.target_str,
+      mode_str: scan.mode_str,
+      host_count: scan.scans_id === 1 ? 1 : 0,
+      port_count: scan.scans_id === 1 ? 3 : 0,
+      open_count: scan.scans_id === 1 ? 3 : 0,
+      tags: scan.scans_id === 1 ? ['demo', 'local'] : [],
+    }))
+  }
+
+  async getIpReports(scansId: number): Promise<IpReport[]> {
+    await this.simulateDelay()
+    return this.mockReports.filter((r) => r.scans_id === scansId)
+  }
+
+  async getIpReportsByHost(scansId: number, hostAddr: string): Promise<IpReport[]> {
+    await this.simulateDelay()
+    return this.mockReports.filter((r) => r.scans_id === scansId && r.host_addr === hostAddr)
+  }
+
+  async getHosts(_options?: { limit?: number }): Promise<Host[]> {
+    await this.simulateDelay()
+    return [
+      {
+        host_id: 1,
+        ip_addr: '192.168.1.1',
+        mac_addr: '00:11:22:33:44:55',
+        hostname: 'router.local',
+        os_guess: 'Linux 5.x',
+        first_seen: Math.floor(Date.now() / 1000) - 86400,
+        last_seen: Math.floor(Date.now() / 1000) - 3550,
+        scan_count: 2,
+        open_port_count: 3,
+        metadata: null,
+      },
+    ]
+  }
+
+  async getHost(hostId: number): Promise<Host | null> {
+    await this.simulateDelay()
+    if (hostId === 1) {
+      return {
+        host_id: 1,
+        ip_addr: '192.168.1.1',
+        mac_addr: '00:11:22:33:44:55',
+        hostname: 'router.local',
+        os_guess: 'Linux 5.x',
+        first_seen: Math.floor(Date.now() / 1000) - 86400,
+        last_seen: Math.floor(Date.now() / 1000) - 3550,
+        scan_count: 2,
+        open_port_count: 3,
+        metadata: null,
+      }
+    }
+    return null
+  }
+
+  async getHostByIp(ip: string): Promise<Host | null> {
+    await this.simulateDelay()
+    if (ip === '192.168.1.1') {
+      return this.getHost(1)
+    }
+    return null
+  }
+
+  async getHostSummaries(_scansId?: number): Promise<HostSummary[]> {
+    await this.simulateDelay()
+    return [
+      {
+        host_id: 1,
+        ip_addr: '192.168.1.1',
+        hostname: 'router.local',
+        os_guess: 'Linux 5.x',
+        open_ports: [22, 80, 443],
+        last_seen: Math.floor(Date.now() / 1000) - 3550,
+        scan_count: 2,
+      },
+    ]
+  }
+
+  async getStats(): Promise<DatabaseStats> {
+    await this.simulateDelay()
+    return {
+      totalScans: 2,
+      totalHosts: 1,
+      totalPorts: 3,
+      recentScans: 1,
+    }
+  }
+
+  private simulateDelay(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 100 + Math.random() * 200))
+  }
+}
+
+// =============================================================================
 // Factory
 // =============================================================================
 
@@ -269,15 +562,25 @@ let dbClient: DatabaseClient | null = null
 
 export function getDatabase(): DatabaseClient {
   if (!dbClient) {
-    if (DB_BACKEND === 'postgres') {
-      // For direct PostgreSQL, we'd need a different approach
-      // (pg-promise, node-postgres via backend API, etc.)
-      // For now, default to Supabase which can connect to any PostgreSQL
-      console.warn(`Direct PostgreSQL (${DATABASE_URL}) not yet implemented, using Supabase client`)
+    switch (config.backend) {
+      case 'supabase':
+        dbClient = new RestDatabase('supabase')
+        break
+      case 'postgrest':
+        dbClient = new RestDatabase('postgrest')
+        break
+      case 'demo':
+      default:
+        dbClient = new DemoDatabase()
+        break
     }
-    dbClient = new SupabaseDatabase()
   }
   return dbClient
+}
+
+export function resetDatabase(): void {
+  dbClient = null
+  supabaseClient = null
 }
 
 // =============================================================================
