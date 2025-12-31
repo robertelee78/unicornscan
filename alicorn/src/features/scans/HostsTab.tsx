@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatPort } from '@/lib/utils'
 import { decodeTcpFlags, getProtocolName } from '@/types/database'
-import { TcpFlagsDisplay } from './TcpFlagBadge'
+import { TcpFlagsDisplay } from '@/features/ports'
 import type { IpReport } from '@/types/database'
 
 interface HostsTabProps {

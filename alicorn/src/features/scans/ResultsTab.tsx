@@ -6,7 +6,7 @@
 import { Badge } from '@/components/ui/badge'
 import { formatPort, formatTimestamp } from '@/lib/utils'
 import { decodeTcpFlags, getProtocolName } from '@/types/database'
-import { TcpFlagsDisplay } from './TcpFlagBadge'
+import { TcpFlagsDisplay } from '@/features/ports'
 import type { IpReport } from '@/types/database'
 
 interface ResultsTabProps {

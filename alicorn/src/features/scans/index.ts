@@ -17,7 +17,8 @@ export { HostsTab } from './HostsTab'
 export { ArpResults } from './ArpResults'
 export { RawDataTab } from './RawDataTab'
 export { NotesTab } from './NotesTab'
-export { TcpFlagBadge, TcpFlagsDisplay } from './TcpFlagBadge'
+// Re-export from ports feature for backwards compatibility
+export { TcpFlagBadge, TcpFlagsDisplay } from '@/features/ports'
 export { useArpReports, useScanNotes } from './detail-hooks'
 
 // Types
