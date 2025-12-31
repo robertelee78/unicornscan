@@ -16,6 +16,10 @@ import {
   useRecentScans,
   type TimeRange,
 } from '@/features/dashboard'
+import {
+  ProtocolDistribution,
+  useGlobalProtocolDistribution,
+} from '@/features/charts'
 
 export function Dashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d')
@@ -24,6 +28,7 @@ export function Dashboard() {
   const { data: topPorts, isLoading: portsLoading } = useTopPorts(timeRange, 10)
   const { data: timeline, isLoading: timelineLoading } = useScanTimeline(timeRange)
   const { data: recentScans, isLoading: scansLoading } = useRecentScans(timeRange, 10)
+  const { data: protocolData, isLoading: protocolLoading } = useGlobalProtocolDistribution(timeRange)
 
   return (
     <div className="space-y-6">
@@ -41,6 +46,24 @@ export function Dashboard() {
 
       {/* Timeline Chart */}
       <ScanTimeline data={timeline} isLoading={timelineLoading} />
+
+      {/* Protocol Distribution - Bar and Pie views */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ProtocolDistribution
+          data={protocolData}
+          isLoading={protocolLoading}
+          variant="bar"
+          title="Protocol Distribution Over Time"
+          height={280}
+        />
+        <ProtocolDistribution
+          data={protocolData}
+          isLoading={protocolLoading}
+          variant="pie"
+          title="Protocol Breakdown"
+          height={280}
+        />
+      </div>
 
       {/* Two-column layout for Recent Scans and Top Ports */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
