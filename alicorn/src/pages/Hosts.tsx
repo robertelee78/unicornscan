@@ -18,6 +18,13 @@ import {
   type SortField,
   type PaginationState,
 } from '@/features/hosts'
+import {
+  ExportDialog,
+  ExportDropdown,
+  useExportDialog,
+  useHostsListExport,
+  type ExportFormat,
+} from '@/features/export'
 
 export function Hosts() {
   const [filters, setFilters] = useState<HostFilters>(DEFAULT_FILTERS)
@@ -25,6 +32,15 @@ export function Hosts() {
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
 
   const { data: hosts, total, isLoading, error } = useHostList(filters, sort, pagination)
+
+  // Export functionality
+  const exportDialog = useExportDialog()
+  const { exportHostsList, isExporting } = useHostsListExport(hosts)
+
+  // Quick export handler
+  const handleQuickExport = useCallback((format: ExportFormat) => {
+    exportHostsList({ ...exportDialog.options, format })
+  }, [exportHostsList, exportDialog.options])
 
   // Handle column header click for sorting
   const handleSort = useCallback((field: SortField) => {
@@ -61,6 +77,11 @@ export function Hosts() {
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Host Inventory</CardTitle>
+            <ExportDropdown
+              onExport={handleQuickExport}
+              onOpenDialog={exportDialog.openDialog}
+              disabled={hosts.length === 0}
+            />
           </div>
           <HostFilterBar filters={filters} onChange={handleFilterChange} />
         </CardHeader>
@@ -78,6 +99,20 @@ export function Hosts() {
           />
         </CardContent>
       </Card>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialog.isOpen}
+        onOpenChange={(open) => !open && exportDialog.closeDialog()}
+        context="host-list"
+        onExport={(options) => {
+          exportHostsList(options)
+          exportDialog.closeDialog()
+        }}
+        isExporting={isExporting}
+        filteredCount={hosts.length}
+        totalCount={total}
+      />
     </div>
   )
 }

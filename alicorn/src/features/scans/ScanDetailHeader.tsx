@@ -9,12 +9,15 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatTimestamp } from '@/lib/utils'
+import { ExportDropdown, type ExportFormat } from '@/features/export'
 import type { Scan } from '@/types/database'
 
 interface ScanDetailHeaderProps {
   scan: Scan
   reportCount: number
   hostCount: number
+  onQuickExport?: (format: ExportFormat) => void
+  onAdvancedExport?: () => void
 }
 
 function formatDuration(start: number, end: number): string {
@@ -30,19 +33,34 @@ function formatDuration(start: number, end: number): string {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
 }
 
-export function ScanDetailHeader({ scan, reportCount, hostCount }: ScanDetailHeaderProps) {
+export function ScanDetailHeader({
+  scan,
+  reportCount,
+  hostCount,
+  onQuickExport,
+  onAdvancedExport,
+}: ScanDetailHeaderProps) {
   const duration = formatDuration(scan.s_time, scan.e_time)
 
   return (
     <div className="space-y-4">
       {/* Back link and title */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="h-8 px-2">
           <Link to="/scans">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Scans
           </Link>
         </Button>
+
+        {/* Export button */}
+        {onQuickExport && (
+          <ExportDropdown
+            onExport={onQuickExport}
+            onOpenDialog={onAdvancedExport}
+            showAdvanced={!!onAdvancedExport}
+          />
+        )}
       </div>
 
       <div className="flex items-start justify-between">
