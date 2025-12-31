@@ -218,6 +218,31 @@ fi
 
 AC_SUBST(GEOIP_LIBS)
 AC_SUBST(GEOIP_CFLAGS)
+
+dnl Check for IP2Location C library (optional additional provider)
+AC_MSG_CHECKING([for IP2Location C library])
+ip2location_found=no
+PKG_CHECK_MODULES([IP2LOCATION], [libIP2Location], [
+    AC_DEFINE([HAVE_IP2LOCATION], [1], [Define if IP2Location is available])
+    GEOIP_LIBS="$GEOIP_LIBS $IP2LOCATION_LIBS"
+    GEOIP_CFLAGS="$GEOIP_CFLAGS $IP2LOCATION_CFLAGS"
+    ip2location_found=yes
+    AC_MSG_RESULT([yes])
+], [
+    dnl Try manual detection
+    AC_CHECK_HEADERS([IP2Location.h], [
+        AC_CHECK_LIB([IP2Location], [IP2Location_open], [
+            AC_DEFINE([HAVE_IP2LOCATION], [1], [Define if IP2Location is available])
+            GEOIP_LIBS="$GEOIP_LIBS -lIP2Location"
+            ip2location_found=yes
+            AC_MSG_RESULT([yes])
+        ], [
+            AC_MSG_RESULT([no])
+        ])
+    ], [
+        AC_MSG_RESULT([no])
+    ])
+])
 ])
 
 dnl find /proc/net/route or just give up and cry
