@@ -130,7 +130,7 @@ export function ScanDetail() {
                             <td className="py-2">
                               <Badge variant="open">{formatPort(report.dport)}</Badge>
                             </td>
-                            <td className="py-2">{getProtocolName(report.protocol)}</td>
+                            <td className="py-2">{getProtocolName(report.proto)}</td>
                             <td className="py-2">{report.ttl}</td>
                             <td className="py-2">
                               {decodeTcpFlags(report.subtype).join(' ')}

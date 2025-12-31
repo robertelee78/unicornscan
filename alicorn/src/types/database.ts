@@ -39,20 +39,27 @@ export interface Scan {
 export interface IpReport {
   ipreport_id: number
   scans_id: number
+  magic: number
+  sport: number
+  dport: number
+  proto: number  // 6=TCP, 17=UDP, 1=ICMP
   type: number
   subtype: number
-  protocol: number
-  ttl: number
+  send_addr: string
   host_addr: string
   trace_addr: string
-  dport: number
-  sport: number
-  tseq: number
+  ttl: number
+  tstamp: number
+  utstamp: number
+  flags: number
   mseq: number
+  tseq: number
   window_size: number
   t_tstamp: number
   m_tstamp: number
   extra_data: Record<string, unknown> | null
+  // Alias for convenience (maps to proto field)
+  protocol?: number
 }
 
 export interface IpReportData {
@@ -64,6 +71,92 @@ export interface IpReportData {
 export interface IpPacket {
   ipreport_id: number
   packet: Uint8Array
+}
+
+export interface ArpReport {
+  arpreport_id: number
+  scans_id: number
+  magic: number
+  host_addr: string
+  hwaddr: string  // MAC address
+  tstamp: number
+  utstamp: number
+  extra_data: Record<string, unknown> | null
+}
+
+export interface ArpPacket {
+  arpreport_id: number
+  packet: Uint8Array
+}
+
+// =============================================================================
+// Workunit Types (internal scanner state)
+// =============================================================================
+
+export interface SendWorkunit {
+  magic: number
+  scans_id: number
+  repeats: number
+  send_opts: number
+  pps: number
+  delay_type: number
+  myaddr: string
+  mymask: string
+  macaddr: string
+  mtu: number
+  target: string
+  targetmask: string
+  tos: number
+  minttl: number
+  maxttl: number
+  fingerprint: number
+  src_port: number
+  ip_off: number
+  ipoptions: Uint8Array | null
+  tcpflags: number
+  tcpoptions: Uint8Array | null
+  window_size: number
+  syn_key: number
+  port_str: string | null
+  wid: number
+  status: number
+}
+
+export interface ListenWorkunit {
+  magic: number
+  scans_id: number
+  recv_timeout: number
+  ret_layers: number
+  recv_opts: number
+  window_size: number
+  syn_key: number
+  pcap_str: string | null
+  wid: number
+  status: number
+}
+
+export interface ScanPhase {
+  scans_id: number
+  phase_idx: number
+  mode: number
+  mode_char: string
+  tcphdrflgs: number
+  send_opts: number
+  recv_opts: number
+  pps: number
+  repeats: number
+  recv_timeout: number
+}
+
+export interface WorkunitStats {
+  wid: number
+  scans_id: number
+  msg: string
+}
+
+export interface OutputEntry {
+  scans_id: number
+  msg: string
 }
 
 // =============================================================================
