@@ -1,16 +1,46 @@
 /**
- * Scans list page
+ * Scans list page - thin wrapper over scans feature module
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { Link } from 'react-router-dom'
-import { useScanSummaries } from '@/hooks'
-import { formatTimestamp, formatRelativeTime } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  ScanTable,
+  ScanFilterBar,
+  Pagination,
+  useScanList,
+  DEFAULT_FILTERS,
+  DEFAULT_SORT,
+  DEFAULT_PAGINATION,
+  type ScanFilters,
+  type SortState,
+  type SortField,
+  type PaginationState,
+} from '@/features/scans'
 
 export function Scans() {
-  const { data: scans, isLoading, error } = useScanSummaries(50)
+  const [filters, setFilters] = useState<ScanFilters>(DEFAULT_FILTERS)
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
+  const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
+
+  const { data: scans, total, isLoading, error } = useScanList(filters, sort, pagination)
+
+  // Handle column header click for sorting
+  const handleSort = useCallback((field: SortField) => {
+    setSort((prev) => ({
+      field,
+      direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc',
+    }))
+    // Reset to first page when sorting changes
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [])
+
+  // Reset to first page when filters change
+  const handleFilterChange = useCallback((newFilters: ScanFilters) => {
+    setFilters(newFilters)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [])
 
   if (error) {
     return (
@@ -22,68 +52,30 @@ export function Scans() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Scans</h1>
-          <p className="text-muted mt-1">Browse scan history</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Scans</h1>
+        <p className="text-muted mt-1">Browse scan history</p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Scan History</CardTitle>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Scan History</CardTitle>
+          </div>
+          <ScanFilterBar filters={filters} onChange={handleFilterChange} />
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-muted">Loading scans...</div>
-          ) : scans?.length === 0 ? (
-            <div className="text-muted">No scans found</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border text-left text-sm text-muted">
-                    <th className="pb-3 font-medium">ID</th>
-                    <th className="pb-3 font-medium">Target</th>
-                    <th className="pb-3 font-medium">Mode</th>
-                    <th className="pb-3 font-medium">Hosts</th>
-                    <th className="pb-3 font-medium">Ports</th>
-                    <th className="pb-3 font-medium">Time</th>
-                    <th className="pb-3 font-medium">Tags</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono text-sm">
-                  {scans?.map((scan) => (
-                    <tr key={scan.scans_id} className="border-b border-border/50 hover:bg-surface-light/50">
-                      <td className="py-3">
-                        <Link to={`/scans/${scan.scans_id}`} className="text-primary hover:underline">
-                          #{scan.scans_id}
-                        </Link>
-                      </td>
-                      <td className="py-3">{scan.target_str}</td>
-                      <td className="py-3">
-                        <Badge variant="outline">{scan.mode_str || 'Unknown'}</Badge>
-                      </td>
-                      <td className="py-3">{scan.host_count}</td>
-                      <td className="py-3">{scan.port_count}</td>
-                      <td className="py-3" title={formatTimestamp(scan.s_time)}>
-                        {formatRelativeTime(scan.s_time)}
-                      </td>
-                      <td className="py-3">
-                        <div className="flex gap-1">
-                          {scan.tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <CardContent className="space-y-4">
+          <ScanTable
+            scans={scans}
+            sort={sort}
+            onSort={handleSort}
+            isLoading={isLoading}
+          />
+          <Pagination
+            pagination={pagination}
+            total={total}
+            onChange={setPagination}
+          />
         </CardContent>
       </Card>
     </div>

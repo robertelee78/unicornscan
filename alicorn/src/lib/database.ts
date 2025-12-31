@@ -54,6 +54,27 @@ function getConfig(): DatabaseConfig {
 export const config = getConfig()
 
 // =============================================================================
+// Filtered Scans Types
+// =============================================================================
+
+export interface FilteredScansOptions {
+  search?: string
+  dateFrom?: number | null
+  dateTo?: number | null
+  profiles?: string[]
+  modes?: string[]
+  sortField?: 'scans_id' | 's_time' | 'profile' | 'target_str'
+  sortDirection?: 'asc' | 'desc'
+  offset?: number
+  limit?: number
+}
+
+export interface FilteredScansResult {
+  data: ScanSummary[]
+  total: number
+}
+
+// =============================================================================
 // Database Interface
 // =============================================================================
 
@@ -67,6 +88,7 @@ export interface DatabaseClient {
   getScans(options?: { limit?: number; offset?: number }): Promise<Scan[]>
   getScan(scansId: number): Promise<Scan | null>
   getScanSummaries(options?: { limit?: number }): Promise<ScanSummary[]>
+  getFilteredScans(options: FilteredScansOptions): Promise<FilteredScansResult>
 
   // IP Reports (ports/responses)
   getIpReports(scansId: number): Promise<IpReport[]>
@@ -210,6 +232,108 @@ class RestDatabase implements DatabaseClient {
     )
 
     return summaries
+  }
+
+  async getFilteredScans(options: FilteredScansOptions): Promise<FilteredScansResult> {
+    const {
+      search,
+      dateFrom,
+      dateTo,
+      profiles,
+      modes,
+      sortField = 's_time',
+      sortDirection = 'desc',
+      offset = 0,
+      limit = 25,
+    } = options
+
+    // Build the base query for data
+    let query = this.client
+      .from('uni_scans')
+      .select('scans_id, s_time, e_time, profile, target_str, mode_str')
+
+    // Build count query with same filters
+    let countQuery = this.client
+      .from('uni_scans')
+      .select('*', { count: 'exact', head: true })
+
+    // Apply filters to both queries
+    if (search) {
+      query = query.ilike('target_str', `%${search}%`)
+      countQuery = countQuery.ilike('target_str', `%${search}%`)
+    }
+
+    if (dateFrom !== null && dateFrom !== undefined) {
+      query = query.gte('s_time', dateFrom)
+      countQuery = countQuery.gte('s_time', dateFrom)
+    }
+
+    if (dateTo !== null && dateTo !== undefined) {
+      query = query.lte('s_time', dateTo)
+      countQuery = countQuery.lte('s_time', dateTo)
+    }
+
+    if (profiles && profiles.length > 0) {
+      query = query.in('profile', profiles)
+      countQuery = countQuery.in('profile', profiles)
+    }
+
+    if (modes && modes.length > 0) {
+      query = query.in('mode_str', modes)
+      countQuery = countQuery.in('mode_str', modes)
+    }
+
+    // Apply sorting
+    query = query.order(sortField, { ascending: sortDirection === 'asc' })
+
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1)
+
+    // Execute both queries
+    const [dataResult, countResult] = await Promise.all([query, countQuery])
+
+    if (dataResult.error) throw dataResult.error
+    if (countResult.error) throw countResult.error
+
+    // Fetch additional data for each scan (host_count, port_count, tags)
+    const summaries: ScanSummary[] = await Promise.all(
+      (dataResult.data || []).map(async (scan) => {
+        const [portResult, hostsResult, tagsResult] = await Promise.all([
+          this.client
+            .from('uni_ipreport')
+            .select('*', { count: 'exact', head: true })
+            .eq('scans_id', scan.scans_id),
+          this.client
+            .from('uni_ipreport')
+            .select('host_addr')
+            .eq('scans_id', scan.scans_id),
+          this.client
+            .from('uni_scan_tags')
+            .select('tag')
+            .eq('scans_id', scan.scans_id),
+        ])
+
+        const uniqueHosts = new Set(hostsResult.data?.map((h) => h.host_addr) || [])
+
+        return {
+          scans_id: scan.scans_id,
+          s_time: scan.s_time,
+          e_time: scan.e_time,
+          profile: scan.profile,
+          target_str: scan.target_str,
+          mode_str: scan.mode_str,
+          host_count: uniqueHosts.size,
+          port_count: portResult.count || 0,
+          open_count: 0,
+          tags: tagsResult.data?.map((t) => t.tag) || [],
+        }
+      })
+    )
+
+    return {
+      data: summaries,
+      total: countResult.count || 0,
+    }
   }
 
   async getIpReports(scansId: number): Promise<IpReport[]> {
@@ -638,6 +762,105 @@ class DemoDatabase implements DatabaseClient {
       open_count: scan.scans_id === 1 ? 3 : 0,
       tags: scan.scans_id === 1 ? ['demo', 'local'] : [],
     }))
+  }
+
+  async getFilteredScans(options: FilteredScansOptions): Promise<FilteredScansResult> {
+    await this.simulateDelay()
+
+    const {
+      search,
+      dateFrom,
+      dateTo,
+      profiles,
+      modes,
+      sortField = 's_time',
+      sortDirection = 'desc',
+      offset = 0,
+      limit = 25,
+    } = options
+
+    let filtered = [...this.mockScans]
+
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase()
+      filtered = filtered.filter((s) => s.target_str.toLowerCase().includes(searchLower))
+    }
+
+    // Apply date filters
+    if (dateFrom !== null && dateFrom !== undefined) {
+      filtered = filtered.filter((s) => s.s_time >= dateFrom)
+    }
+    if (dateTo !== null && dateTo !== undefined) {
+      filtered = filtered.filter((s) => s.s_time <= dateTo)
+    }
+
+    // Apply profile filter
+    if (profiles && profiles.length > 0) {
+      filtered = filtered.filter((s) => profiles.includes(s.profile))
+    }
+
+    // Apply mode filter
+    if (modes && modes.length > 0) {
+      filtered = filtered.filter((s) => modes.includes(s.mode_str || ''))
+    }
+
+    const total = filtered.length
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal: string | number
+      let bVal: string | number
+
+      switch (sortField) {
+        case 'scans_id':
+          aVal = a.scans_id
+          bVal = b.scans_id
+          break
+        case 'profile':
+          aVal = a.profile
+          bVal = b.profile
+          break
+        case 'target_str':
+          aVal = a.target_str
+          bVal = b.target_str
+          break
+        case 's_time':
+        default:
+          aVal = a.s_time
+          bVal = b.s_time
+      }
+
+      if (typeof aVal === 'string') {
+        return sortDirection === 'asc'
+          ? aVal.localeCompare(bVal as string)
+          : (bVal as string).localeCompare(aVal)
+      }
+      return sortDirection === 'asc' ? aVal - (bVal as number) : (bVal as number) - aVal
+    })
+
+    // Apply pagination
+    const paged = filtered.slice(offset, offset + limit)
+
+    // Convert to summaries
+    const data: ScanSummary[] = paged.map((scan) => {
+      const scanReports = this.mockReports.filter((r) => r.scans_id === scan.scans_id)
+      const uniqueHosts = new Set(scanReports.map((r) => r.host_addr))
+      return {
+        scans_id: scan.scans_id,
+        s_time: scan.s_time,
+        e_time: scan.e_time,
+        profile: scan.profile,
+        target_str: scan.target_str,
+        mode_str: scan.mode_str,
+        host_count: uniqueHosts.size,
+        port_count: scanReports.length,
+        open_count: scanReports.length,
+        tags: scan.scans_id === 1 ? ['demo', 'local'] : [],
+      }
+    })
+
+    return { data, total }
   }
 
   async getIpReports(scansId: number): Promise<IpReport[]> {
