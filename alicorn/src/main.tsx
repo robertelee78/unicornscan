@@ -17,6 +17,7 @@ import {
   HostDetail,
   Topology,
   Compare,
+  Statistics,
   Settings,
   NotFound,
 } from '@/pages'
@@ -52,6 +53,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="hosts/:id" element={<HostDetail />} />
             <Route path="topology" element={<Topology />} />
             <Route path="compare" element={<Compare />} />
+            <Route path="statistics" element={<Statistics />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Route>
