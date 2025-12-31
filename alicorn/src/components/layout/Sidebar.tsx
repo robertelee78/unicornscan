@@ -4,13 +4,14 @@
  */
 
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Scan, Server, GitCompare, Settings } from 'lucide-react'
+import { LayoutDashboard, Scan, Server, Network, GitCompare, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/scans', icon: Scan, label: 'Scans' },
   { to: '/hosts', icon: Server, label: 'Hosts' },
+  { to: '/topology', icon: Network, label: 'Topology' },
   { to: '/compare', icon: GitCompare, label: 'Compare' },
 ]
 

@@ -15,6 +15,7 @@ import {
   ScanDetail,
   Hosts,
   HostDetail,
+  Topology,
   Compare,
   Settings,
   NotFound,
@@ -49,6 +50,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="scans/:id" element={<ScanDetail />} />
             <Route path="hosts" element={<Hosts />} />
             <Route path="hosts/:id" element={<HostDetail />} />
+            <Route path="topology" element={<Topology />} />
             <Route path="compare" element={<Compare />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />

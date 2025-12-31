@@ -10,7 +10,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Scan, IpReport, ArpReport, Host, ScanSummary, HostSummary, Note } from '@/types/database'
+import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note } from '@/types/database'
 import type {
   DashboardStats,
   PortCount,
@@ -111,6 +111,10 @@ export interface DatabaseClient {
   getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]>
   getScanTimeline(options: { since: number | null }): Promise<ScanTimelinePoint[]>
   getRecentScans(options: { limit: number; since: number | null }): Promise<ScanSummary[]>
+
+  // Topology (network graph)
+  getHops(scansId: number): Promise<Hop[]>
+  getHopsForHosts(hostAddrs: string[]): Promise<Hop[]>
 }
 
 // =============================================================================
@@ -625,6 +629,37 @@ class RestDatabase implements DatabaseClient {
 
     return summaries
   }
+
+  async getHops(scansId: number): Promise<Hop[]> {
+    const { data, error } = await this.client
+      .from('uni_hops')
+      .select('*')
+      .eq('scans_id', scansId)
+      .order('target_addr', { ascending: true })
+
+    if (error) {
+      // Table might not exist yet - return empty array
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as Hop[]
+  }
+
+  async getHopsForHosts(hostAddrs: string[]): Promise<Hop[]> {
+    if (hostAddrs.length === 0) return []
+
+    const { data, error } = await this.client
+      .from('uni_hops')
+      .select('*')
+      .in('target_addr', hostAddrs)
+      .order('target_addr', { ascending: true })
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as Hop[]
+  }
 }
 
 // =============================================================================
@@ -1127,6 +1162,30 @@ class DemoDatabase implements DatabaseClient {
           tags: scan.scans_id === 1 ? ['demo', 'local'] : [],
         }
       })
+  }
+
+  async getHops(_scansId: number): Promise<Hop[]> {
+    await this.simulateDelay()
+    // Demo hop data - simulating an intermediate router discovery
+    // In real scans, this happens when trace_addr != host_addr
+    return [
+      {
+        hop_id: 1,
+        ipreport_id: 1,
+        scans_id: 1,
+        target_addr: '192.168.1.1',
+        hop_addr: '10.0.0.1',  // Gateway router responded
+        hop_number: 1,
+        ttl_observed: 63,
+        rtt_us: 1500,
+        extra_data: null,
+      },
+    ]
+  }
+
+  async getHopsForHosts(_hostAddrs: string[]): Promise<Hop[]> {
+    await this.simulateDelay()
+    return []
   }
 
   private simulateDelay(): Promise<void> {

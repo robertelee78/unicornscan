@@ -187,9 +187,13 @@ export interface HostScan {
 export interface Hop {
   hop_id: number
   ipreport_id: number
-  hop_number: number
-  hop_addr: string
-  rtt_ms: number | null
+  scans_id: number
+  target_addr: string   // The host we were probing
+  hop_addr: string      // Intermediate router that responded (trace_addr)
+  hop_number: number | null
+  ttl_observed: number  // TTL from the response packet
+  rtt_us: number | null // Round-trip time in microseconds
+  extra_data: Record<string, unknown> | null
 }
 
 export interface Service {
@@ -348,5 +352,49 @@ export function getProtocolName(protocol: number): string {
     case IP_PROTOCOLS.TCP: return 'tcp'
     case IP_PROTOCOLS.UDP: return 'udp'
     default: return `proto-${protocol}`
+  }
+}
+
+// =============================================================================
+// TTL Constants for OS Inference
+// Common initial TTL values by operating system
+// =============================================================================
+
+export const COMMON_STARTING_TTLS = {
+  LINUX_UNIX: 64,    // Linux, Unix, macOS, Android
+  WINDOWS: 128,      // Windows (all modern versions)
+  CISCO_ROUTER: 255, // Cisco IOS, many routers
+  SOLARIS: 255,      // Solaris
+} as const
+
+export type OsFamily = 'linux' | 'windows' | 'router' | 'unknown'
+
+/**
+ * Infer OS family from observed TTL
+ * Uses common starting TTL values to guess the original OS
+ */
+export function inferOsFromTtl(ttl: number): { osFamily: OsFamily; estimatedHops: number } {
+  // Find the closest common starting TTL that's >= observed TTL
+  if (ttl <= 64) {
+    return { osFamily: 'linux', estimatedHops: 64 - ttl }
+  }
+  if (ttl <= 128) {
+    return { osFamily: 'windows', estimatedHops: 128 - ttl }
+  }
+  if (ttl <= 255) {
+    return { osFamily: 'router', estimatedHops: 255 - ttl }
+  }
+  return { osFamily: 'unknown', estimatedHops: 0 }
+}
+
+/**
+ * Get color for OS family (for topology visualization)
+ */
+export function getOsFamilyColor(osFamily: OsFamily): string {
+  switch (osFamily) {
+    case 'linux': return '#22c55e'    // Green (Tux)
+    case 'windows': return '#3b82f6'  // Blue (Windows blue)
+    case 'router': return '#f59e0b'   // Amber (network infrastructure)
+    case 'unknown': return '#6b7280'  // Gray
   }
 }
