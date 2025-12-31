@@ -952,7 +952,7 @@ char *scan_getgports(void) {
 }
 
 char *scan_optmap(const char *key, const char *value) {
-	static char ebuf[64];
+	static char ebuf[128];
 	char lkey[32], lval[32];
 	int j=0, eflg=0;
 
@@ -1056,7 +1056,7 @@ char *scan_optmap(const char *key, const char *value) {
 }
 
 char *scan_optmapi(const char *key, int value) {
-	static char ebuf[64];
+	static char ebuf[128];
 	char lkey[32];
 	int j=0;
 

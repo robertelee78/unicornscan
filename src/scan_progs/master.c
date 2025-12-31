@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include <scan_progs/scanopts.h>
 #include <scan_progs/scan_export.h>
@@ -398,7 +399,7 @@ static void master_read_drones(void) {
 						}
 
 						snprintf(smsg, sizeof(smsg) -1,
-							"%.1f pps with %llu packets sent total",
+							"%.1f pps with %" PRIu64 " packets sent total",
 							d_u.s->pps,
 							d_u.s->packets_sent
 						);

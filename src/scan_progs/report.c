@@ -449,7 +449,7 @@ static int do_report_nodefunc(uint64_t rkey, void *ptr, void *cbdata) {
 		 */
 		if (this_ip != last_reported_ip && last_reported_ip != 0) {
 			if ( ! GET_REPORTQUIET()) {
-				OUT("");
+				OUT("%s", "");
 			}
 		}
 		last_reported_ip=this_ip;
@@ -673,7 +673,7 @@ static char *fmtcat(const char *fmt, const void *report) {
 
 				memcpy(buf, fmt - noff, noff);
 				buf[noff]='\0';
-				strncat(ofmt, buf, strlen(buf));
+				strncat(ofmt, buf, sizeof(buf) - 1);
 			}
 
 			doname=0;

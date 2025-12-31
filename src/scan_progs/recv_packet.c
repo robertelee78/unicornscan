@@ -528,7 +528,7 @@ void recv_packet(void) {
 }
 
 static char *get_pcapfilterstr(void) {
-	static char base_filter[128], addr_filter[128], pfilter[512];
+	static char base_filter[128], addr_filter[192], pfilter[512];
 
 	CLEAR(base_filter); CLEAR(addr_filter); CLEAR(pfilter);
 

@@ -15,7 +15,7 @@
 static void do_netroutes(void);
 static char *rflags_tostr(int);
 static char *addrs_tostr(int);
-static char *cidr_saddrstr(const struct sockaddr *);
+static const char *cidr_saddrstr(const struct sockaddr *);
 
  
 #define HAVE_STRUCT_SOCKADDR_LEN 1
@@ -213,9 +213,9 @@ struct f_s {
 };
 #endif
 
-static char *cidr_saddrstr(const struct sockaddr *in) {
+static const char *cidr_saddrstr(const struct sockaddr *in) {
         union {
-                struct f_s *fs;
+                const struct f_s *fs;
                 const struct sockaddr *s;
                 const struct sockaddr_in *sin;
                 const struct sockaddr_in6 *sin6;
@@ -223,7 +223,8 @@ static char *cidr_saddrstr(const struct sockaddr *in) {
 		const struct sockaddr_dl *dl;
 #endif
         } s_u;
-        static char nbuf[256], *ret=NULL;
+        static char nbuf[256];
+        const char *ret=NULL;
         const void *p=NULL;
 
         if (in == NULL) {

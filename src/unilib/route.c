@@ -48,7 +48,7 @@ int getroutes(char **intf, struct sockaddr *tgt, struct sockaddr *tgtmask, struc
 	route_info_t ri_u;
 	union sock_u ts_u, gws_u;
 	static struct sockaddr_storage gw_s;
-	char *rstr=NULL;
+	const char *rstr=NULL;
 	unsigned int rmask=0;
 
 	assert(intf != NULL && tgt != NULL && tgtmask != NULL && gw != NULL);
@@ -117,7 +117,7 @@ static void get_netroutes(void) {
 	char lbuf[1024], intf[32];
 	uint32_t dest, gw, refcnt, use, mask, irtt;
 	uint16_t metric, flags, window, mtu;
-	char destnet[128], gwstr[128], addstr[128];
+	char destnet[128], gwstr[128], addstr[192];
 	int lineno=0;
 
 	pnr=fopen("/proc/net/route", "r");
@@ -177,7 +177,7 @@ static void get_netroutes(void) {
 					s_u.sin->sin_family=AF_INET;
 				}
 
-				sprintf(addstr, "%s/%d", destnet, mycidr);
+				snprintf(addstr, sizeof(addstr), "%s/%d", destnet, mycidr);
 				DBG(M_RTE, "net %s via %s metric %u", addstr, (flags & RTF_GATEWAY) == 0 ? intf : gwstr, metric);
 				node=make_and_lookup(rt, addstr);
 				if (node == NULL) {

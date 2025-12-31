@@ -488,7 +488,7 @@ void cidr_randhost(struct sockaddr *host, const struct sockaddr *network, const 
 
 double  cidr_numhosts(const struct sockaddr *network, const struct sockaddr *netmask) {
 	double ret=0.0;
-	union sock_u net_u, mask_u;
+	union csock_u net_u, mask_u;
 
 	net_u.s=network;
 	mask_u.s=netmask;
@@ -558,14 +558,15 @@ unsigned int cidr_getmask(const struct sockaddr *in) {
 	return 0;
 }
 
-char *cidr_saddrstr(const struct sockaddr *in) {
+const char *cidr_saddrstr(const struct sockaddr *in) {
 	union {
-		struct f_s *fs;
+		const struct f_s *fs;
 		const struct sockaddr *s;
 		const struct sockaddr_in *sin;
 		const struct sockaddr_in6 *sin6;
 	} s_u;
-	static char nbuf[256], *ret=NULL;
+	static char nbuf[256];
+	const char *ret=NULL;
 	const void *p=NULL;
 
 	if (in == NULL) {
