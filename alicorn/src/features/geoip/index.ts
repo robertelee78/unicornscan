@@ -39,3 +39,13 @@ export {
   useGeoIPAsnBreakdown,
   useHasGeoIP,
 } from './hooks'
+
+// Components
+export {
+  GeoIPWorldMap,
+  CountryDistributionChart,
+  IpTypeChart,
+  GeoIPCountryTable,
+  GeoIPAsnTable,
+  GeoIPSection,
+} from './components'

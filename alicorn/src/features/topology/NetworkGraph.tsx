@@ -5,7 +5,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import * as d3 from 'd3'
 import { cn } from '@/lib/utils'
 import { getOsFamilyColor } from '@/types/database'
@@ -95,13 +95,13 @@ export function NetworkGraph({
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [hoveredNode, setHoveredNode] = useState<TopologyNode | null>(null)
 
-  // Merge config with defaults
-  const config: TopologyConfig = {
+  // Merge config with defaults (memoized to avoid unnecessary effect reruns)
+  const config: TopologyConfig = useMemo(() => ({
     ...DEFAULT_TOPOLOGY_CONFIG,
     ...configOverrides,
     width: dimensions.width,
     height: dimensions.height,
-  }
+  }), [configOverrides, dimensions.width, dimensions.height])
 
   // Calculate scale factors for visualization
   const maxPorts = Math.max(...data.nodes.map(n => n.portCount), 1)
