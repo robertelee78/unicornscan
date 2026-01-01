@@ -1,5 +1,5 @@
 /**
- * TypeScript types matching unicornscan PostgreSQL schema v7
+ * TypeScript types matching unicornscan PostgreSQL schema v9
  * These types map directly to database tables for type-safe queries
  */
 
@@ -65,6 +65,7 @@ export interface IpReport {
   window_size: number
   t_tstamp: number
   m_tstamp: number
+  eth_hwaddr: string | null  // v9: Ethernet source MAC for local network responses
   extra_data: Record<string, unknown> | null
   // Alias for convenience (maps to proto field)
   protocol?: number
@@ -176,12 +177,14 @@ export interface Host {
   host_addr: string        // IP address (database column name)
   ip_addr?: string         // Alias for compatibility
   mac_addr: string | null
+  current_mac?: string | null  // v8: Most recent MAC from history (or mac_addr if set)
   hostname: string | null
   os_guess?: string | null // From OS fingerprinting (optional)
   first_seen: string | number  // ISO 8601 string from timestamptz, or Unix timestamp
   last_seen: string | number   // ISO 8601 string from timestamptz, or Unix timestamp
   scan_count: number       // Number of unique scans this host appeared in
   port_count: number       // Number of distinct responding ports
+  mac_count?: number       // v8: Number of unique MACs associated with this IP
   open_port_count?: number // Alias for port_count (deprecated)
   extra_data: Record<string, unknown> | null
 }
@@ -192,6 +195,67 @@ export interface HostScan {
   ports_found: number
   first_seen_in_scan: number
   last_seen_in_scan: number
+}
+
+// =============================================================================
+// MAC<->IP History Types (v8 schema)
+// =============================================================================
+
+/**
+ * Historical MAC<->IP association record
+ * Tracks every unique MAC<->IP pairing across scans
+ */
+export interface MacIpHistory {
+  history_id: number
+  host_addr: string
+  mac_addr: string
+  first_seen: string | number   // ISO 8601 or Unix timestamp
+  last_seen: string | number    // ISO 8601 or Unix timestamp
+  first_scans_id: number
+  last_scans_id: number | null
+  observation_count: number     // How many times we've seen this pairing
+  age_seconds?: number          // Computed: seconds since last_seen
+  first_scan_profile?: string   // Profile of first scan
+  last_scan_profile?: string    // Profile of most recent scan
+  extra_data: Record<string, unknown> | null
+}
+
+/**
+ * Current MAC for an IP address (most recent association)
+ */
+export interface CurrentMacByIp {
+  host_addr: string
+  mac_addr: string
+  first_seen: string | number
+  last_seen: string | number
+  observation_count: number
+  first_scans_id: number
+  last_scans_id: number | null
+}
+
+/**
+ * Current IP for a MAC address (most recent association)
+ */
+export interface CurrentIpByMac {
+  mac_addr: string
+  host_addr: string
+  first_seen: string | number
+  last_seen: string | number
+  observation_count: number
+  first_scans_id: number
+  last_scans_id: number | null
+}
+
+/**
+ * IP addresses that have had multiple MAC associations
+ */
+export interface MacIpChange {
+  host_addr: string
+  mac_count: number
+  mac_addresses: string[]       // Array of MACs, most recent first
+  first_observed: string | number
+  last_observed: string | number
+  total_observations: number
 }
 
 export interface Hop {
