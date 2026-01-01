@@ -6,7 +6,6 @@
 import { useLocation, Link } from 'react-router-dom'
 import { Bell, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { config } from '@/lib/database'
 import { Badge } from '@/components/ui/badge'
 import { ThemeDropdown } from '@/features/theme'
 import { ConnectionIndicator } from '@/features/connection'
@@ -45,7 +44,7 @@ export function Header({ notesCount = 0, onNotesClick }: HeaderProps) {
 
         {/* Backend indicator */}
         <Badge variant="outline" className="font-mono text-xs">
-          {config.backend}
+          postgrest
         </Badge>
 
         {/* Notes sidebar toggle */}

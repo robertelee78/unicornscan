@@ -87,7 +87,7 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <dt className="text-muted">Backend</dt>
               <dd>
-                <Badge variant="default">{config.backend}</Badge>
+                <Badge variant="default">postgrest</Badge>
               </dd>
             </div>
             <div className="flex items-center justify-between">
@@ -98,7 +98,7 @@ export function Settings() {
                 </Badge>
               </dd>
             </div>
-            {config.backend === 'postgrest' && config.postgrestUrl && (
+            {config.postgrestUrl && (
               <div className="flex items-center justify-between">
                 <dt className="text-muted">PostgREST URL</dt>
                 <dd className="font-mono text-xs">{config.postgrestUrl}</dd>
