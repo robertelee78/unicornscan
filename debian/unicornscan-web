@@ -258,6 +258,10 @@ cmd_reset() {
 
     cd "$INSTALL_DIR"
     $COMPOSE_CMD down -v
+
+    # Remove credentials so fresh password is generated on next start
+    rm -f "$ENV_FILE" "$PASSWORD_FILE"
+
     print_success "Database reset. Run 'unicornscan-web start' to create fresh database."
 }
 
