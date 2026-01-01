@@ -63,12 +63,6 @@ int scan_setpayload_grp(int);
 int scan_setverboseinc(void); /* kludge for getconfig.c */
 int scan_setspoofmac(const char *);
 
-/* Supabase cloud database integration */
-int scan_setsupabaseurl(const char *);
-int scan_setsupabasekey(const char *);
-int scan_setsupabasedbpassword(const char *);
-int scan_setsupabaseregion(const char *);
-
 /* GeoIP geographic lookup (v6) */
 void scan_setgeoipenabled(int);
 int scan_setgeoipprovider(const char *);

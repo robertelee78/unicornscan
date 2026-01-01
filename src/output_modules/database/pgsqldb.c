@@ -43,7 +43,7 @@ static unsigned long long int pgscanid=0;
 
 static mod_entry_t *_m=NULL;
 static char *pgsql_escstr(const char *);
-static int supabase_exec_ddl(PGconn *conn, const char *ddl, const char *desc);
+static int pgsql_exec_ddl(PGconn *conn, const char *ddl, const char *desc);
 
 static PGconn *pgconn=NULL;
 static PGresult *pgres=NULL;
@@ -828,120 +828,10 @@ static int pgsql_dealwith_wkstats(uint32_t /* magic */, const workunit_stats_t *
 static void database_walk_func(void *);
 
 /*
- * Extract project reference from Supabase URL
- * Input: "https://xxxxx.supabase.co" or "https://xxxxx.supabase.co/..."
- * Output: "xxxxx" (static buffer, not thread-safe)
- * Returns NULL on parse error
- */
-static const char *supabase_extract_project_ref(const char *url) {
-	static char project_ref[128];
-	const char *start, *end;
-
-	if (url == NULL) {
-		return NULL;
-	}
-
-	/* Skip protocol */
-	if (strncmp(url, "https://", 8) == 0) {
-		start = url + 8;
-	} else if (strncmp(url, "http://", 7) == 0) {
-		start = url + 7;
-	} else {
-		return NULL;
-	}
-
-	/* Find the subdomain (project ref) - ends at first '.' */
-	end = strchr(start, '.');
-	if (end == NULL || end == start) {
-		return NULL;
-	}
-
-	/* Verify it's a supabase domain */
-	if (strstr(end, ".supabase.co") == NULL) {
-		return NULL;
-	}
-
-	/* Copy project reference */
-	if ((size_t)(end - start) >= sizeof(project_ref)) {
-		return NULL; /* too long */
-	}
-
-	memset(project_ref, 0, sizeof(project_ref));
-	memcpy(project_ref, start, (size_t)(end - start));
-
-	return project_ref;
-}
-
-/*
- * Build PostgreSQL connection string for Supabase
- * Returns malloc'd string (caller must free) or NULL on error
- *
- * Uses Supabase Transaction Pooler (IPv4 compatible) format:
- *   host=aws-0-{region}.pooler.supabase.com port=6543 dbname=postgres user=postgres.[project-ref] password=...
- *
- * The pooler has IPv4 addresses while direct connection (db.<ref>.supabase.co) is IPv6-only.
- * Transaction mode pooler on port 6543 is suitable for most scan operations.
- *
- * Region is obtained from settings->supabase_region (configured via setup wizard or --supabase-region)
- */
-static char *supabase_build_connstring(const settings_t *settings) {
-	const char *project_ref;
-	char *connstr;
-	char pooler_host[256];
-	size_t len;
-	const char *pooler_port = "6543";
-	const char *region;
-
-	if (settings->supabase_url == NULL) {
-		ERR("Supabase URL is not set");
-		return NULL;
-	}
-
-	if (settings->supabase_db_password == NULL) {
-		ERR("Supabase database password is not set (use --supabase-db-password or SUPABASE_DB_PASSWORD env var)");
-		return NULL;
-	}
-
-	if (settings->supabase_region == NULL || strlen(settings->supabase_region) == 0) {
-		ERR("Supabase region is not set (use --supabase-region or run 'unicornscan --supabase-setup')");
-		return NULL;
-	}
-
-	project_ref = supabase_extract_project_ref(settings->supabase_url);
-	if (project_ref == NULL) {
-		ERR("Cannot parse project reference from Supabase URL: %s", settings->supabase_url);
-		return NULL;
-	}
-
-	/* Build pooler hostname from region
-	 * Format: aws-0-{region}.pooler.supabase.com
-	 * Examples: aws-0-us-west-2.pooler.supabase.com, aws-0-us-east-1.pooler.supabase.com
-	 */
-	region = settings->supabase_region;
-	snprintf(pooler_host, sizeof(pooler_host) - 1, "aws-0-%s.pooler.supabase.com", region);
-
-	/* Build connection string using pooler format:
-	 * host=aws-0-{region}.pooler.supabase.com port=6543 dbname=postgres user=postgres.xxxxx password=... sslmode=require
-	 * Note: Pooler uses user=postgres.<project-ref> format
-	 * Note: sslmode=require ensures encrypted connection to Supabase cloud database
-	 */
-	len = 256 + strlen(pooler_host) + strlen(project_ref) + strlen(settings->supabase_db_password);
-	connstr = xmalloc(len);
-
-	snprintf(connstr, len - 1,
-		"host=%s port=%s dbname=postgres user=postgres.%s password=%s sslmode=require",
-		pooler_host, pooler_port, project_ref, settings->supabase_db_password);
-
-	VRB(0, "Supabase: connecting via pooler to %s (project: %s, region: %s)", pooler_host, project_ref, region);
-
-	return connstr;
-}
-
-/*
  * Get current schema version from database
  * Returns: version number (>= 0), or -1 on error/no version table
  */
-static int supabase_get_schema_version(PGconn *conn) {
+static int pgsql_get_schema_version(PGconn *conn) {
 	PGresult *res;
 	int version = -1;
 
@@ -964,74 +854,74 @@ static int supabase_get_schema_version(PGconn *conn) {
  * Migrate schema from old version to current version
  * Returns: 1 on success, 0 on failure
  */
-static int supabase_migrate_schema(PGconn *conn, int from_version) {
+static int pgsql_migrate_schema(PGconn *conn, int from_version) {
 	char version_sql[256];
 
 	/* Migration from v1 to v2: add JSONB columns, indexes, and views */
 	if (from_version < 2) {
-		VRB(0, "Supabase: migrating schema from v%d to v2...", from_version);
+		VRB(0, "PostgreSQL: migrating schema from v%d to v2...", from_version);
 
-		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v2_ddl, "migrate to v2 (add JSONB columns and indexes)")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v2_ddl, "migrate to v2 (add JSONB columns and indexes)")) {
 			return 0;
 		}
 
 		/* Create/update convenience views (CREATE OR REPLACE is idempotent) */
-		if (!supabase_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
 			return 0;
 		}
 
 		/* Record new version */
 		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 2);
-		if (!supabase_exec_ddl(conn, version_sql, "record schema version 2")) {
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 2")) {
 			return 0;
 		}
 
-		VRB(0, "Supabase: schema migration to v2 complete");
+		VRB(0, "PostgreSQL: schema migration to v2 complete");
 		from_version = 2;
 	}
 
-	/* Migration from v2 to v3: add RLS and fix views for Supabase security compliance */
+	/* Migration from v2 to v3: add RLS (Row Level Security) and security invoker views */
 	if (from_version < 3) {
-		VRB(0, "Supabase: migrating schema from v%d to v3 (adding RLS)...", from_version);
+		VRB(0, "PostgreSQL: migrating schema from v%d to v3 (adding RLS)...", from_version);
 
-		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v3_ddl, "migrate to v3 (enable RLS and security invoker views)")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v3_ddl, "migrate to v3 (enable RLS and security invoker views)")) {
 			return 0;
 		}
 
 		/* Record new version */
 		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 3);
-		if (!supabase_exec_ddl(conn, version_sql, "record schema version 3")) {
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 3")) {
 			return 0;
 		}
 
-		VRB(0, "Supabase: schema migration to v3 complete (RLS enabled)");
+		VRB(0, "PostgreSQL: schema migration to v3 complete (RLS enabled)");
 		from_version = 3;
 	}
 
 	/* Migration from v3 to v4: add compound mode support and scan notes */
 	if (from_version < 4) {
-		VRB(0, "Supabase: migrating schema from v%d to v4 (adding compound mode support)...", from_version);
+		VRB(0, "PostgreSQL: migrating schema from v%d to v4 (adding compound mode support)...", from_version);
 
-		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v4_ddl, "migrate to v4 (compound mode and scan notes)")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v4_ddl, "migrate to v4 (compound mode and scan notes)")) {
 			return 0;
 		}
 
 		/* Record new version */
 		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 4);
-		if (!supabase_exec_ddl(conn, version_sql, "record schema version 4")) {
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 4")) {
 			return 0;
 		}
 
-		VRB(0, "Supabase: schema migration to v4 complete (compound mode support added)");
+		VRB(0, "PostgreSQL: schema migration to v4 complete (compound mode support added)");
 		from_version = 4;
 	}
 
 	/* Migration from v4 to v5: add frontend support tables */
 	if (from_version < 5) {
-		VRB(0, "Supabase: migrating schema from v%d to v5 (adding frontend support tables)...", from_version);
+		VRB(0, "PostgreSQL: migrating schema from v%d to v5 (adding frontend support tables)...", from_version);
 
 		/* Create v5 sequences first (already in sequences_ddl but need to ensure they exist) */
-		if (!supabase_exec_ddl(conn,
+		if (!pgsql_exec_ddl(conn,
 			"CREATE SEQUENCE IF NOT EXISTS uni_hosts_id_seq;\n"
 			"CREATE SEQUENCE IF NOT EXISTS uni_hops_id_seq;\n"
 			"CREATE SEQUENCE IF NOT EXISTS uni_services_id_seq;\n"
@@ -1044,75 +934,75 @@ static int supabase_migrate_schema(PGconn *conn, int from_version) {
 		}
 
 		/* Create v5 tables */
-		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v5_ddl, "create v5 tables and indexes")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v5_ddl, "create v5 tables and indexes")) {
 			return 0;
 		}
 
 		/* Add v5 foreign key constraints */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v5_constraints_ddl, "create v5 foreign key constraints")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v5_constraints_ddl, "create v5 foreign key constraints")) {
 			return 0;
 		}
 
 		/* Enable RLS and create policies for v5 tables */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v5_rls_ddl, "enable v5 RLS and policies")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v5_rls_ddl, "enable v5 RLS and policies")) {
 			return 0;
 		}
 
 		/* Create fn_upsert_host function */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v5_functions_ddl, "create fn_upsert_host function")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v5_functions_ddl, "create fn_upsert_host function")) {
 			return 0;
 		}
 
 		/* Create v5 views */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v5_views_ddl, "create v5 views")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v5_views_ddl, "create v5 views")) {
 			return 0;
 		}
 
 		/* Record new version */
 		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 5);
-		if (!supabase_exec_ddl(conn, version_sql, "record schema version 5")) {
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 5")) {
 			return 0;
 		}
 
-		VRB(0, "Supabase: schema migration to v5 complete (frontend support tables added)");
+		VRB(0, "PostgreSQL: schema migration to v5 complete (frontend support tables added)");
 	}
 
 	/* Migration from v5 to v6: add GeoIP integration */
 	if (from_version < 6) {
-		VRB(0, "Supabase: migrating schema from v%d to v6 (adding GeoIP integration)...", from_version);
+		VRB(0, "PostgreSQL: migrating schema from v%d to v6 (adding GeoIP integration)...", from_version);
 
 		/* Create uni_geoip_id_seq sequence */
-		if (!supabase_exec_ddl(conn, pgsql_schema_geoip_seq_ddl, "create uni_geoip_id_seq")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_geoip_seq_ddl, "create uni_geoip_id_seq")) {
 			return 0;
 		}
 
 		/* Create uni_geoip table and indexes */
-		if (!supabase_exec_ddl(conn, pgsql_schema_migration_v6_ddl, "create uni_geoip table")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v6_ddl, "create uni_geoip table")) {
 			return 0;
 		}
 
 		/* Add v6 foreign key constraints */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v6_constraints_ddl, "create v6 foreign key constraints")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v6_constraints_ddl, "create v6 foreign key constraints")) {
 			return 0;
 		}
 
 		/* Enable RLS and create policies for v6 tables */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v6_rls_ddl, "enable v6 RLS and policies")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v6_rls_ddl, "enable v6 RLS and policies")) {
 			return 0;
 		}
 
 		/* Create v6 views */
-		if (!supabase_exec_ddl(conn, pgsql_schema_v6_views_ddl, "create v6 views")) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v6_views_ddl, "create v6 views")) {
 			return 0;
 		}
 
 		/* Record new version */
 		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 6);
-		if (!supabase_exec_ddl(conn, version_sql, "record schema version 6")) {
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 6")) {
 			return 0;
 		}
 
-		VRB(0, "Supabase: schema migration to v6 complete (GeoIP integration added)");
+		VRB(0, "PostgreSQL: schema migration to v6 complete (GeoIP integration added)");
 	}
 
 	return 1;
@@ -1122,7 +1012,7 @@ static int supabase_migrate_schema(PGconn *conn, int from_version) {
  * Check if the unicornscan schema exists in the database
  * Returns: 1 if schema exists, 0 if not, -1 on error
  */
-static int supabase_check_schema(PGconn *conn) {
+static int pgsql_check_schema(PGconn *conn) {
 	PGresult *res;
 	int schema_exists = 0;
 
@@ -1136,7 +1026,7 @@ static int supabase_check_schema(PGconn *conn) {
 	);
 
 	if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-		ERR("Supabase: failed to check schema existence: %s", PQerrorMessage(conn));
+		ERR("PostgreSQL: failed to check schema existence: %s", PQerrorMessage(conn));
 		PQclear(res);
 		return -1;
 	}
@@ -1156,7 +1046,7 @@ static int supabase_check_schema(PGconn *conn) {
  * Execute a DDL statement and check for success
  * Returns: 1 on success, 0 on failure
  */
-static int supabase_exec_ddl(PGconn *conn, const char *ddl, const char *desc) {
+static int pgsql_exec_ddl(PGconn *conn, const char *ddl, const char *desc) {
 	PGresult *res;
 	ExecStatusType status;
 
@@ -1164,7 +1054,7 @@ static int supabase_exec_ddl(PGconn *conn, const char *ddl, const char *desc) {
 	status = PQresultStatus(res);
 
 	if (status != PGRES_COMMAND_OK && status != PGRES_TUPLES_OK) {
-		ERR("Supabase: failed to %s: %s", desc, PQerrorMessage(conn));
+		ERR("PostgreSQL: failed to %s: %s", desc, PQerrorMessage(conn));
 		PQclear(res);
 		return 0;
 	}
@@ -1177,115 +1067,115 @@ static int supabase_exec_ddl(PGconn *conn, const char *ddl, const char *desc) {
  * Create the unicornscan database schema
  * Returns: 1 on success, 0 on failure
  */
-static int supabase_create_schema(PGconn *conn) {
+static int pgsql_create_schema(PGconn *conn) {
 	char version_sql[256];
 
-	VRB(0, "Supabase: creating unicornscan database schema (version %d)...", PGSQL_SCHEMA_VERSION);
+	VRB(0, "PostgreSQL: creating unicornscan database schema (version %d)...", PGSQL_SCHEMA_VERSION);
 
 	/* Create schema version tracking table first */
-	if (!supabase_exec_ddl(conn, pgsql_schema_version_ddl, "create schema version table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_version_ddl, "create schema version table")) {
 		return 0;
 	}
 
 	/* Create sequences */
-	if (!supabase_exec_ddl(conn, pgsql_schema_sequences_ddl, "create sequences")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_sequences_ddl, "create sequences")) {
 		return 0;
 	}
 
 	/* Create main tables */
-	if (!supabase_exec_ddl(conn, pgsql_schema_scans_ddl, "create uni_scans table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_scans_ddl, "create uni_scans table")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_sworkunits_ddl, "create uni_sworkunits table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_sworkunits_ddl, "create uni_sworkunits table")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_lworkunits_ddl, "create uni_lworkunits table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_lworkunits_ddl, "create uni_lworkunits table")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_scan_phases_ddl, "create uni_scan_phases table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_scan_phases_ddl, "create uni_scan_phases table")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_stats_ddl, "create stats tables")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_stats_ddl, "create stats tables")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_ipreport_ddl, "create uni_ipreport table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_ipreport_ddl, "create uni_ipreport table")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_arpreport_ddl, "create uni_arpreport table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_arpreport_ddl, "create uni_arpreport table")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_ipreportdata_ddl, "create report data tables")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_ipreportdata_ddl, "create report data tables")) {
 		return 0;
 	}
 
-	if (!supabase_exec_ddl(conn, pgsql_schema_arppackets_ddl, "create uni_arppackets table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_arppackets_ddl, "create uni_arppackets table")) {
 		return 0;
 	}
 
 	/* Create indexes */
-	if (!supabase_exec_ddl(conn, pgsql_schema_indexes_ddl, "create indexes")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_indexes_ddl, "create indexes")) {
 		return 0;
 	}
 
 	/* Add foreign key constraints */
-	if (!supabase_exec_ddl(conn, pgsql_schema_constraints_ddl, "create foreign key constraints")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_constraints_ddl, "create foreign key constraints")) {
 		return 0;
 	}
 
 	/* Enable Row Level Security on all tables */
-	if (!supabase_exec_ddl(conn, pgsql_schema_rls_ddl, "enable row level security")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_rls_ddl, "enable row level security")) {
 		return 0;
 	}
 
 	/* Create RLS policies for full access */
-	if (!supabase_exec_ddl(conn, pgsql_schema_rls_policies_ddl, "create RLS policies")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_rls_policies_ddl, "create RLS policies")) {
 		return 0;
 	}
 
 	/* Create convenience views (with security_invoker=true) */
-	if (!supabase_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_views_ddl, "create views")) {
 		return 0;
 	}
 
 	/* Create v5 frontend support tables (uni_hosts, uni_host_scans, uni_hops, uni_services, uni_os_fingerprints) */
-	if (!supabase_exec_ddl(conn, pgsql_schema_migration_v5_ddl, "create v5 frontend support tables")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v5_ddl, "create v5 frontend support tables")) {
 		return 0;
 	}
 
 	/* Add v5 foreign key constraints */
-	if (!supabase_exec_ddl(conn, pgsql_schema_v5_constraints_ddl, "create v5 foreign key constraints")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_v5_constraints_ddl, "create v5 foreign key constraints")) {
 		return 0;
 	}
 
 	/* Enable RLS on v5 tables */
-	if (!supabase_exec_ddl(conn, pgsql_schema_v5_rls_ddl, "enable v5 row level security")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_v5_rls_ddl, "enable v5 row level security")) {
 		return 0;
 	}
 
 	/* Create v5 helper functions (fn_upsert_host, fn_parse_banner, etc.) */
-	if (!supabase_exec_ddl(conn, pgsql_schema_v5_functions_ddl, "create v5 helper functions")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_v5_functions_ddl, "create v5 helper functions")) {
 		return 0;
 	}
 
 	/* Create v5 frontend views */
-	if (!supabase_exec_ddl(conn, pgsql_schema_v5_views_ddl, "create v5 frontend views")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_v5_views_ddl, "create v5 frontend views")) {
 		return 0;
 	}
 
 	/* Record schema version */
 	snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, PGSQL_SCHEMA_VERSION);
-	if (!supabase_exec_ddl(conn, version_sql, "record schema version")) {
+	if (!pgsql_exec_ddl(conn, version_sql, "record schema version")) {
 		return 0;
 	}
 
-	VRB(0, "Supabase: schema created successfully (v%d with RLS enabled)", PGSQL_SCHEMA_VERSION);
+	VRB(0, "PostgreSQL: schema created successfully (v%d with RLS enabled)", PGSQL_SCHEMA_VERSION);
 	return 1;
 }
 
@@ -1315,12 +1205,12 @@ int delete_module(void) {
 void pgsql_database_init(void) {
 	keyval_t *kv=NULL;
 	char *connstr=NULL, *escres=NULL;
-	int connstr_allocated=0; /* track if we need to free connstr */
 	char profile[200], dronestr[200], modules[200], user[200], pcap_dumpfile[200], pcap_readfile[200];
 	char mode_str_buf[64], interface_str[64], port_str_buf[4096];
 	const char *mode_str_ptr;
 	uint8_t mode_flags;
 	long long int est_e_time=0;
+	int schema_exists, current_version;
 
 	grab_keyvals(_m);
 
@@ -1337,40 +1227,24 @@ void pgsql_database_init(void) {
 
 	DBG(M_MOD, "PostgreSQL module is enabled");
 
-	/*
-	 * Check for Supabase mode first - if supabase_url is set, use Supabase
-	 * cloud database instead of traditional dbconf keyval
-	 */
-	if (s->supabase_url != NULL && strlen(s->supabase_url) > 0) {
-		DBG(M_MOD, "Supabase mode detected, building connection string from URL");
-		connstr = supabase_build_connstring(s);
-		if (connstr == NULL) {
-			ERR("Failed to build Supabase connection string");
-			pgsql_disable=1;
-			return;
+	/* Get connection string from modules.conf dbconf key */
+	for (kv=_m->mp->kv ; kv != NULL ; kv=kv->next) {
+		if (strcmp(kv->key, "dbconf") == 0) {
+			connstr=kv->value;
 		}
-		connstr_allocated=1; /* we allocated this, need to free later */
-	}
-	else {
-		/* Traditional mode: look for dbconf keyval */
-		for (kv=_m->mp->kv ; kv != NULL ; kv=kv->next) {
-			if (strcmp(kv->key, "dbconf") == 0) {
-				connstr=kv->value;
-			}
-			if (strcmp(kv->key, "logpacket") == 0) {
-				if (strcmp(kv->value, "true") == 0) {
-					if (scan_setretlayers(0xff) < 0) {
-						ERR("cant request whole packet transfer, ignoring log packet option");
-					}
+		if (strcmp(kv->key, "logpacket") == 0) {
+			if (strcmp(kv->value, "true") == 0) {
+				if (scan_setretlayers(0xff) < 0) {
+					ERR("cant request whole packet transfer, ignoring log packet option");
 				}
 			}
 		}
+	}
 
-		if (connstr == NULL) {
-			ERR("no configuration for PostGreSQL, need an entry in config for `dbconf' with a valid PostGreSQL connection string, or use --supabase-url with --supabase-db-password");
-			pgsql_disable=1;
-			return;
-		}
+	if (connstr == NULL) {
+		ERR("no configuration for PostgreSQL, need an entry in /etc/unicornscan/modules.conf for `dbconf' with a valid PostgreSQL connection string");
+		pgsql_disable=1;
+		return;
 	}
 
 	pgconn=PQconnectdb(connstr);
@@ -1378,17 +1252,8 @@ void pgsql_database_init(void) {
 		ERR("PostgreSQL connection fails: %s",
 			pgconn == NULL ? "unknown" : PQerrorMessage(pgconn)
 		);
-		if (connstr_allocated && connstr != NULL) {
-			xfree(connstr);
-		}
 		pgsql_disable=1;
 		return;
-	}
-
-	/* Free connection string if we allocated it - libpq has copied it internally */
-	if (connstr_allocated && connstr != NULL) {
-		xfree(connstr);
-		connstr = NULL;
 	}
 
 	VRB(0, "PostgreSQL: connected to host %s, database %s, as user %s, with protocol version %d",
@@ -1399,78 +1264,72 @@ void pgsql_database_init(void) {
 	);
 
 	/*
-	 * Supabase mode: auto-create schema if needed
-	 * Only do this when connstr_allocated is true, indicating Supabase mode
+	 * Auto-create schema if needed
+	 * This enables zero-config database setup - the schema is created automatically
 	 */
-	if (connstr_allocated) {
-		int schema_exists;
-
-		schema_exists = supabase_check_schema(pgconn);
-		if (schema_exists < 0) {
-			/* Error checking schema - disable module */
+	schema_exists = pgsql_check_schema(pgconn);
+	if (schema_exists < 0) {
+		/* Error checking schema - disable module */
+		pgsql_disable = 1;
+		PQfinish(pgconn);
+		return;
+	}
+	else if (schema_exists == 0) {
+		/* Schema doesn't exist - create it */
+		if (!pgsql_create_schema(pgconn)) {
+			ERR("PostgreSQL: failed to create database schema");
 			pgsql_disable = 1;
 			PQfinish(pgconn);
 			return;
 		}
-		else if (schema_exists == 0) {
-			/* Schema doesn't exist - create it */
-			if (!supabase_create_schema(pgconn)) {
-				ERR("Supabase: failed to create database schema");
+	}
+	else {
+		VRB(0, "PostgreSQL: schema already exists, checking version...");
+
+		/* Check schema version and migrate if needed */
+		current_version = pgsql_get_schema_version(pgconn);
+		if (current_version < 0) {
+			/* Version table doesn't exist - legacy schema, treat as v1 */
+			VRB(0, "PostgreSQL: legacy schema detected (no version table), treating as v1");
+			current_version = 1;
+		}
+
+		if (current_version < PGSQL_SCHEMA_VERSION) {
+			VRB(0, "PostgreSQL: schema v%d found, current is v%d - migrating...",
+				current_version, PGSQL_SCHEMA_VERSION);
+			if (!pgsql_migrate_schema(pgconn, current_version)) {
+				ERR("PostgreSQL: failed to migrate database schema");
 				pgsql_disable = 1;
 				PQfinish(pgconn);
 				return;
 			}
 		}
 		else {
-			int current_version;
-
-			VRB(0, "Supabase: schema already exists, checking version...");
-
-			/* Check schema version and migrate if needed */
-			current_version = supabase_get_schema_version(pgconn);
-			if (current_version < 0) {
-				/* Version table doesn't exist - legacy schema, treat as v1 */
-				VRB(0, "Supabase: legacy schema detected (no version table), treating as v1");
-				current_version = 1;
-			}
-
-			if (current_version < PGSQL_SCHEMA_VERSION) {
-				VRB(0, "Supabase: schema v%d found, current is v%d - migrating...",
-					current_version, PGSQL_SCHEMA_VERSION);
-				if (!supabase_migrate_schema(pgconn, current_version)) {
-					ERR("Supabase: failed to migrate database schema");
-					pgsql_disable = 1;
-					PQfinish(pgconn);
-					return;
-				}
-			}
-			else {
-				VRB(0, "Supabase: schema is up to date (v%d)", current_version);
-			}
+			VRB(0, "PostgreSQL: schema is up to date (v%d)", current_version);
 		}
+	}
 
-		/*
-		 * v6: Initialize GeoIP provider if configured
-		 * GeoIP lookups will be performed for each discovered host
-		 */
-		if (s->geoip_enabled) {
-			geoip_config_t geoip_cfg;
-			memset(&geoip_cfg, 0, sizeof(geoip_cfg));
-			geoip_cfg.enabled = 1;
-			geoip_cfg.provider = s->geoip_provider;
-			geoip_cfg.city_db = s->geoip_city_db;
-			geoip_cfg.asn_db = s->geoip_asn_db;
-			geoip_cfg.anonymous_db = s->geoip_anonymous_db;
-			geoip_cfg.store_in_db = 1;
+	/*
+	 * v6: Initialize GeoIP provider if configured
+	 * GeoIP lookups will be performed for each discovered host
+	 */
+	if (s->geoip_enabled) {
+		geoip_config_t geoip_cfg;
+		memset(&geoip_cfg, 0, sizeof(geoip_cfg));
+		geoip_cfg.enabled = 1;
+		geoip_cfg.provider = s->geoip_provider;
+		geoip_cfg.city_db = s->geoip_city_db;
+		geoip_cfg.asn_db = s->geoip_asn_db;
+		geoip_cfg.anonymous_db = s->geoip_anonymous_db;
+		geoip_cfg.store_in_db = 1;
 
-			if (geoip_init(&geoip_cfg) == 0) {
-				geoip_enabled = 1;
-				VRB(0, "GeoIP: initialized provider '%s' (db version: %s)",
-					geoip_get_provider_name(), geoip_get_db_version());
-			}
-			else {
-				VRB(0, "GeoIP: provider initialization failed - GeoIP lookups disabled");
-			}
+		if (geoip_init(&geoip_cfg) == 0) {
+			geoip_enabled = 1;
+			VRB(0, "GeoIP: initialized provider '%s' (db version: %s)",
+				geoip_get_provider_name(), geoip_get_db_version());
+		}
+		else {
+			VRB(0, "GeoIP: provider initialization failed - GeoIP lookups disabled");
 		}
 	}
 
