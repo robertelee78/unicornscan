@@ -18,7 +18,7 @@
 --     Added scan_notes for user annotations
 --     Added uni_scan_phases table for per-phase configuration
 --     Added v_scan_full and v_compound_phases views
--- v3: Added RLS (Row Level Security) for Supabase compliance
+-- v3: Added RLS (Row Level Security) for enhanced security
 --     Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
 -- v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
 
@@ -637,10 +637,10 @@ $$;
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
--- Enable RLS on all tables to satisfy Supabase security requirements.
--- Since unicornscan connects directly with database credentials (not via
--- Supabase client), we create permissive policies that allow full access.
--- This pattern enables RLS compliance while maintaining direct DB access.
+-- Enable RLS on all tables for enhanced database security.
+-- Since unicornscan connects directly with database credentials,
+-- we create permissive policies that allow full access.
+-- This pattern enables RLS while maintaining direct DB access.
 
 -- Enable RLS on all tables
 alter table uni_schema_version enable row level security;
@@ -809,8 +809,8 @@ create policy "Allow full access to saved_filters"
 -- ============================================
 -- Using security_invoker=true ensures views respect RLS policies of
 -- the underlying tables, running with the invoker's permissions rather
--- than the view creator's. This resolves Supabase SECURITY DEFINER warnings.
--- Note: Requires PostgreSQL 15+ (Supabase uses PostgreSQL 15+)
+-- than the view creator's for enhanced security.
+-- Note: Requires PostgreSQL 15+
 
 -- v_open_ports: Human-readable port scan results
 create or replace view v_open_ports
@@ -1236,7 +1236,7 @@ create index idx_geoip_location on uni_geoip("latitude", "longitude") where "lat
 alter table "uni_geoip" add constraint "uni_geoip_scans_FK"
     foreign key("scans_id") references "uni_scans"("scans_id") on delete cascade;
 
--- RLS for Supabase
+-- RLS (Row Level Security)
 alter table "uni_geoip" enable row level security;
 drop policy if exists "Allow full access to geoip" on uni_geoip;
 create policy "Allow full access to geoip" on uni_geoip for all using (true) with check (true);

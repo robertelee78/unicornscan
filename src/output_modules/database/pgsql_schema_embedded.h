@@ -23,8 +23,8 @@
 /*
  * Embedded PostgreSQL schema for unicornscan database
  *
- * This schema is auto-created when using Supabase integration with
- * a fresh database. Uses IF NOT EXISTS to be safe with existing databases.
+ * This schema is auto-created when connecting to a fresh database.
+ * Uses IF NOT EXISTS to be safe with existing databases.
  *
  * Schema version: 6
  * - v6: Added GeoIP integration for geographic and network metadata
@@ -47,7 +47,7 @@
  *       Added scan_notes for user annotations
  *       Added uni_scan_phases table for per-phase configuration
  *       Added v_scan_full and v_compound_phases views
- * - v3: Added RLS (Row Level Security) for Supabase compliance
+ * - v3: Added RLS (Row Level Security) for enhanced security
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
@@ -372,7 +372,7 @@ static const char *pgsql_schema_constraints_ddl =
 	"END $$;\n";
 
 /*
- * Row Level Security (RLS) for Supabase compatibility
+ * Row Level Security (RLS) for enhanced database security
  * Enable RLS on all tables and create permissive policies for direct DB access
  */
 static const char *pgsql_schema_rls_ddl =
@@ -425,8 +425,8 @@ static const char *pgsql_schema_rls_policies_ddl =
 
 /*
  * Convenience views for common query patterns
- * Using CREATE OR REPLACE with security_invoker=true for Supabase compliance
- * Note: security_invoker requires PostgreSQL 15+ (Supabase uses PG 15+)
+ * Using CREATE OR REPLACE with security_invoker=true for enhanced security
+ * Note: security_invoker requires PostgreSQL 15+
  */
 static const char *pgsql_schema_views_ddl =
 	/* v_open_ports: Human-readable port scan results */
@@ -580,7 +580,7 @@ static const char *pgsql_schema_migration_v2_ddl =
 	"CREATE INDEX IF NOT EXISTS uni_arpreport_extra_gin ON uni_arpreport USING gin(extra_data);\n";
 
 /*
- * Schema v3 migration - add RLS and fix views for Supabase security compliance
+ * Schema v3 migration - add RLS and fix views for enhanced security
  * This migration enables Row Level Security on all tables and updates views
  * to use SECURITY INVOKER instead of the default SECURITY DEFINER
  */
@@ -623,7 +623,7 @@ static const char *pgsql_schema_migration_v3_ddl =
 	"CREATE POLICY \"Allow full access to ippackets\" ON uni_ippackets FOR ALL USING (true) WITH CHECK (true);\n"
 	"CREATE POLICY \"Allow full access to arppackets\" ON uni_arppackets FOR ALL USING (true) WITH CHECK (true);\n"
 	"\n"
-	/* Update views to use security_invoker (requires PG 15+, Supabase uses PG 15+) */
+	/* Update views to use security_invoker (requires PG 15+) */
 	"ALTER VIEW v_open_ports SET (security_invoker = true);\n"
 	"ALTER VIEW v_scan_summary SET (security_invoker = true);\n"
 	"ALTER VIEW v_recent_scans SET (security_invoker = true);\n"
