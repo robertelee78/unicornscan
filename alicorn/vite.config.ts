@@ -42,7 +42,7 @@ export default defineConfig({
           // Export functionality
           export: ['jspdf', 'jspdf-autotable', 'html2canvas', 'file-saver', 'jszip'],
           // Database client
-          supabase: ['@supabase/supabase-js'],
+          postgrest: ['@supabase/postgrest-js'],
           // Data fetching
           query: ['@tanstack/react-query'],
         },

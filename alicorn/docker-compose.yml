@@ -14,8 +14,6 @@ services:
       args:
         # These are read from .env file (created by setup wizard)
         VITE_DB_BACKEND: ${VITE_DB_BACKEND:-demo}
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
         VITE_POSTGREST_URL: ${VITE_POSTGREST_URL:-}
         VITE_APP_TITLE: ${VITE_APP_TITLE:-Alicorn}
         VITE_DEBUG: ${VITE_DEBUG:-false}

@@ -2,14 +2,13 @@
  * Database client abstraction for Alicorn
  *
  * Supports multiple backends:
- * - Supabase (hosted or self-hosted)
  * - PostgREST (standalone, pointed at PostgreSQL)
  * - Demo mode (mock data for development)
  *
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { PostgrestClient } from '@supabase/postgrest-js'
 import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note, NoteEntityType, NoteCreate, NoteUpdate, GeoIPRecord, GeoIPCountryStats, GeoIPQueryOptions } from '@/types/database'
 import type { ScanDeleteStats, DeleteScanResult } from '@/features/deletion/types'
 import type {
@@ -23,31 +22,24 @@ import type { SavedFilter, SavedFilterCreate, SavedFilterUpdate, SavedFilterType
 // Configuration
 // =============================================================================
 
-export type DatabaseBackend = 'supabase' | 'postgrest' | 'demo'
+export type DatabaseBackend = 'postgrest' | 'demo'
 
 export interface DatabaseConfig {
   backend: DatabaseBackend
-  supabaseUrl?: string
-  supabaseAnonKey?: string
   postgrestUrl?: string
   isConfigured: boolean
 }
 
 function getConfig(): DatabaseConfig {
   const backend = (import.meta.env.VITE_DB_BACKEND || 'demo') as DatabaseBackend
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const postgrestUrl = import.meta.env.VITE_POSTGREST_URL
 
   const isConfigured =
     backend === 'demo' ||
-    (backend === 'supabase' && !!supabaseUrl && !!supabaseAnonKey) ||
     (backend === 'postgrest' && !!postgrestUrl)
 
   return {
     backend,
-    supabaseUrl,
-    supabaseAnonKey,
     postgrestUrl,
     isConfigured,
   }
@@ -142,47 +134,28 @@ export interface DatabaseClient {
 }
 
 // =============================================================================
-// Supabase/PostgREST Implementation
+// PostgREST Implementation
 // =============================================================================
 
-let supabaseClient: SupabaseClient | null = null
+let postgrestClient: PostgrestClient | null = null
 
-function getSupabaseClient(): SupabaseClient {
-  if (!supabaseClient) {
-    let url: string
-    let key: string
-
-    if (config.backend === 'postgrest') {
-      if (!config.postgrestUrl) {
-        throw new Error('PostgREST URL must be configured in .env')
-      }
-      url = config.postgrestUrl
-      key = 'anon' // PostgREST doesn't need a real key for public tables
-    } else {
-      if (!config.supabaseUrl || !config.supabaseAnonKey) {
-        throw new Error('Supabase URL and Anon Key must be configured in .env')
-      }
-      url = config.supabaseUrl
-      key = config.supabaseAnonKey
+function getPostgrestClient(): PostgrestClient {
+  if (!postgrestClient) {
+    if (!config.postgrestUrl) {
+      throw new Error('PostgREST URL must be configured in .env')
     }
-
-    supabaseClient = createClient(url, key, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    })
+    postgrestClient = new PostgrestClient(config.postgrestUrl)
   }
-  return supabaseClient
+  return postgrestClient
 }
 
 class RestDatabase implements DatabaseClient {
-  private client: SupabaseClient
+  private client: PostgrestClient
   readonly backend: DatabaseBackend
 
-  constructor(backend: 'supabase' | 'postgrest') {
-    this.backend = backend
-    this.client = getSupabaseClient()
+  constructor() {
+    this.backend = 'postgrest'
+    this.client = getPostgrestClient()
   }
 
   async checkConnection(): Promise<boolean> {
@@ -1913,11 +1886,8 @@ let dbClient: DatabaseClient | null = null
 export function getDatabase(): DatabaseClient {
   if (!dbClient) {
     switch (config.backend) {
-      case 'supabase':
-        dbClient = new RestDatabase('supabase')
-        break
       case 'postgrest':
-        dbClient = new RestDatabase('postgrest')
+        dbClient = new RestDatabase()
         break
       case 'demo':
       default:
@@ -1930,7 +1900,7 @@ export function getDatabase(): DatabaseClient {
 
 export function resetDatabase(): void {
   dbClient = null
-  supabaseClient = null
+  postgrestClient = null
 }
 
 // =============================================================================

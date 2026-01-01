@@ -98,12 +98,6 @@ export function Settings() {
                 </Badge>
               </dd>
             </div>
-            {config.backend === 'supabase' && config.supabaseUrl && (
-              <div className="flex items-center justify-between">
-                <dt className="text-muted">Supabase URL</dt>
-                <dd className="font-mono text-xs">{config.supabaseUrl}</dd>
-              </div>
-            )}
             {config.backend === 'postgrest' && config.postgrestUrl && (
               <div className="flex items-center justify-between">
                 <dt className="text-muted">PostgREST URL</dt>

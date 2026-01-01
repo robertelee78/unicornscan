@@ -76,7 +76,7 @@ const ERROR_PATTERNS: Array<{
     canRetry: false,
   },
 
-  // Supabase/PostgREST specific
+  // PostgREST specific
   {
     pattern: /JWT|token.*expired|invalid.*token/i,
     title: 'Session Expired',
@@ -153,7 +153,7 @@ export function parseError(error: unknown): FriendlyError {
   } else if (typeof error === 'string') {
     errorMessage = error
   } else if (typeof error === 'object') {
-    // Handle Supabase/PostgREST error objects
+    // Handle PostgREST error objects
     const obj = error as Record<string, unknown>
     errorMessage = String(obj.message || obj.error || obj.details || JSON.stringify(error))
     if (obj.code) {

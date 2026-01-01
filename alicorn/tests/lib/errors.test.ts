@@ -208,7 +208,7 @@ describe('parseError', () => {
     })
   })
 
-  describe('Supabase/PostgREST patterns', () => {
+  describe('PostgREST patterns', () => {
     it('detects PGRST errors', () => {
       const result = parseError(new Error('PGRST116: No rows found'))
       expect(result.title).toBe('API Error')
