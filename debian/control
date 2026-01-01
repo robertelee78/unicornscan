@@ -19,6 +19,7 @@ Rules-Requires-Root: no
 Package: unicornscan
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: docker.io, docker-compose-v2
 Description: Asynchronous stateless TCP/UDP network scanner
  Unicornscan is an asynchronous network scanner designed for
  scalable, accurate, and flexible port scanning. It separates
@@ -32,3 +33,7 @@ Description: Asynchronous stateless TCP/UDP network scanner
   - OS fingerprinting via p0f v3 integration
   - PostgreSQL/Supabase database export
   - Configurable packet rates up to millions of PPS
+ .
+ This package includes the Alicorn web UI for viewing scan results.
+ To start the web interface, run: unicornscan-web start
+ (Requires Docker - install with: apt install docker.io)

@@ -1,3 +1,22 @@
+unicornscan (0.4.20-1) unstable; urgency=medium
+
+  * Include Alicorn web UI for viewing scan results
+  * Add unicornscan-web command to manage Docker web stack
+  * Add Docker Compose configuration for PostgreSQL + PostgREST + Alicorn
+  * Add suggested dependency on docker.io
+  * Post-install script displays web UI usage instructions
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 31 Dec 2025 21:30:00 -0800
+
+unicornscan (0.4.19-1) unstable; urgency=medium
+
+  * Update PostgreSQL schema to v6 with GeoIP integration
+  * Add uni_geoip table for geographic and network metadata
+  * Add v_geoip and v_geoip_stats views for GeoIP analytics
+  * Add indexes and RLS policies for GeoIP data
+
+ -- Robert E. Lee <robert@unicornscan.org>  Tue, 31 Dec 2025 20:00:00 -0800
+
 unicornscan (0.4.18-1) unstable; urgency=medium
 
   * Fix priority work dispatch delay causing banner grab failures on larger
