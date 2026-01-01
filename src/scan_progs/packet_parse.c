@@ -26,6 +26,7 @@
 #include <unilib/qfifo.h>
 #include <unilib/output.h>
 #include <unilib/pktutil.h>
+#include <unilib/route.h>
 
 #include <scan_progs/packets.h>
 #include <scan_progs/chksum.h>
@@ -61,6 +62,33 @@ static ip_pseudo_t ipph;
 /* v9: Saved Ethernet source MAC for local network responses */
 static uint8_t saved_eth_shost[6];
 static int saved_eth_valid = 0;
+
+/*
+ * v9: Check if target IP is on local network (L2-reachable).
+ * Uses route lookup to determine if a gateway is required.
+ * Returns 1 if local (no gateway), 0 if remote (requires gateway) or error.
+ */
+static int is_local_target(uint32_t target_addr) {
+	struct sockaddr_in target, mask;
+	struct sockaddr *gw = NULL;
+	char *intf = NULL;
+
+	memset(&target, 0, sizeof(target));
+	memset(&mask, 0, sizeof(mask));
+
+	target.sin_family = AF_INET;
+	target.sin_addr.s_addr = target_addr;
+
+	mask.sin_family = AF_INET;
+	mask.sin_addr.s_addr = 0xFFFFFFFF;  /* /32 - single host lookup */
+
+	if (getroutes(&intf, (struct sockaddr *)&target,
+	              (struct sockaddr *)&mask, &gw) == 1) {
+		return (gw == NULL) ? 1 : 0;  /* Local if no gateway required */
+	}
+
+	return 0;  /* Assume remote on error */
+}
 
 /* Statistics tracking for malformed packets */
 #define MALFORMED_TOP_HOSTS 10
