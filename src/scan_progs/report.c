@@ -785,6 +785,18 @@ static char *fmtcat(const char *fmt, const void *report) {
 						snprintf(tmp, sizeof(tmp) -1, ofmt, hwstr);
 						KEHSTR(tmp);
 					}
+					/* v9: Display Ethernet source MAC for local network IP reports */
+					else if (*r_u.magic == IP_REPORT_MAGIC && r_u.i->eth_hwaddr_valid) {
+						char hwstr[64];
+
+						snprintf(hwstr, sizeof(hwstr) -1, "%02x:%02x:%02x:%02x:%02x:%02x",
+							r_u.i->eth_hwaddr[0], r_u.i->eth_hwaddr[1], r_u.i->eth_hwaddr[2],
+							r_u.i->eth_hwaddr[3], r_u.i->eth_hwaddr[4], r_u.i->eth_hwaddr[5]
+						);
+						strcat(ofmt, "s");
+						snprintf(tmp, sizeof(tmp) -1, ofmt, hwstr);
+						KEHSTR(tmp);
+					}
 					break;
 
 				case 'o': /* macaddr OUI name */
@@ -792,6 +804,18 @@ static char *fmtcat(const char *fmt, const void *report) {
 						const char *vend=NULL;
 
 						vend=getouiname(r_u.a->hwaddr[0], r_u.a->hwaddr[1], r_u.a->hwaddr[2]);
+						if (vend == NULL) {
+							vend="unknown";
+						}
+						strcat(ofmt, "s");
+						snprintf(tmp, sizeof(tmp) -1, ofmt, vend);
+						KEHSTR(tmp);
+					}
+					/* v9: OUI lookup for local network IP reports with MAC */
+					else if (*r_u.magic == IP_REPORT_MAGIC && r_u.i->eth_hwaddr_valid) {
+						const char *vend=NULL;
+
+						vend=getouiname(r_u.i->eth_hwaddr[0], r_u.i->eth_hwaddr[1], r_u.i->eth_hwaddr[2]);
 						if (vend == NULL) {
 							vend="unknown";
 						}
