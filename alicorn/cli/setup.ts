@@ -10,7 +10,7 @@ import prompts from 'prompts'
 import chalk from 'chalk'
 import ora from 'ora'
 import { existsSync, writeFileSync, readFileSync } from 'fs'
-import { createClient } from '@supabase/supabase-js'
+import { PostgrestClient } from '@supabase/postgrest-js'
 import { spawn } from 'child_process'
 import { resolve } from 'path'
 
@@ -18,12 +18,10 @@ import { resolve } from 'path'
 // Types
 // =============================================================================
 
-type DatabaseBackend = 'supabase' | 'postgrest' | 'demo'
+type DatabaseBackend = 'postgrest' | 'demo'
 
 interface DatabaseConfig {
   backend: DatabaseBackend
-  supabaseUrl?: string
-  supabaseAnonKey?: string
   postgrestUrl?: string
 }
 
@@ -96,50 +94,14 @@ function getCurrentBackend(): string | null {
 // Database Connection Testing
 // =============================================================================
 
-async function testSupabaseConnection(url: string, anonKey: string): Promise<{ success: boolean; error?: string }> {
+async function testPostgrestConnection(url: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const client = createClient(url, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-
-    // Try to query the scans table (just check it exists)
+    const client = new PostgrestClient(url)
     const { error } = await client.from('uni_scans').select('scans_id', { head: true, count: 'exact' })
 
     if (error) {
       // PGRST116 = no rows, which is fine (table exists but empty)
       // 42P01 = table doesn't exist
-      if (error.code === 'PGRST116') {
-        return { success: true }
-      }
-      if (error.code === '42P01') {
-        return { success: false, error: 'Table uni_scans not found. Schema may not be initialized.' }
-      }
-      return { success: false, error: error.message }
-    }
-
-    return { success: true }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    if (message.includes('fetch failed') || message.includes('ECONNREFUSED')) {
-      return { success: false, error: 'Could not connect to server. Check the URL is correct.' }
-    }
-    if (message.includes('Invalid API key') || message.includes('JWT')) {
-      return { success: false, error: 'Invalid API key. Check your anon key.' }
-    }
-    return { success: false, error: message }
-  }
-}
-
-async function testPostgrestConnection(url: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    // PostgREST doesn't need a real key for public tables
-    const client = createClient(url, 'anon', {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-
-    const { error } = await client.from('uni_scans').select('scans_id', { head: true, count: 'exact' })
-
-    if (error) {
       if (error.code === 'PGRST116') {
         return { success: true }
       }
@@ -164,15 +126,9 @@ async function checkSchema(config: DatabaseConfig): Promise<{ found: string[]; m
   const missing: string[] = []
   const optionalMissing: string[] = []
 
-  let client
-  if (config.backend === 'supabase' && config.supabaseUrl && config.supabaseAnonKey) {
-    client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-  } else if (config.backend === 'postgrest' && config.postgrestUrl) {
-    client = createClient(config.postgrestUrl, 'anon', {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
+  let client: PostgrestClient | null = null
+  if (config.backend === 'postgrest' && config.postgrestUrl) {
+    client = new PostgrestClient(config.postgrestUrl)
   } else {
     return { found: [], missing: REQUIRED_TABLES, optional: OPTIONAL_TABLES }
   }
@@ -226,17 +182,7 @@ function generateEnvContent(config: DatabaseConfig): string {
     '',
   ]
 
-  if (config.backend === 'supabase') {
-    lines.push(
-      '# =============================================================================',
-      '# Supabase Configuration',
-      '# =============================================================================',
-      '',
-      `VITE_SUPABASE_URL=${config.supabaseUrl}`,
-      `VITE_SUPABASE_ANON_KEY=${config.supabaseAnonKey}`,
-      '',
-    )
-  } else if (config.backend === 'postgrest') {
+  if (config.backend === 'postgrest') {
     lines.push(
       '# =============================================================================',
       '# PostgREST Configuration',
@@ -348,13 +294,8 @@ async function promptBackend(): Promise<DatabaseBackend | null> {
     message: 'Database backend',
     choices: [
       {
-        title: 'Supabase',
-        description: 'Hosted or self-hosted Supabase (recommended)',
-        value: 'supabase',
-      },
-      {
         title: 'PostgREST',
-        description: 'Standalone PostgREST pointed at PostgreSQL',
+        description: 'PostgREST REST API pointed at PostgreSQL (recommended)',
         value: 'postgrest',
       },
       {
@@ -367,81 +308,6 @@ async function promptBackend(): Promise<DatabaseBackend | null> {
 
   if (!backend) return null
   return backend as DatabaseBackend
-}
-
-async function promptSupabaseDetails(): Promise<{ url: string; anonKey: string } | null> {
-  console.log()
-  console.log(chalk.bold('  Step 2: Supabase Connection Details'))
-  console.log()
-  console.log(chalk.gray('  You can find these in your Supabase project:'))
-  console.log(chalk.gray('  Settings → API → Project URL and anon/public key'))
-  console.log()
-
-  let attempts = 0
-  const maxAttempts = 3
-
-  while (attempts < maxAttempts) {
-    const { url } = await prompts({
-      type: 'text',
-      name: 'url',
-      message: 'Supabase Project URL',
-      initial: 'https://your-project.supabase.co',
-      validate: (value) => {
-        if (!value) return 'URL is required'
-        if (!value.startsWith('http://') && !value.startsWith('https://')) {
-          return 'URL must start with http:// or https://'
-        }
-        return true
-      },
-    })
-
-    if (!url) return null
-
-    const { anonKey } = await prompts({
-      type: 'password',
-      name: 'anonKey',
-      message: 'Supabase Anon Key',
-      validate: (value) => {
-        if (!value) return 'Anon key is required'
-        if (value.length < 20) return 'That doesn\'t look like a valid key'
-        return true
-      },
-    })
-
-    if (!anonKey) return null
-
-    // Test connection
-    console.log()
-    const spinner = ora('  Testing connection...').start()
-
-    const result = await testSupabaseConnection(url, anonKey)
-
-    if (result.success) {
-      spinner.succeed(chalk.green('  Connection successful!'))
-      return { url, anonKey }
-    } else {
-      spinner.fail(chalk.red(`  Connection failed: ${result.error}`))
-      attempts++
-
-      if (attempts < maxAttempts) {
-        console.log()
-        const { retry } = await prompts({
-          type: 'confirm',
-          name: 'retry',
-          message: `Try again? (${maxAttempts - attempts} attempts remaining)`,
-          initial: true,
-        })
-
-        if (!retry) return null
-        console.log()
-      } else {
-        console.log(chalk.red(`  Maximum attempts (${maxAttempts}) reached.`))
-        return null
-      }
-    }
-  }
-
-  return null
 }
 
 async function promptPostgrestDetails(): Promise<{ url: string } | null> {
@@ -608,15 +474,7 @@ async function main(): Promise<void> {
   const config: DatabaseConfig = { backend }
 
   // Step 2 & 3: Get connection details with verification
-  if (backend === 'supabase') {
-    const details = await promptSupabaseDetails()
-    if (!details) {
-      console.log(chalk.gray('\n  Setup cancelled.\n'))
-      process.exit(1)
-    }
-    config.supabaseUrl = details.url
-    config.supabaseAnonKey = details.anonKey
-  } else if (backend === 'postgrest') {
+  if (backend === 'postgrest') {
     const details = await promptPostgrestDetails()
     if (!details) {
       console.log(chalk.gray('\n  Setup cancelled.\n'))

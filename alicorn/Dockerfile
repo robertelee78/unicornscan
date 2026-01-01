@@ -23,8 +23,6 @@ COPY . .
 # Build the application
 # Note: Environment variables must be set at build time for Vite
 ARG VITE_DB_BACKEND=demo
-ARG VITE_SUPABASE_URL=
-ARG VITE_SUPABASE_ANON_KEY=
 ARG VITE_POSTGREST_URL=
 ARG VITE_APP_TITLE=Alicorn
 ARG VITE_DEBUG=false
