@@ -119,12 +119,12 @@ export function ScanDetailHeader({
             <MetadataItem
               icon={<Gauge className="h-4 w-4" />}
               label="PPS"
-              value={scan.pps.toLocaleString()}
+              value={(scan.pps ?? 0).toLocaleString()}
             />
             <MetadataItem
               icon={<Target className="h-4 w-4" />}
               label="Ports"
-              value={scan.port_str}
+              value={scan.port_str ?? '—'}
             />
             <MetadataItem
               icon={<Layers className="h-4 w-4" />}

@@ -76,7 +76,7 @@ export function HostDetailHeader({
             <MetadataItem
               icon={<Server className="h-4 w-4" />}
               label="Open Ports"
-              value={host.open_port_count.toString()}
+              value={(host.open_port_count ?? host.port_count).toString()}
             />
             <MetadataItem
               icon={<Activity className="h-4 w-4" />}

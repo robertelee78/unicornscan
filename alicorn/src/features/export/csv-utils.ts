@@ -87,13 +87,13 @@ export function scanToCSVRow(scan: Scan, hostCount: number, portCount: number): 
     duration_seconds: scan.e_time - scan.s_time,
     profile: scan.profile,
     user: scan.user,
-    target: scan.target_str,
-    port_range: scan.port_str,
-    mode: scan.mode_str || scan.mode,
-    pps: scan.pps,
+    target: scan.target_str ?? '',
+    port_range: scan.port_str ?? '',
+    mode: scan.mode_str ?? '',
+    pps: scan.pps ?? 0,
     host_count: hostCount,
     port_count: portCount,
-    notes: scan.scan_notes || '',
+    notes: scan.scan_notes ?? '',
   }
 }
 
@@ -122,14 +122,14 @@ export function reportToCSVRow(report: IpReport, service?: string): ReportCSVRow
 export function hostToCSVRow(host: Host): HostCSVRow {
   return {
     host_id: host.host_id,
-    ip_addr: host.ip_addr,
-    hostname: host.hostname || '',
-    mac_addr: host.mac_addr || '',
-    os_guess: host.os_guess || '',
+    ip_addr: host.ip_addr ?? host.host_addr,
+    hostname: host.hostname ?? '',
+    mac_addr: host.mac_addr ?? '',
+    os_guess: host.os_guess ?? '',
     first_seen: new Date(host.first_seen * 1000).toISOString(),
     last_seen: new Date(host.last_seen * 1000).toISOString(),
     scan_count: host.scan_count,
-    open_port_count: host.open_port_count,
+    open_port_count: host.open_port_count ?? host.port_count,
   }
 }
 

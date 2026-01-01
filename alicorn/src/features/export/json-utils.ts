@@ -113,7 +113,7 @@ function scanToJSON(scan: Scan, hostCount: number, portCount: number, depth: Met
   const basic: ScanJSONBasic = {
     id: scan.scans_id,
     startTime: new Date(scan.s_time * 1000).toISOString(),
-    target: scan.target_str,
+    target: scan.target_str ?? '',
     hostCount,
     portCount,
   }
@@ -125,8 +125,8 @@ function scanToJSON(scan: Scan, hostCount: number, portCount: number, depth: Met
     endTime: new Date(scan.e_time * 1000).toISOString(),
     durationSeconds: scan.e_time - scan.s_time,
     profile: scan.profile,
-    mode: scan.mode_str || scan.mode,
-    portRange: scan.port_str,
+    mode: scan.mode_str ?? '',
+    portRange: scan.port_str ?? '',
   }
 
   if (depth === 'standard') return standard
@@ -134,7 +134,7 @@ function scanToJSON(scan: Scan, hostCount: number, portCount: number, depth: Met
   return {
     ...standard,
     user: scan.user,
-    pps: scan.pps,
+    pps: scan.pps ?? 0,
     senders: scan.senders,
     listeners: scan.listeners,
     dronestr: scan.dronestr,
@@ -189,8 +189,8 @@ function reportToJSON(report: IpReport, depth: MetadataDepth, service?: string):
 function hostToJSON(host: Host, depth: MetadataDepth): HostJSONBasic | HostJSONStandard | HostJSONFull {
   const basic: HostJSONBasic = {
     id: host.host_id,
-    ipAddr: host.ip_addr,
-    portCount: host.open_port_count,
+    ipAddr: host.ip_addr ?? host.host_addr,
+    portCount: host.open_port_count ?? host.port_count,
   }
 
   if (depth === 'basic') return basic
@@ -208,8 +208,8 @@ function hostToJSON(host: Host, depth: MetadataDepth): HostJSONBasic | HostJSONS
   return {
     ...standard,
     macAddr: host.mac_addr,
-    osGuess: host.os_guess,
-    metadata: host.metadata,
+    osGuess: host.os_guess ?? null,
+    metadata: host.extra_data,
   }
 }
 
@@ -289,13 +289,14 @@ export function exportHostsListToJSON(
   hosts: Host[],
   depth: MetadataDepth
 ): string {
+  const getPortCount = (h: Host) => h.open_port_count ?? h.port_count
   const output = {
     _metadata: createMetadata(depth),
     hosts: hosts.map((h) => hostToJSON(h, depth)),
     summary: {
       totalHosts: hosts.length,
-      hostsWithOpenPorts: hosts.filter((h) => h.open_port_count > 0).length,
-      totalOpenPorts: hosts.reduce((sum, h) => sum + h.open_port_count, 0),
+      hostsWithOpenPorts: hosts.filter((h) => getPortCount(h) > 0).length,
+      totalOpenPorts: hosts.reduce((sum, h) => sum + getPortCount(h), 0),
     },
   }
 

@@ -58,7 +58,7 @@ export function ScanDetail() {
   const { mutate: deleteScan, isPending: isDeleting } = useScanDeletion({
     onSuccess: (result) => {
       if (scan) {
-        recordDeletion(result, scan.target_str)
+        recordDeletion(result, scan.target_str ?? '')
       }
       toastSuccess(
         'Scan deleted',

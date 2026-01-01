@@ -177,8 +177,8 @@ export interface Host {
   mac_addr: string | null
   hostname: string | null
   os_guess?: string | null // From OS fingerprinting (optional)
-  first_seen: string       // ISO timestamp from database
-  last_seen: string        // ISO timestamp from database
+  first_seen: number       // Unix timestamp from database
+  last_seen: number        // Unix timestamp from database
   scan_count: number
   port_count: number       // Database column name
   open_port_count?: number // Alias for compatibility

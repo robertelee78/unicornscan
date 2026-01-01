@@ -103,7 +103,7 @@ export interface ComparisonSummary {
 export interface ScanOption {
   scansId: number
   label: string
-  targetStr: string
+  targetStr: string | null
   time: number
 }
 
