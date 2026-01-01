@@ -51,7 +51,7 @@
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 6
+#define PGSQL_SCHEMA_VERSION 7
 
 /*
  * Schema version tracking table - created first
@@ -118,6 +118,7 @@ static const char *pgsql_schema_scans_ddl =
 	"    recv_timeout SMALLINT DEFAULT 0,\n"/* Global receive timeout in seconds (-L) */
 	"    repeats     INTEGER DEFAULT 1,\n"  /* Global repeat count (-R) */
 	"    scan_notes  TEXT,\n"               /* User-supplied notes/annotations */
+	"    target_str  TEXT,\n"               /* Original command line target specification (v7) */
 	"    PRIMARY KEY (scans_id)\n"
 	");\n";
 
@@ -1290,6 +1291,12 @@ static const char *pgsql_schema_v6_views_ddl =
 	"FROM uni_geoip g\n"
 	"GROUP BY g.scans_id, g.country_code, g.country_name\n"
 	"ORDER BY host_count DESC;\n";
+
+/*
+ * Schema v7 migration - add target_str column to uni_scans
+ */
+static const char *pgsql_schema_migration_v7_ddl =
+	"ALTER TABLE uni_scans ADD COLUMN IF NOT EXISTS target_str TEXT;\n";
 
 /*
  * Record schema version

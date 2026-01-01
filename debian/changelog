@@ -1,3 +1,13 @@
+unicornscan (0.4.24-1) unstable; urgency=medium
+
+  * Store target specification in database (schema v7)
+    - Add target_str column to uni_scans table for original command line targets
+    - Shows "192.168.1.0/24" or "scanme.nmap.org" in web UI
+    - Automatic migration from v6 schema adds column to existing databases
+    - Alicorn UI displays target in scan list and detail views
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 01 Jan 2026 09:47:00 -0800
+
 unicornscan (0.4.23-1) unstable; urgency=medium
 
   * Fix orphan Docker volume detection on reinstall
