@@ -36,10 +36,9 @@ override_dh_auto_install:
 	install -m 644 alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-web/
 	install -m 644 alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-web/
 	install -m 644 alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/tailwind.config.js debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/postcss.config.js debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/eslint.config.js debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
+	install -m 644 alicorn/vitest.config.ts debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
 	install -m 644 alicorn/index.html debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/components.json debian/unicornscan/opt/unicornscan-web/
 
 	# Source code (copy directories)
 	cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-web/src/

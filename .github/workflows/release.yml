@@ -109,13 +109,12 @@ jobs:
           cp alicorn/package.json debian/unicornscan/opt/unicornscan-web/
           cp alicorn/package-lock.json debian/unicornscan/opt/unicornscan-web/
           cp alicorn/vite.config.ts debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/vitest.config.ts debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
           cp alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-web/
           cp alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-web/
           cp alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/tailwind.config.js debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/postcss.config.js debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/eslint.config.js debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
           cp alicorn/index.html debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/components.json debian/unicornscan/opt/unicornscan-web/
 
           # Source code
           cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-web/src/

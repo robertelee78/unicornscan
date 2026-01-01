@@ -81,7 +81,7 @@ cmd_start() {
     echo "  Database:  postgresql://localhost:5432/unicornscan"
     echo ""
     echo "Configure unicornscan to use this database:"
-    echo "  unicornscan -edb,host=localhost,user=alicorn,pass=alicorn_secret,db=unicornscan ..."
+    echo "  unicornscan -edb,host=localhost,user=alicorn,pass=changeme,db=unicornscan ..."
     echo ""
 }
 
@@ -222,7 +222,7 @@ cmd_help() {
     echo "Quick Start (Docker):"
     echo "  1. unicornscan-web start"
     echo "  2. Open http://localhost:31337"
-    echo "  3. unicornscan -edb,host=localhost,user=alicorn,pass=alicorn_secret,db=unicornscan <target>"
+    echo "  3. unicornscan -edb,host=localhost,user=alicorn,pass=changeme,db=unicornscan <target>"
     echo ""
     echo "Quick Start (Development):"
     echo "  1. unicornscan-web setup     # Configure database connection"
