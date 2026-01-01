@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useHost } from '@/hooks'
 import {
@@ -12,6 +12,7 @@ import {
   AssociatedScans,
   useHostPortHistory,
   useHostScans,
+  useHostReports,
 } from '@/features/hosts'
 import {
   PortTrendChart,
@@ -19,6 +20,13 @@ import {
   useHostPortTrend,
   usePortTimeline,
 } from '@/features/charts'
+import {
+  ExportDialog,
+  useHostExport,
+  useExportDialog,
+  quickExportHost,
+  type ExportFormat,
+} from '@/features/export'
 import type { TimeRange } from '@/features/dashboard/types'
 
 export function HostDetail() {
@@ -37,6 +45,9 @@ export function HostDetail() {
     host?.ip_addr || ''
   )
 
+  // Fetch reports for export
+  const { data: hostReports = [] } = useHostReports(host?.ip_addr || '')
+
   // Fetch chart data
   const { data: portTrend, isLoading: trendLoading } = useHostPortTrend(
     host?.ip_addr || '',
@@ -45,6 +56,25 @@ export function HostDetail() {
   const { data: portTimeline, isLoading: timelineLoading } = usePortTimeline(
     host?.ip_addr || ''
   )
+
+  // Export functionality
+  const exportDialog = useExportDialog()
+  const scanHistory = useMemo(() =>
+    hostScans.map((s) => ({
+      scansId: s.scansId,
+      scanTime: s.scanTime,
+      portsFound: s.portsFound,
+    })),
+    [hostScans]
+  )
+  const { exportHost, isExporting } = useHostExport(host ?? null, hostReports, scanHistory)
+
+  // Quick export handler
+  const handleQuickExport = useCallback((format: ExportFormat) => {
+    if (host) {
+      quickExportHost(host, hostReports, format)
+    }
+  }, [host, hostReports])
 
   // Loading state
   if (hostLoading) {
@@ -82,6 +112,20 @@ export function HostDetail() {
         host={host}
         portHistoryCount={portHistory.length}
         scanCount={hostScans.length}
+        onQuickExport={handleQuickExport}
+        onAdvancedExport={exportDialog.openDialog}
+      />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialog.isOpen}
+        onOpenChange={(open) => !open && exportDialog.closeDialog()}
+        context="host-detail"
+        onExport={(options) => {
+          exportHost(options)
+          exportDialog.closeDialog()
+        }}
+        isExporting={isExporting}
       />
 
       {/* Time Range Selector for Charts */}

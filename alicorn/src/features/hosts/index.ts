@@ -13,7 +13,7 @@ export { useHostList } from './hooks'
 export { HostDetailHeader } from './HostDetailHeader'
 export { PortHistory } from './PortHistory'
 export { AssociatedScans } from './AssociatedScans'
-export { useHostPortHistory, useHostScans } from './hooks'
+export { useHostPortHistory, useHostScans, useHostReports } from './hooks'
 
 // Types
 export * from './types'
