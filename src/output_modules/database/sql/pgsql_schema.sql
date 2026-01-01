@@ -1,4 +1,14 @@
--- Unicornscan PostgreSQL Schema v6
+-- Unicornscan PostgreSQL Schema v9
+-- v9: Added eth_hwaddr to uni_ipreport for local network MAC capture
+--     TCP/UDP/ICMP responses from L2-reachable hosts now include source MAC
+--     Extends v8 MAC<->IP history with IP scan data (not just ARP scans)
+-- v8: Added MAC<->IP history tracking for temporal address associations
+--     uni_mac_ip_history: Tracks every MAC<->IP pairing with first/last seen
+--     fn_record_mac_ip(): Records MAC<->IP association from ARP scans
+--     v_mac_ip_history, v_current_mac_by_ip, v_current_ip_by_mac views
+--     v_hosts updated to show most recent MAC from history
+-- v7: Added target_str column for original command line target specification
+--     Added src_addr column for source address / phantom IP (-s option)
 -- v6: Added GeoIP integration for geographic and network metadata
 --     uni_geoip: Geographic and network data (country, region, city, lat/long, ISP, ASN, ip_type)
 --     Supports multiple providers: MaxMind (GeoLite2/GeoIP2), IP2Location, IPinfo
@@ -27,6 +37,14 @@ drop view if exists v_geoip_stats;
 drop view if exists v_geoip;
 drop table if exists "uni_geoip";
 drop sequence if exists "uni_geoip_id_seq";
+
+-- Drop v8 MAC-IP history tables
+drop view if exists v_mac_ip_history;
+drop view if exists v_current_mac_by_ip;
+drop view if exists v_current_ip_by_mac;
+drop function if exists fn_record_mac_ip(inet, macaddr, int8);
+drop table if exists "uni_mac_ip_history";
+drop sequence if exists "uni_mac_ip_history_id_seq";
 
 -- Drop new v5 tables (reverse dependency order)
 drop function if exists fn_upsert_host(inet, macaddr);
@@ -244,6 +262,7 @@ create table "uni_ipreport" (
 	"window_size"	int4 not null,
 	"t_tstamp"	int8 not null,
 	"m_tstamp"	int8 not null,
+	"eth_hwaddr"	macaddr,	-- v9: Ethernet source MAC (NULL for remote targets)
 	"extra_data"	jsonb default '{}'::jsonb,
 	primary key ("ipreport_id")
 );
@@ -374,6 +393,43 @@ alter table "uni_host_scans"
 	references "uni_scans"("scans_id") on delete cascade;
 
 create index uni_host_scans_scansid_idx on uni_host_scans("scans_id");
+
+-- ----------------------------------------
+-- uni_mac_ip_history: Historical MAC<->IP associations (v8)
+-- Tracks every unique MAC<->IP pairing seen across scans
+-- Enables temporal analysis of address relationships (DHCP changes, device swaps)
+-- ----------------------------------------
+create sequence "uni_mac_ip_history_id_seq";
+
+create table "uni_mac_ip_history" (
+	"history_id"	int8 not null default nextval('uni_mac_ip_history_id_seq'),
+	"host_addr"	inet not null,
+	"mac_addr"	macaddr not null,
+	"first_seen"	timestamptz not null default now(),
+	"last_seen"	timestamptz not null default now(),
+	"first_scans_id"	int8 not null,      -- Scan where this association was first observed
+	"last_scans_id"	int8,                   -- Most recent scan with this association
+	"observation_count"	int4 not null default 1,  -- How many times we've seen this pairing
+	"extra_data"	jsonb default '{}'::jsonb,
+	primary key ("history_id")
+);
+
+-- Unique constraint: one record per IP+MAC combination
+create unique index uni_mac_ip_history_addr_mac_uniq on uni_mac_ip_history("host_addr", "mac_addr");
+create index uni_mac_ip_history_addr_idx on uni_mac_ip_history("host_addr");
+create index uni_mac_ip_history_mac_idx on uni_mac_ip_history("mac_addr");
+create index uni_mac_ip_history_first_seen_idx on uni_mac_ip_history("first_seen");
+create index uni_mac_ip_history_last_seen_idx on uni_mac_ip_history("last_seen");
+
+alter table "uni_mac_ip_history"
+	add constraint uni_mac_ip_history_first_scans_FK
+	foreign key("first_scans_id")
+	references "uni_scans"("scans_id") on delete set null;
+
+alter table "uni_mac_ip_history"
+	add constraint uni_mac_ip_history_last_scans_FK
+	foreign key("last_scans_id")
+	references "uni_scans"("scans_id") on delete set null;
 
 -- ----------------------------------------
 -- uni_hops: Traceroute hop data
@@ -638,6 +694,46 @@ begin
 end;
 $$;
 
+-- ----------------------------------------
+-- fn_record_mac_ip: Record MAC<->IP association (v8)
+-- Called from C code when processing ARP reports
+-- Tracks historical MAC<->IP pairings across scans
+-- Returns history_id
+-- ----------------------------------------
+create or replace function fn_record_mac_ip(
+	p_host_addr inet,
+	p_mac_addr macaddr,
+	p_scans_id int8
+) returns int8
+language plpgsql
+as $$
+declare
+	v_history_id int8;
+begin
+	-- Try to find existing association
+	select history_id into v_history_id
+	from uni_mac_ip_history
+	where host_addr = p_host_addr
+	  and mac_addr = p_mac_addr;
+
+	if v_history_id is not null then
+		-- Update existing association
+		update uni_mac_ip_history
+		set last_seen = now(),
+		    last_scans_id = p_scans_id,
+		    observation_count = observation_count + 1
+		where history_id = v_history_id;
+	else
+		-- Insert new association
+		insert into uni_mac_ip_history (host_addr, mac_addr, first_scans_id, last_scans_id)
+		values (p_host_addr, p_mac_addr, p_scans_id, p_scans_id)
+		returning history_id into v_history_id;
+	end if;
+
+	return v_history_id;
+end;
+$$;
+
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
@@ -757,6 +853,15 @@ create policy "Allow full access to hosts"
 -- Policy for uni_host_scans
 create policy "Allow full access to host_scans"
   on uni_host_scans for all
+  using (true)
+  with check (true);
+
+-- v8: Enable RLS on MAC-IP history
+alter table uni_mac_ip_history enable row level security;
+
+-- Policy for uni_mac_ip_history
+create policy "Allow full access to mac_ip_history"
+  on uni_mac_ip_history for all
   using (true)
   with check (true);
 
@@ -962,12 +1067,21 @@ order by s.scans_id, p.phase_idx;
 -- ============================================
 
 -- v_hosts: Aggregate host information with scan counts and calculated port count
+-- v8: Added current_mac from MAC-IP history (most recent MAC for this IP)
 create or replace view v_hosts
 with (security_invoker = true) as
 select
     h.host_id,
     h.host_addr,
     h.mac_addr,
+    -- v8: Get most recent MAC from history if host doesn't have one directly
+    coalesce(h.mac_addr, (
+        select mh.mac_addr
+        from uni_mac_ip_history mh
+        where mh.host_addr = h.host_addr
+        order by mh.last_seen desc
+        limit 1
+    )) as current_mac,
     h.hostname,
     h.first_seen,
     h.last_seen,
@@ -982,6 +1096,11 @@ select
         (select count(distinct i.dport) from uni_ipreport i where i.host_addr = h.host_addr),
         0
     )::int4 as port_count,
+    -- v8: Count of MAC addresses associated with this IP over time
+    coalesce(
+        (select count(*) from uni_mac_ip_history mh where mh.host_addr = h.host_addr),
+        0
+    )::int4 as mac_count,
     h.extra_data
 from uni_hosts h
 order by h.last_seen desc;
@@ -1006,6 +1125,78 @@ left join uni_host_scans hs on h.host_id = hs.host_id
 left join uni_scans s on hs.scans_id = s.scans_id
 group by h.host_id, h.host_addr, h.mac_addr, h.hostname,
          h.first_seen, h.last_seen, h.scan_count, h.port_count, h.extra_data;
+
+-- ============================================
+-- v8: MAC-IP HISTORY VIEWS
+-- ============================================
+
+-- v_mac_ip_history: Full MAC<->IP association history
+create or replace view v_mac_ip_history
+with (security_invoker = true) as
+select
+    h.history_id,
+    h.host_addr,
+    h.mac_addr,
+    h.first_seen,
+    h.last_seen,
+    h.first_scans_id,
+    h.last_scans_id,
+    h.observation_count,
+    -- Calculate age since last seen
+    extract(epoch from (now() - h.last_seen))::int4 as age_seconds,
+    -- Get the profile of the first scan
+    (select s.profile from uni_scans s where s.scans_id = h.first_scans_id) as first_scan_profile,
+    -- Get the profile of the most recent scan
+    (select s.profile from uni_scans s where s.scans_id = h.last_scans_id) as last_scan_profile,
+    h.extra_data
+from uni_mac_ip_history h
+order by h.last_seen desc;
+
+-- v_current_mac_by_ip: Most recent MAC address for each IP
+-- Use this when you want the "current" MAC for an IP address
+create or replace view v_current_mac_by_ip
+with (security_invoker = true) as
+select distinct on (host_addr)
+    host_addr,
+    mac_addr,
+    first_seen,
+    last_seen,
+    observation_count,
+    first_scans_id,
+    last_scans_id
+from uni_mac_ip_history
+order by host_addr, last_seen desc;
+
+-- v_current_ip_by_mac: Most recent IP address for each MAC
+-- Use this when you want the "current" IP for a MAC address
+create or replace view v_current_ip_by_mac
+with (security_invoker = true) as
+select distinct on (mac_addr)
+    mac_addr,
+    host_addr,
+    first_seen,
+    last_seen,
+    observation_count,
+    first_scans_id,
+    last_scans_id
+from uni_mac_ip_history
+order by mac_addr, last_seen desc;
+
+-- v_mac_ip_changes: Detect when MAC<->IP associations changed
+-- Shows IPs that have had multiple MAC addresses
+create or replace view v_mac_ip_changes
+with (security_invoker = true) as
+select
+    host_addr,
+    count(*) as mac_count,
+    array_agg(mac_addr order by last_seen desc) as mac_addresses,
+    min(first_seen) as first_observed,
+    max(last_seen) as last_observed,
+    sum(observation_count) as total_observations
+from uni_mac_ip_history
+group by host_addr
+having count(*) > 1
+order by count(*) desc, max(last_seen) desc;
 
 -- v_services: Service identification with protocol names
 create or replace view v_services
@@ -1302,4 +1493,4 @@ group by g.scans_id, g.country_code, g.country_name
 order by host_count desc;
 
 -- Record schema version
-insert into uni_schema_version (version) values (7);
+insert into uni_schema_version (version) values (8);
