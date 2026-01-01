@@ -41,6 +41,7 @@ export interface Scan {
   scan_metadata: Record<string, unknown> | null
   scan_notes: string | null
   target_str: string | null  // Original command line target specification (v7)
+  src_addr: string | null    // Source address / phantom IP (-s option) (v7)
 }
 
 export interface IpReport {
@@ -177,11 +178,11 @@ export interface Host {
   mac_addr: string | null
   hostname: string | null
   os_guess?: string | null // From OS fingerprinting (optional)
-  first_seen: number       // Unix timestamp from database
-  last_seen: number        // Unix timestamp from database
+  first_seen: string | number  // ISO 8601 string from timestamptz, or Unix timestamp
+  last_seen: string | number   // ISO 8601 string from timestamptz, or Unix timestamp
   scan_count: number
-  port_count: number       // Database column name
-  open_port_count?: number // Alias for compatibility
+  port_count: number       // Database column name (may be 0 if not populated)
+  open_port_count?: number // Calculated port count from reports
   actual_scan_count?: number
   extra_data: Record<string, unknown> | null
 }
@@ -236,7 +237,8 @@ export interface Network {
 
 export interface ScanTag {
   scans_id: number
-  tag: string
+  tag_name: string
+  tag_value: string | null
   created_at: string
 }
 

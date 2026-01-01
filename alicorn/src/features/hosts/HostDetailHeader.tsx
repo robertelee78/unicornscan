@@ -75,7 +75,7 @@ export function HostDetailHeader({
             />
             <MetadataItem
               icon={<Server className="h-4 w-4" />}
-              label="Open Ports"
+              label="Responding Ports"
               value={(host.open_port_count ?? host.port_count).toString()}
             />
             <MetadataItem

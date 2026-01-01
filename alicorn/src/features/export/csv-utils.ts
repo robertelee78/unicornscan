@@ -6,6 +6,7 @@
 
 import type { Scan, IpReport, Host } from '@/types/database'
 import { decodeTcpFlags, getProtocolName } from '@/types/database'
+import { parseTimestamp } from '@/lib/utils'
 import type {
   ScanExportData,
   HostExportData,
@@ -126,8 +127,8 @@ export function hostToCSVRow(host: Host): HostCSVRow {
     hostname: host.hostname ?? '',
     mac_addr: host.mac_addr ?? '',
     os_guess: host.os_guess ?? '',
-    first_seen: new Date(host.first_seen * 1000).toISOString(),
-    last_seen: new Date(host.last_seen * 1000).toISOString(),
+    first_seen: new Date(parseTimestamp(host.first_seen) * 1000).toISOString(),
+    last_seen: new Date(parseTimestamp(host.last_seen) * 1000).toISOString(),
     scan_count: host.scan_count,
     open_port_count: host.open_port_count ?? host.port_count,
   }

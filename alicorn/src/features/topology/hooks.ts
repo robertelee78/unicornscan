@@ -7,6 +7,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
+import { parseTimestamp } from '@/lib/utils'
 import { inferOsFromTtl } from '@/types/database'
 import type { Host, Hop, IpReport } from '@/types/database'
 import type { TopologyData, TopologyNode, TopologyEdge, TopologyFilters } from './types'
@@ -77,8 +78,8 @@ function buildTopologyData(
       connectionCount: 0,
       observedTtl: avgTtl,
       estimatedHops,
-      firstSeen: host.first_seen,
-      lastSeen: host.last_seen,
+      firstSeen: parseTimestamp(host.first_seen),
+      lastSeen: parseTimestamp(host.last_seen),
     })
   }
 
@@ -248,7 +249,7 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
       hosts = hosts.filter(h => (h.open_port_count ?? h.port_count) >= filters.minPorts!)
     }
     if (filters.since !== undefined) {
-      hosts = hosts.filter(h => h.last_seen >= filters.since!)
+      hosts = hosts.filter(h => parseTimestamp(h.last_seen) >= filters.since!)
     }
 
     return buildTopologyData(hosts, [], [])

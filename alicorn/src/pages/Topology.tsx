@@ -247,7 +247,7 @@ function NodeDetails({ node }: NodeDetailsProps) {
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-2 pt-2 border-t">
         <div>
-          <div className="text-muted-foreground text-xs">Open Ports</div>
+          <div className="text-muted-foreground text-xs">Responding Ports</div>
           <div className="font-medium">{node.portCount}</div>
         </div>
         <div>
