@@ -20,7 +20,7 @@ case "$1" in
         echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
         echo "║                                                                ║"
         echo "║    1. Start the web UI:    unicornscan-web start               ║"
-        echo "║    2. Open browser:        http://localhost:8080               ║"
+        echo "║    2. Open browser:        http://localhost:31337              ║"
         echo "║    3. Run a scan:          unicornscan -edb,host=localhost,    ║"
         echo "║                            user=alicorn,pass=alicorn_secret,   ║"
         echo "║                            db=unicornscan <target>             ║"
