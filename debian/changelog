@@ -1,3 +1,12 @@
+unicornscan (0.4.23-1) unstable; urgency=medium
+
+  * Fix orphan Docker volume detection on reinstall
+    - Detects when postgres volume exists but .env is missing
+    - Gives clear error message with reset instructions
+    - Prevents password mismatch causing PostgREST auth failures
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 01 Jan 2026 01:30:00 -0800
+
 unicornscan (0.4.22-2) unstable; urgency=medium
 
   * Fix pgsqldb schema bug: tcpflags -> tcphdrflgs for uni_scan_phases
