@@ -1,3 +1,12 @@
+unicornscan (0.4.22-1) unstable; urgency=medium
+
+  * unicornscan-web generates random password on first start
+  * Auto-configure modules.conf so -epgsqldb just works
+  * Add 'unicornscan-web password' command to show password
+  * Simpler workflow: start web UI, run scan with -epgsqldb
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 31 Dec 2025 23:20:00 -0800
+
 unicornscan (0.4.21-1) unstable; urgency=medium
 
   * Remove Supabase cloud service dependency - now uses pure PostgreSQL

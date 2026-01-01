@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.21
+Version:        0.4.22
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -84,6 +84,11 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %dir %{_localstatedir}/unicornscan
 
 %changelog
+* Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.22-1
+- unicornscan-web generates random password on first start
+- Auto-configure modules.conf so -epgsqldb just works
+- Add 'unicornscan-web password' command to show password
+
 * Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.21-1
 - Remove Supabase cloud service dependency - now uses pure PostgreSQL
 - Add secure random password generation (no default passwords)
