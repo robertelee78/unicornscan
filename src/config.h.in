@@ -66,6 +66,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define if IP2Location is available */
+#undef HAVE_IP2LOCATION
+
+/* Define to 1 if you have the <IP2Location.h> header file. */
+#undef HAVE_IP2LOCATION_H
+
 /* Define to 1 if you have the 'ltdl' library (-lltdl). */
 #undef HAVE_LIBLTDL
 

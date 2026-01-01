@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { config } from '@/lib/database'
 import { useGeoIPService, type GeoIPProviderType } from '@/features/geoip'
+import { Terminal, RefreshCw } from 'lucide-react'
 
 export function Settings() {
   const {
@@ -293,13 +294,50 @@ export function Settings() {
         </CardContent>
       </Card>
 
+      {/* Database Reconfiguration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RefreshCw className="h-5 w-5" />
+            Reconfigure Database
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted">
+            To change database connection settings, run the setup wizard from the terminal.
+            The wizard will guide you through configuring a new database connection and
+            verify the connection before applying changes.
+          </p>
+          <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Terminal className="h-4 w-4" />
+              Run Setup Wizard
+            </div>
+            <div className="font-mono text-sm bg-background border border-border rounded px-3 py-2">
+              <span className="text-muted select-none">$ </span>
+              <span className="text-foreground">npm run setup</span>
+            </div>
+            <p className="text-xs text-muted">
+              After reconfiguration, rebuild and restart the application to apply changes.
+            </p>
+          </div>
+          <div className="text-xs text-muted space-y-1">
+            <p><strong>Why CLI?</strong> Database credentials are baked into the build at compile time
+              for security. The setup wizard creates/updates your <code className="text-primary">.env</code> file,
+              which Vite reads during the build process.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Theme Info */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Theme</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted text-sm">
-            Theme switching will be implemented in Phase 5.1.
+            Use the theme toggle button in the header to switch between light, dark, and system themes.
+            Your preference is saved locally and persists across sessions.
           </p>
         </CardContent>
       </Card>

@@ -20,6 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ErrorFallback } from '@/components/error'
 
 export function Topology() {
   const [searchParams] = useSearchParams()
@@ -68,13 +69,10 @@ export function Topology() {
     return (
       <div className="space-y-6">
         <PageHeader scansId={scansId} scanInfo={scanTopology.scan} />
-        <Card>
-          <CardContent className="py-8 text-center">
-            <div className="text-destructive">
-              Error loading topology: {error.message}
-            </div>
-          </CardContent>
-        </Card>
+        <ErrorFallback
+          error={error}
+          resetError={() => window.location.reload()}
+        />
       </div>
     )
   }

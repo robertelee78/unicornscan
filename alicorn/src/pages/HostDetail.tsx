@@ -14,6 +14,10 @@ import {
   useHostScans,
   useHostReports,
 } from '@/features/hosts'
+import { NotesTab, useEntityNotes } from '@/features/scans'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   PortTrendChart,
   PortTimeline,
@@ -28,12 +32,14 @@ import {
   quickExportHost,
   type ExportFormat,
 } from '@/features/export'
+import { ErrorFallback } from '@/components/error'
 import type { TimeRange } from '@/features/dashboard/types'
 
 export function HostDetail() {
   const { id } = useParams<{ id: string }>()
   const hostId = parseInt(id || '0', 10)
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
+  const [notesExpanded, setNotesExpanded] = useState(false)
 
   // Fetch host data
   const { data: host, isLoading: hostLoading, error: hostError } = useHost(hostId)
@@ -48,6 +54,9 @@ export function HostDetail() {
 
   // Fetch reports for export
   const { data: hostReports = [] } = useHostReports(host?.ip_addr || '')
+
+  // Fetch notes for the host
+  const { data: notes = [], isLoading: notesLoading } = useEntityNotes('host', hostId)
 
   // Fetch chart data
   const { data: portTrend, isLoading: trendLoading } = useHostPortTrend(
@@ -90,8 +99,16 @@ export function HostDetail() {
   // Error state
   if (hostError) {
     return (
-      <div className="text-error p-4">
-        Error loading host: {hostError.message}
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Host Details</h1>
+          <p className="text-muted mt-1">Host #{hostId}</p>
+        </div>
+        <ErrorFallback
+          error={hostError}
+          resetError={() => window.location.reload()}
+          showHomeButton
+        />
       </div>
     )
   }
@@ -188,6 +205,46 @@ export function HostDetail() {
         scans={hostScans}
         isLoading={scansLoading}
       />
+
+      {/* Notes Section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Notes
+              {notes.length > 0 && (
+                <span className="text-xs text-muted font-normal">
+                  ({notes.length})
+                </span>
+              )}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setNotesExpanded(!notesExpanded)}
+              className="h-8 px-2"
+            >
+              {notesExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        {notesExpanded && (
+          <CardContent>
+            <NotesTab
+              entityType="host"
+              entityId={hostId}
+              scanNotes={null}
+              notes={notes}
+              isLoading={notesLoading}
+            />
+          </CardContent>
+        )}
+      </Card>
     </div>
   )
 }

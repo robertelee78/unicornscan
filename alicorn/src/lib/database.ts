@@ -10,13 +10,14 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note, GeoIPRecord, GeoIPCountryStats, GeoIPQueryOptions } from '@/types/database'
+import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note, NoteEntityType, NoteCreate, NoteUpdate, GeoIPRecord, GeoIPCountryStats, GeoIPQueryOptions } from '@/types/database'
 import type { ScanDeleteStats, DeleteScanResult } from '@/features/deletion/types'
 import type {
   DashboardStats,
   PortCount,
   ScanTimelinePoint,
 } from '@/features/dashboard/types'
+import type { SavedFilter, SavedFilterCreate, SavedFilterUpdate, SavedFilterType } from '@/features/scans/types'
 
 // =============================================================================
 // Configuration
@@ -60,6 +61,7 @@ export const config = getConfig()
 
 export interface FilteredScansOptions {
   search?: string
+  notesSearch?: string
   dateFrom?: number | null
   dateTo?: number | null
   profiles?: string[]
@@ -99,7 +101,11 @@ export interface DatabaseClient {
   getArpReports(scansId: number): Promise<ArpReport[]>
 
   // Notes
-  getNotes(entityType: 'scan' | 'host' | 'port' | 'service', entityId: number): Promise<Note[]>
+  getNotes(entityType: NoteEntityType, entityId: number): Promise<Note[]>
+  getAllNotes(options?: { limit?: number; offset?: number; search?: string }): Promise<{ data: Note[]; total: number }>
+  createNote(note: NoteCreate): Promise<Note>
+  updateNote(noteId: number, updates: NoteUpdate): Promise<Note | null>
+  deleteNote(noteId: number): Promise<boolean>
 
   // Hosts
   getHosts(options?: { limit?: number }): Promise<Host[]>
@@ -126,6 +132,13 @@ export interface DatabaseClient {
   // Deletion
   getScanDeleteStats(scansId: number): Promise<ScanDeleteStats | null>
   deleteScan(scansId: number): Promise<DeleteScanResult>
+
+  // Saved Filters
+  getSavedFilters(filterType?: SavedFilterType): Promise<SavedFilter[]>
+  getSavedFilter(filterId: number): Promise<SavedFilter | null>
+  createSavedFilter(filter: SavedFilterCreate): Promise<SavedFilter>
+  updateSavedFilter(filterId: number, updates: SavedFilterUpdate): Promise<SavedFilter | null>
+  deleteSavedFilter(filterId: number): Promise<boolean>
 }
 
 // =============================================================================
@@ -258,6 +271,7 @@ class RestDatabase implements DatabaseClient {
   async getFilteredScans(options: FilteredScansOptions): Promise<FilteredScansResult> {
     const {
       search,
+      notesSearch,
       dateFrom,
       dateTo,
       profiles,
@@ -271,7 +285,7 @@ class RestDatabase implements DatabaseClient {
     // Build the base query for data
     let query = this.client
       .from('uni_scans')
-      .select('scans_id, s_time, e_time, profile, target_str, mode_str')
+      .select('scans_id, s_time, e_time, profile, target_str, mode_str, scan_notes')
 
     // Build count query with same filters
     let countQuery = this.client
@@ -282,6 +296,12 @@ class RestDatabase implements DatabaseClient {
     if (search) {
       query = query.ilike('target_str', `%${search}%`)
       countQuery = countQuery.ilike('target_str', `%${search}%`)
+    }
+
+    // Notes search - search the scan_notes column
+    if (notesSearch) {
+      query = query.ilike('scan_notes', `%${notesSearch}%`)
+      countQuery = countQuery.ilike('scan_notes', `%${notesSearch}%`)
     }
 
     if (dateFrom !== null && dateFrom !== undefined) {
@@ -392,7 +412,7 @@ class RestDatabase implements DatabaseClient {
     return data as ArpReport[]
   }
 
-  async getNotes(entityType: 'scan' | 'host' | 'port' | 'service', entityId: number): Promise<Note[]> {
+  async getNotes(entityType: NoteEntityType, entityId: number): Promise<Note[]> {
     const { data, error } = await this.client
       .from('uni_notes')
       .select('*')
@@ -406,6 +426,81 @@ class RestDatabase implements DatabaseClient {
       throw error
     }
     return data as Note[]
+  }
+
+  async getAllNotes(options?: { limit?: number; offset?: number; search?: string }): Promise<{ data: Note[]; total: number }> {
+    const { limit = 50, offset = 0, search } = options || {}
+
+    let query = this.client
+      .from('uni_notes')
+      .select('*', { count: 'exact' })
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (search) {
+      query = query.ilike('note_text', `%${search}%`)
+    }
+
+    const { data, count, error } = await query
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') {
+        return { data: [], total: 0 }
+      }
+      throw error
+    }
+
+    return {
+      data: data as Note[],
+      total: count || 0,
+    }
+  }
+
+  async createNote(note: NoteCreate): Promise<Note> {
+    const { data, error } = await this.client
+      .from('uni_notes')
+      .insert({
+        entity_type: note.entity_type,
+        entity_id: note.entity_id,
+        note_text: note.note_text,
+        created_by: note.created_by || null,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Note
+  }
+
+  async updateNote(noteId: number, updates: NoteUpdate): Promise<Note | null> {
+    const { data, error } = await this.client
+      .from('uni_notes')
+      .update({
+        note_text: updates.note_text,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('note_id', noteId)
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null
+      throw error
+    }
+    return data as Note
+  }
+
+  async deleteNote(noteId: number): Promise<boolean> {
+    const { error } = await this.client
+      .from('uni_notes')
+      .delete()
+      .eq('note_id', noteId)
+
+    if (error) {
+      if (error.code === 'PGRST116') return false
+      throw error
+    }
+    return true
   }
 
   async getHosts(options?: { limit?: number }): Promise<Host[]> {
@@ -909,6 +1004,106 @@ class RestDatabase implements DatabaseClient {
 
     return result
   }
+
+  // ===========================================================================
+  // Saved Filters Methods
+  // ===========================================================================
+
+  async getSavedFilters(filterType?: SavedFilterType): Promise<SavedFilter[]> {
+    let query = this.client
+      .from('uni_saved_filters')
+      .select('*')
+      .order('is_default', { ascending: false })
+      .order('filter_name', { ascending: true })
+
+    if (filterType) {
+      query = query.eq('filter_type', filterType)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      // Table might not exist
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as SavedFilter[]
+  }
+
+  async getSavedFilter(filterId: number): Promise<SavedFilter | null> {
+    const { data, error } = await this.client
+      .from('uni_saved_filters')
+      .select('*')
+      .eq('filter_id', filterId)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null
+      throw error
+    }
+    return data as SavedFilter
+  }
+
+  async createSavedFilter(filter: SavedFilterCreate): Promise<SavedFilter> {
+    const { data, error } = await this.client
+      .from('uni_saved_filters')
+      .insert({
+        filter_name: filter.filter_name,
+        filter_type: filter.filter_type,
+        filter_config: filter.filter_config,
+        is_default: filter.is_default ?? false,
+        created_by: filter.created_by ?? null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as SavedFilter
+  }
+
+  async updateSavedFilter(filterId: number, updates: SavedFilterUpdate): Promise<SavedFilter | null> {
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    }
+
+    if (updates.filter_name !== undefined) {
+      updateData.filter_name = updates.filter_name
+    }
+    if (updates.filter_config !== undefined) {
+      updateData.filter_config = updates.filter_config
+    }
+    if (updates.is_default !== undefined) {
+      updateData.is_default = updates.is_default
+    }
+
+    const { data, error } = await this.client
+      .from('uni_saved_filters')
+      .update(updateData)
+      .eq('filter_id', filterId)
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') return null
+      throw error
+    }
+    return data as SavedFilter
+  }
+
+  async deleteSavedFilter(filterId: number): Promise<boolean> {
+    const { error } = await this.client
+      .from('uni_saved_filters')
+      .delete()
+      .eq('filter_id', filterId)
+
+    if (error) {
+      if (error.code === 'PGRST116') return false
+      throw error
+    }
+    return true
+  }
 }
 
 // =============================================================================
@@ -1086,6 +1281,7 @@ class DemoDatabase implements DatabaseClient {
 
     const {
       search,
+      notesSearch,
       dateFrom,
       dateTo,
       profiles,
@@ -1102,6 +1298,12 @@ class DemoDatabase implements DatabaseClient {
     if (search) {
       const searchLower = search.toLowerCase()
       filtered = filtered.filter((s) => s.target_str.toLowerCase().includes(searchLower))
+    }
+
+    // Apply notes search filter
+    if (notesSearch) {
+      const notesLower = notesSearch.toLowerCase()
+      filtered = filtered.filter((s) => s.scan_notes?.toLowerCase().includes(notesLower))
     }
 
     // Apply date filters
@@ -1220,10 +1422,31 @@ class DemoDatabase implements DatabaseClient {
     return []
   }
 
-  async getNotes(_entityType: 'scan' | 'host' | 'port' | 'service', _entityId: number): Promise<Note[]> {
+  async getNotes(_entityType: NoteEntityType, _entityId: number): Promise<Note[]> {
     await this.simulateDelay()
-    // Demo notes - empty for now
+    // Demo mode: no notes
     return []
+  }
+
+  async getAllNotes(_options?: { limit?: number; offset?: number; search?: string }): Promise<{ data: Note[]; total: number }> {
+    await this.simulateDelay()
+    // Demo mode: no notes
+    return { data: [], total: 0 }
+  }
+
+  async createNote(_note: NoteCreate): Promise<Note> {
+    await this.simulateDelay()
+    throw new Error('Notes creation not available in demo mode')
+  }
+
+  async updateNote(_noteId: number, _updates: NoteUpdate): Promise<Note | null> {
+    await this.simulateDelay()
+    throw new Error('Notes update not available in demo mode')
+  }
+
+  async deleteNote(_noteId: number): Promise<boolean> {
+    await this.simulateDelay()
+    throw new Error('Notes deletion not available in demo mode')
   }
 
   async getHosts(_options?: { limit?: number }): Promise<Host[]> {
@@ -1635,6 +1858,45 @@ class DemoDatabase implements DatabaseClient {
         tags: 0,
       },
     }
+  }
+
+  // ===========================================================================
+  // Saved Filters Methods (Demo mode returns empty results)
+  // ===========================================================================
+
+  async getSavedFilters(_filterType?: SavedFilterType): Promise<SavedFilter[]> {
+    await this.simulateDelay()
+    return []
+  }
+
+  async getSavedFilter(_filterId: number): Promise<SavedFilter | null> {
+    await this.simulateDelay()
+    return null
+  }
+
+  async createSavedFilter(filter: SavedFilterCreate): Promise<SavedFilter> {
+    await this.simulateDelay()
+    // In demo mode, return a fake saved filter (not persisted)
+    return {
+      filter_id: Math.floor(Math.random() * 10000),
+      filter_name: filter.filter_name,
+      filter_type: filter.filter_type,
+      filter_config: filter.filter_config,
+      is_default: filter.is_default ?? false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: filter.created_by ?? null,
+    }
+  }
+
+  async updateSavedFilter(_filterId: number, _updates: SavedFilterUpdate): Promise<SavedFilter | null> {
+    await this.simulateDelay()
+    return null
+  }
+
+  async deleteSavedFilter(_filterId: number): Promise<boolean> {
+    await this.simulateDelay()
+    return false
   }
 
   private simulateDelay(): Promise<void> {

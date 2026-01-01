@@ -20,6 +20,7 @@ import {
   type SortField,
   type PaginationState,
 } from '@/features/scans'
+import { ErrorFallback } from '@/components/error'
 import {
   ExportDialog,
   ExportDropdown,
@@ -31,6 +32,7 @@ import {
   BulkDeleteConfirmDialog,
   useBulkScanDeletion,
 } from '@/features/deletion'
+import { useToast } from '@/features/toast'
 
 export function Scans() {
   const [filters, setFilters] = useState<ScanFilters>(DEFAULT_FILTERS)
@@ -38,6 +40,7 @@ export function Scans() {
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
   const [showSelection, setShowSelection] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToast()
 
   const { data: scans, total, isLoading, error } = useScanList(filters, sort, pagination)
 
@@ -56,9 +59,29 @@ export function Scans() {
     clearSelection,
     selectedCount,
   } = useBulkScanDeletion({
-    onComplete: () => {
+    onComplete: (results) => {
+      const successCount = results.filter((r) => r.success).length
+      const failCount = results.length - successCount
+
+      if (failCount === 0) {
+        toastSuccess(
+          'Scans deleted',
+          `Successfully deleted ${successCount} scan${successCount !== 1 ? 's' : ''}.`
+        )
+      } else if (successCount > 0) {
+        toastError(
+          'Some deletions failed',
+          `Deleted ${successCount} scan${successCount !== 1 ? 's' : ''}, but ${failCount} failed.`
+        )
+      } else {
+        toastError('Deletion failed', 'Could not delete the selected scans.')
+      }
+
       setBulkDeleteOpen(false)
       setShowSelection(false)
+    },
+    onError: (error, scansId) => {
+      toastError(`Failed to delete scan #${scansId}`, error.message)
     },
   })
 
@@ -111,8 +134,15 @@ export function Scans() {
 
   if (error) {
     return (
-      <div className="text-error">
-        Error loading scans: {error.message}
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Scans</h1>
+          <p className="text-muted mt-1">Browse scan history</p>
+        </div>
+        <ErrorFallback
+          error={error}
+          resetError={() => window.location.reload()}
+        />
       </div>
     )
   }

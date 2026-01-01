@@ -31,6 +31,8 @@ import {
   recordDeletion,
 } from '@/features/deletion'
 import { Card, CardContent } from '@/components/ui/card'
+import { ErrorFallback } from '@/components/error'
+import { useToast } from '@/features/toast'
 
 type TabId = 'results' | 'hosts' | 'raw' | 'notes'
 
@@ -40,6 +42,7 @@ export function ScanDetail() {
   const scansId = parseInt(id || '0', 10)
   const [activeTab, setActiveTab] = useState<TabId>('results')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToast()
 
   // Fetch scan data
   const { data: scan, isLoading: scanLoading, error: scanError } = useScan(scansId)
@@ -57,8 +60,15 @@ export function ScanDetail() {
       if (scan) {
         recordDeletion(result, scan.target_str)
       }
+      toastSuccess(
+        'Scan deleted',
+        `Scan #${scansId} and all associated data have been removed.`
+      )
       setDeleteDialogOpen(false)
       navigate('/scans')
+    },
+    onError: (error) => {
+      toastError('Failed to delete scan', error.message)
     },
   })
 
@@ -104,8 +114,16 @@ export function ScanDetail() {
   // Error state
   if (scanError) {
     return (
-      <div className="text-error p-4">
-        Error loading scan: {scanError.message}
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Scan Details</h1>
+          <p className="text-muted mt-1">Scan #{scansId}</p>
+        </div>
+        <ErrorFallback
+          error={scanError}
+          resetError={() => window.location.reload()}
+          showHomeButton
+        />
       </div>
     )
   }
@@ -182,7 +200,8 @@ export function ScanDetail() {
 
             {activeTab === 'notes' && (
               <NotesTab
-                scanId={scansId}
+                entityType="scan"
+                entityId={scansId}
                 scanNotes={scan.scan_notes}
                 notes={notes}
                 isLoading={notesLoading}

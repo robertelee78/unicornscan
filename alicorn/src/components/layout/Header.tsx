@@ -4,13 +4,19 @@
  */
 
 import { useLocation, Link } from 'react-router-dom'
-import { Bell } from 'lucide-react'
+import { Bell, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { config } from '@/lib/database'
 import { Badge } from '@/components/ui/badge'
 import { ThemeDropdown } from '@/features/theme'
+import { ConnectionIndicator } from '@/features/connection'
 
-export function Header() {
+interface HeaderProps {
+  notesCount?: number
+  onNotesClick?: () => void
+}
+
+export function Header({ notesCount = 0, onNotesClick }: HeaderProps) {
   const location = useLocation()
   const breadcrumbs = getBreadcrumbs(location.pathname)
 
@@ -34,10 +40,29 @@ export function Header() {
 
       {/* Actions */}
       <div className="flex items-center gap-3">
+        {/* Connection status (shows when offline) */}
+        <ConnectionIndicator />
+
         {/* Backend indicator */}
         <Badge variant="outline" className="font-mono text-xs">
           {config.backend}
         </Badge>
+
+        {/* Notes sidebar toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted relative"
+          onClick={onNotesClick}
+          title="View all notes"
+        >
+          <MessageSquare className="h-5 w-5" />
+          {notesCount > 0 && (
+            <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 bg-primary text-primary-foreground text-xs font-medium rounded-full flex items-center justify-center">
+              {notesCount > 99 ? '99+' : notesCount}
+            </span>
+          )}
+        </Button>
 
         {/* Notifications (placeholder) */}
         <Button variant="ghost" size="icon" className="text-muted">

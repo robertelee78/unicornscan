@@ -1,0 +1,30 @@
+# Alicorn Web UI - Docker Compose
+# Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+#
+# Usage:
+#   1. Run setup wizard: npm run setup
+#   2. Build and start:  docker compose up --build
+#   3. Access at:        http://localhost:8080
+
+services:
+  alicorn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # These are read from .env file (created by setup wizard)
+        VITE_DB_BACKEND: ${VITE_DB_BACKEND:-demo}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_POSTGREST_URL: ${VITE_POSTGREST_URL:-}
+        VITE_APP_TITLE: ${VITE_APP_TITLE:-Alicorn}
+        VITE_DEBUG: ${VITE_DEBUG:-false}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

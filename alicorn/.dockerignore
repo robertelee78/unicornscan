@@ -1,0 +1,41 @@
+# Alicorn Web UI - Docker ignore file
+# Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+
+# Dependencies
+node_modules
+
+# Build output (we rebuild in Docker)
+dist
+
+# Development files
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+coverage
+
+# Documentation (not needed in image)
+*.md
+!README.md

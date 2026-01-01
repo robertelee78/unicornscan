@@ -13,6 +13,7 @@ export interface SortState {
 
 export interface ScanFilters {
   search: string           // Search by IP or port
+  notesSearch: string      // Search by user-entered scan notes
   dateFrom: number | null  // Unix timestamp
   dateTo: number | null    // Unix timestamp
   profiles: string[]       // Filter by profile names
@@ -28,6 +29,7 @@ export interface PaginationState {
 
 export const DEFAULT_FILTERS: ScanFilters = {
   search: '',
+  notesSearch: '',
   dateFrom: null,
   dateTo: null,
   profiles: [],
@@ -47,3 +49,34 @@ export const DEFAULT_PAGINATION: PaginationState = {
 }
 
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
+
+// =============================================================================
+// Saved Filters
+// =============================================================================
+
+export type SavedFilterType = 'scan' | 'host' | 'port' | 'service' | 'network' | 'custom'
+
+export interface SavedFilter {
+  filter_id: number
+  filter_name: string
+  filter_type: SavedFilterType
+  filter_config: ScanFilters
+  is_default: boolean
+  created_at: string
+  updated_at: string
+  created_by: string | null
+}
+
+export interface SavedFilterCreate {
+  filter_name: string
+  filter_type: SavedFilterType
+  filter_config: ScanFilters
+  is_default?: boolean
+  created_by?: string
+}
+
+export interface SavedFilterUpdate {
+  filter_name?: string
+  filter_config?: ScanFilters
+  is_default?: boolean
+}

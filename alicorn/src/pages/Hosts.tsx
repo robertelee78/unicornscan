@@ -25,6 +25,7 @@ import {
   useHostsListExport,
   type ExportFormat,
 } from '@/features/export'
+import { ErrorFallback } from '@/components/error'
 
 export function Hosts() {
   const [filters, setFilters] = useState<HostFilters>(DEFAULT_FILTERS)
@@ -60,8 +61,15 @@ export function Hosts() {
 
   if (error) {
     return (
-      <div className="text-error">
-        Error loading hosts: {error.message}
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Hosts</h1>
+          <p className="text-muted mt-1">Discovered hosts across all scans</p>
+        </div>
+        <ErrorFallback
+          error={error}
+          resetError={() => window.location.reload()}
+        />
       </div>
     )
   }
