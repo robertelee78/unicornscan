@@ -11,17 +11,17 @@ alicorn/postgrest                      opt/unicornscan-web/
 alicorn/package.json             opt/unicornscan-web/
 alicorn/package-lock.json        opt/unicornscan-web/
 alicorn/vite.config.ts           opt/unicornscan-web/
+alicorn/vitest.config.ts         opt/unicornscan-web/
+alicorn/eslint.config.js         opt/unicornscan-web/
 alicorn/tsconfig.json            opt/unicornscan-web/
 alicorn/tsconfig.app.json        opt/unicornscan-web/
 alicorn/tsconfig.node.json       opt/unicornscan-web/
-alicorn/tailwind.config.js       opt/unicornscan-web/
-alicorn/postcss.config.js        opt/unicornscan-web/
 alicorn/index.html               opt/unicornscan-web/
-alicorn/components.json          opt/unicornscan-web/
 
 # Alicorn Web UI - Source code
 alicorn/src                      opt/unicornscan-web/
 alicorn/public                   opt/unicornscan-web/
+alicorn/cli                      opt/unicornscan-web/
 
 # SQL schema for Docker initialization
 src/output_modules/database/sql/pgsql_schema.sql  opt/unicornscan-web/sql/
