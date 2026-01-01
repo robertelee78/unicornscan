@@ -8,6 +8,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Scan, IpReport, Host } from '@/types/database'
 import { decodeTcpFlags, getProtocolName } from '@/types/database'
+import { parseTimestamp } from '@/lib/utils'
 import type {
   ScanExportData,
   HostExportData,
@@ -501,7 +502,7 @@ export function exportHostsListToPDF(
   doc.setFont('helvetica', 'normal')
   doc.text(`Total Hosts: ${hosts.length}`, PAGE_MARGIN, yPosition)
   yPosition += 6
-  doc.text(`Hosts with Open Ports: ${hosts.filter((h) => getPortCount(h) > 0).length}`, PAGE_MARGIN, yPosition)
+  doc.text(`Hosts with Responses: ${hosts.filter((h) => getPortCount(h) > 0).length}`, PAGE_MARGIN, yPosition)
   yPosition += 15
 
   // Hosts table
@@ -510,13 +511,13 @@ export function exportHostsListToPDF(
     h.hostname || '-',
     getPortCount(h),
     h.scan_count,
-    new Date(h.last_seen * 1000).toLocaleDateString(),
+    new Date(parseTimestamp(h.last_seen) * 1000).toLocaleDateString(),
     h.os_guess || '-',
   ])
 
   autoTable(doc, {
     startY: yPosition,
-    head: [['IP Address', 'Hostname', 'Open Ports', 'Scan Count', 'Last Seen', 'OS']],
+    head: [['IP Address', 'Hostname', 'Responses', 'Scan Count', 'Last Seen', 'OS']],
     body: hostsTableData,
     styles: { fontSize: 8 },
     headStyles: { fillColor: COLORS.primary },
@@ -584,10 +585,10 @@ function addHostMetadataSection(doc: jsPDF, host: Host, startY: number): number 
     ['Hostname:', host.hostname ?? '-'],
     ['MAC Address:', host.mac_addr ?? '-'],
     ['OS Guess:', host.os_guess ?? '-'],
-    ['First Seen:', new Date(host.first_seen * 1000).toLocaleString()],
-    ['Last Seen:', new Date(host.last_seen * 1000).toLocaleString()],
+    ['First Seen:', new Date(parseTimestamp(host.first_seen) * 1000).toLocaleString()],
+    ['Last Seen:', new Date(parseTimestamp(host.last_seen) * 1000).toLocaleString()],
     ['Scan Count:', host.scan_count.toString()],
-    ['Open Ports:', portCount.toString()],
+    ['Responding Ports:', portCount.toString()],
   ]
 
   for (const [label, value] of metadata) {

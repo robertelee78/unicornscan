@@ -83,7 +83,7 @@ export function TopologyControls({
         {/* Min Ports Filter */}
         <div className="space-y-1.5">
           <label htmlFor="minPorts" className="text-xs text-muted-foreground">
-            Min Open Ports
+            Min Responses
           </label>
           <Input
             id="minPorts"

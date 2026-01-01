@@ -109,17 +109,28 @@ static const char *build_mode_str(const settings_t *settings) {
 		}
 	}
 	else if (settings->ss != NULL) {
-		/* Single mode: use ss->mode */
-		*p++ = mode_to_char(settings->ss->mode);
+		/* Check for sf (connect) mode: TCP scan with M_DO_CONNECT flag */
+		if (settings->ss->mode == 1 && (settings->options & 32)) { /* MODE_TCPSCAN + M_DO_CONNECT */
+			*p++ = 's';
+			remaining--;
+			if (remaining > 0) {
+				*p++ = 'f';
+				remaining--;
+			}
+		}
+		else {
+			/* Regular single mode: use ss->mode */
+			*p++ = mode_to_char(settings->ss->mode);
+		}
 
-		/* Add TCP flag suffixes */
+		/* Add TCP flag suffixes for TCP modes */
 		if (settings->ss->mode == 1) { /* MODE_TCPSCAN */
 			uint16_t flags = settings->ss->tcphdrflgs;
-			if ((flags & 0x01) && remaining > 0) { *p++ = 'f'; remaining--; } /* TH_FIN */
-			if ((flags & 0x04) && remaining > 0) { *p++ = 'r'; remaining--; } /* TH_RST */
-			if ((flags & 0x08) && remaining > 0) { *p++ = 'p'; remaining--; } /* TH_PSH */
-			if ((flags & 0x10) && remaining > 0) { *p++ = 'a'; remaining--; } /* TH_ACK */
-			if ((flags & 0x20) && remaining > 0) { *p++ = 'u'; remaining--; } /* TH_URG */
+			if ((flags & 0x01) && remaining > 0) { *p++ = 'F'; remaining--; } /* TH_FIN */
+			if ((flags & 0x04) && remaining > 0) { *p++ = 'R'; remaining--; } /* TH_RST */
+			if ((flags & 0x08) && remaining > 0) { *p++ = 'P'; remaining--; } /* TH_PSH */
+			if ((flags & 0x10) && remaining > 0) { *p++ = 'A'; remaining--; } /* TH_ACK */
+			if ((flags & 0x20) && remaining > 0) { *p++ = 'U'; remaining--; } /* TH_URG */
 		}
 	}
 	else {
@@ -1260,7 +1271,7 @@ void pgsql_database_init(void) {
 	keyval_t *kv=NULL;
 	char *connstr=NULL, *escres=NULL;
 	char profile[200], dronestr[200], modules[200], user[200], pcap_dumpfile[200], pcap_readfile[200];
-	char mode_str_buf[64], interface_str[64], port_str_buf[4096], target_str_esc[4096];
+	char mode_str_buf[64], interface_str[64], port_str_buf[4096], target_str_esc[4096], src_addr_str[128];
 	const char *mode_str_ptr, *target_str_ptr;
 	uint8_t mode_flags;
 	long long int est_e_time=0;
@@ -1464,6 +1475,15 @@ void pgsql_database_init(void) {
 		}
 	}
 
+	/* Get source address (-s option / phantom IP) - format for SQL */
+	src_addr_str[0] = '\0';
+	if (s->vi != NULL && s->vi[0] != NULL && strlen(s->vi[0]->myaddr_s) > 0 &&
+	    strcmp(s->vi[0]->myaddr_s, "0.0.0.0") != 0) {
+		snprintf(src_addr_str, sizeof(src_addr_str) - 1, "'%s'", s->vi[0]->myaddr_s);
+	} else {
+		strcpy(src_addr_str, "NULL");
+	}
+
 	est_e_time=(long long int )s->s_time + (long long int )s->ss->recv_timeout + (long long int )s->num_secs;
 
 	snprintf(querybuf, sizeof(querybuf) -1,
@@ -1475,7 +1495,7 @@ void pgsql_database_init(void) {
 		"\"num_hosts\",		\"num_packets\",	\"mode_str\",		\"mode_flags\",	"
 		"\"num_phases\",	\"port_str\",		\"interface\",		\"tcpflags\",	"
 		"\"send_opts\",		\"recv_opts\",		\"pps\",		\"recv_timeout\","
-		"\"repeats\",		\"target_str\"						"
+		"\"repeats\",		\"target_str\",		\"src_addr\"				"
 	") 												"
 	"values(											"
 		"%lld,			%lld,			%lld,			%d,		"
@@ -1485,7 +1505,7 @@ void pgsql_database_init(void) {
 		"%f,			%f,			'%s',			%hu,		"
 		"%hu,			'%s',			'%s',			%u,		"
 		"%hu,			%hu,			%u,			%hu,		"
-		"%u,			'%s'							"
+		"%u,			'%s',			%s				"
 	");												"
 	"select currval('uni_scans_id_seq') as scanid;							",
 	(long long int )s->s_time,	(long long int )0,	est_e_time,		s->senders,
@@ -1495,7 +1515,7 @@ void pgsql_database_init(void) {
 	s->num_hosts,			s->num_packets,		mode_str_buf,		mode_flags,
 	s->num_phases,			port_str_buf,		interface_str,		s->ss->tcphdrflgs,
 	s->send_opts,			s->recv_opts,		s->pps,			s->ss->recv_timeout,
-	s->repeats,			target_str_esc
+	s->repeats,			target_str_esc,		src_addr_str
 	);
 
 	pgres=PQexec(pgconn, querybuf);

@@ -26,7 +26,10 @@
  * This schema is auto-created when connecting to a fresh database.
  * Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 6
+ * Schema version: 7
+ * - v7: Added target_str column for original command line target specification
+ *       Added src_addr column for source address / phantom IP (-s option)
+ *       Updated v_hosts view to calculate port_count from uni_ipreport
  * - v6: Added GeoIP integration for geographic and network metadata
  *       uni_geoip: Geographic and network data (country, region, city, lat/long, ISP, ASN, ip_type)
  *       Supports multiple providers: MaxMind (GeoLite2/GeoIP2), IP2Location, IPinfo
@@ -119,6 +122,7 @@ static const char *pgsql_schema_scans_ddl =
 	"    repeats     INTEGER DEFAULT 1,\n"  /* Global repeat count (-R) */
 	"    scan_notes  TEXT,\n"               /* User-supplied notes/annotations */
 	"    target_str  TEXT,\n"               /* Original command line target specification (v7) */
+	"    src_addr    INET,\n"               /* Source address / phantom IP (-s option) (v7) */
 	"    PRIMARY KEY (scans_id)\n"
 	");\n";
 
@@ -1082,7 +1086,7 @@ static const char *pgsql_schema_v5_functions_ddl =
  * Schema v5 views - views for frontend support tables
  */
 static const char *pgsql_schema_v5_views_ddl =
-	/* v_hosts: Aggregate host information */
+	/* v_hosts: Aggregate host information with calculated port count */
 	"CREATE OR REPLACE VIEW v_hosts WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    h.host_id,\n"
@@ -1092,7 +1096,8 @@ static const char *pgsql_schema_v5_views_ddl =
 	"    h.first_seen,\n"
 	"    h.last_seen,\n"
 	"    h.scan_count,\n"
-	"    h.port_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    (SELECT COUNT(DISTINCT hs.scans_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id) AS actual_scan_count,\n"
 	"    h.extra_data\n"
 	"FROM uni_hosts h\n"
 	"ORDER BY h.last_seen DESC;\n"
@@ -1293,10 +1298,11 @@ static const char *pgsql_schema_v6_views_ddl =
 	"ORDER BY host_count DESC;\n";
 
 /*
- * Schema v7 migration - add target_str column to uni_scans
+ * Schema v7 migration - add target_str and src_addr columns to uni_scans
  */
 static const char *pgsql_schema_migration_v7_ddl =
-	"ALTER TABLE uni_scans ADD COLUMN IF NOT EXISTS target_str TEXT;\n";
+	"ALTER TABLE uni_scans ADD COLUMN IF NOT EXISTS target_str TEXT;\n"
+	"ALTER TABLE uni_scans ADD COLUMN IF NOT EXISTS src_addr INET;\n";
 
 /*
  * Record schema version

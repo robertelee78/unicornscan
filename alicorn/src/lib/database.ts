@@ -202,7 +202,7 @@ class RestDatabase implements DatabaseClient {
             .eq('scans_id', scan.scans_id),
           this.client
             .from('uni_scan_tags')
-            .select('tag')
+            .select('tag_name')
             .eq('scans_id', scan.scans_id),
         ])
 
@@ -218,7 +218,7 @@ class RestDatabase implements DatabaseClient {
           host_count: uniqueHosts.size,
           port_count: portResult.count || 0,
           open_count: 0,
-          tags: tagsResult.data?.map((t) => t.tag) || [],
+          tags: tagsResult.data?.map((t) => t.tag_name) || [],
         }
       })
     )
@@ -308,7 +308,7 @@ class RestDatabase implements DatabaseClient {
             .eq('scans_id', scan.scans_id),
           this.client
             .from('uni_scan_tags')
-            .select('tag')
+            .select('tag_name')
             .eq('scans_id', scan.scans_id),
         ])
 
@@ -324,7 +324,7 @@ class RestDatabase implements DatabaseClient {
           host_count: uniqueHosts.size,
           port_count: portResult.count || 0,
           open_count: 0,
-          tags: tagsResult.data?.map((t) => t.tag) || [],
+          tags: tagsResult.data?.map((t) => t.tag_name) || [],
         }
       })
     )
@@ -462,8 +462,9 @@ class RestDatabase implements DatabaseClient {
   }
 
   async getHosts(options?: { limit?: number }): Promise<Host[]> {
+    // Use v_hosts view which calculates port_count from uni_ipreport
     const { data, error } = await this.client
-      .from('uni_hosts')
+      .from('v_hosts')
       .select('*')
       .order('last_seen', { ascending: false })
       .limit(options?.limit || 100)
@@ -473,8 +474,9 @@ class RestDatabase implements DatabaseClient {
   }
 
   async getHost(hostId: number): Promise<Host | null> {
+    // Use v_hosts view which calculates port_count from uni_ipreport
     const { data, error } = await this.client
-      .from('uni_hosts')
+      .from('v_hosts')
       .select('*')
       .eq('host_id', hostId)
       .single()
@@ -487,10 +489,11 @@ class RestDatabase implements DatabaseClient {
   }
 
   async getHostByIp(ip: string): Promise<Host | null> {
+    // Use v_hosts view which calculates port_count from uni_ipreport
     const { data, error } = await this.client
-      .from('uni_hosts')
+      .from('v_hosts')
       .select('*')
-      .eq('ip_addr', ip)
+      .eq('host_addr', ip)
       .single()
 
     if (error) {
@@ -511,7 +514,7 @@ class RestDatabase implements DatabaseClient {
 
     return (data || []).map((host) => ({
       host_id: host.host_id,
-      ip_addr: host.ip_addr,
+      ip_addr: host.host_addr,
       hostname: host.hostname,
       os_guess: host.os_guess,
       open_ports: [],
@@ -670,7 +673,7 @@ class RestDatabase implements DatabaseClient {
             .eq('scans_id', scan.scans_id),
           this.client
             .from('uni_scan_tags')
-            .select('tag')
+            .select('tag_name')
             .eq('scans_id', scan.scans_id),
         ])
 
@@ -686,7 +689,7 @@ class RestDatabase implements DatabaseClient {
           host_count: uniqueHosts.size,
           port_count: portResult.count || 0,
           open_count: 0,
-          tags: tagsResult.data?.map((t) => t.tag) || [],
+          tags: tagsResult.data?.map((t) => t.tag_name) || [],
         }
       })
     )

@@ -49,18 +49,18 @@ export function HostFilterBar({ filters, onChange }: HostFilterBarProps) {
         />
       </div>
 
-      {/* Open ports filter */}
+      {/* Response filter */}
       <Select
         value={filters.hasOpenPorts === null ? 'all' : filters.hasOpenPorts ? 'open' : 'none'}
         onValueChange={handlePortsFilterChange}
       >
-        <SelectTrigger className="w-[150px] h-9">
+        <SelectTrigger className="w-[180px] h-9">
           <SelectValue placeholder="Port status" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All hosts</SelectItem>
-          <SelectItem value="open">Has open ports</SelectItem>
-          <SelectItem value="none">No open ports</SelectItem>
+          <SelectItem value="open">Has responses</SelectItem>
+          <SelectItem value="none">No responses</SelectItem>
         </SelectContent>
       </Select>
 
