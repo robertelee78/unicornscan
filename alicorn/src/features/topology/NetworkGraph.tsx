@@ -360,7 +360,7 @@ function NodeTooltip({ node }: NodeTooltipProps) {
           </div>
         )}
         <div className="flex justify-between gap-4">
-          <span>Open Ports:</span>
+          <span>Responding Ports:</span>
           <span className="font-medium text-foreground">{node.portCount}</span>
         </div>
         {node.observedTtl !== undefined && (

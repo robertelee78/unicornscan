@@ -109,6 +109,8 @@ create table "uni_scans" (
 	"scan_notes"	text,
 	-- v7: original command line target specification
 	"target_str"	text,
+	-- v7: source address specification (-s option / phantom IP)
+	"src_addr"	inet,
 	primary key("scans_id")
 );
 
@@ -959,7 +961,7 @@ order by s.scans_id, p.phase_idx;
 -- v5: VIEWS FOR FRONTEND SUPPORT TABLES
 -- ============================================
 
--- v_hosts: Aggregate host information with scan counts
+-- v_hosts: Aggregate host information with scan counts and calculated port count
 create or replace view v_hosts
 with (security_invoker = true) as
 select
@@ -970,7 +972,11 @@ select
     h.first_seen,
     h.last_seen,
     h.scan_count,
-    h.port_count,
+    -- Calculate port_count from uni_ipreport since C code doesn't update uni_hosts.port_count
+    coalesce(
+        (select count(distinct i.dport) from uni_ipreport i where i.host_addr = h.host_addr),
+        0
+    )::int4 as port_count,
     (select count(distinct hs.scans_id) from uni_host_scans hs where hs.host_id = h.host_id) as actual_scan_count,
     h.extra_data
 from uni_hosts h
@@ -1292,4 +1298,4 @@ group by g.scans_id, g.country_code, g.country_name
 order by host_count desc;
 
 -- Record schema version
-insert into uni_schema_version (version) values (6);
+insert into uni_schema_version (version) values (7);

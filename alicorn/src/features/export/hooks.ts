@@ -381,6 +381,7 @@ export function useScansListExport(
         recv_timeout: null,
         repeats: null,
         target_str: s.target_str,
+        src_addr: null,
         mode_str: s.mode_str,
         mode_flags: null,
         num_phases: null,

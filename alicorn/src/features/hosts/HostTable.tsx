@@ -57,7 +57,7 @@ export function HostTable({ hosts, sort, onSort, isLoading }: HostTableProps) {
             <th className="pb-3 pr-4 font-medium text-muted">OS</th>
             <SortableHeader
               field="port_count"
-              label="Open Ports"
+              label="Responses"
               sort={sort}
               onSort={onSort}
             />

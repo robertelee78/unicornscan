@@ -4,7 +4,7 @@
  */
 
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Clock, User, Gauge, Target, Layers, Trash2 } from 'lucide-react'
+import { ArrowLeft, Clock, User, Gauge, Target, Layers, Trash2, Repeat, Timer, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -100,6 +100,7 @@ export function ScanDetailHeader({
       {/* Metadata cards */}
       <Card>
         <CardContent className="pt-4">
+          {/* Primary scan info */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             <MetadataItem
               icon={<Clock className="h-4 w-4" />}
@@ -117,9 +118,9 @@ export function ScanDetailHeader({
               value={scan.user}
             />
             <MetadataItem
-              icon={<Gauge className="h-4 w-4" />}
-              label="PPS"
-              value={(scan.pps ?? 0).toLocaleString()}
+              icon={<Layers className="h-4 w-4" />}
+              label="Profile"
+              value={scan.profile}
             />
             <MetadataItem
               icon={<Target className="h-4 w-4" />}
@@ -127,10 +128,50 @@ export function ScanDetailHeader({
               value={scan.port_str ?? '—'}
             />
             <MetadataItem
-              icon={<Layers className="h-4 w-4" />}
-              label="Profile"
-              value={scan.profile}
+              icon={<Network className="h-4 w-4" />}
+              label="Interface"
+              value={scan.interface ?? '—'}
             />
+          </div>
+
+          {/* Scan options row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-4 pt-4 border-t border-border">
+            <MetadataItem
+              icon={<Gauge className="h-4 w-4" />}
+              label="PPS"
+              value={(scan.pps ?? 0).toLocaleString()}
+            />
+            <MetadataItem
+              icon={<Repeat className="h-4 w-4" />}
+              label="Repeats"
+              value={(scan.repeats ?? 1).toString()}
+            />
+            <MetadataItem
+              icon={<Timer className="h-4 w-4" />}
+              label="Timeout"
+              value={`${scan.recv_timeout ?? 0}s`}
+            />
+            {scan.src_addr && (
+              <MetadataItem
+                icon={<Network className="h-4 w-4" />}
+                label="Source IP"
+                value={scan.src_addr}
+              />
+            )}
+            {scan.tcpflags !== null && scan.tcpflags !== undefined && (
+              <MetadataItem
+                icon={<Target className="h-4 w-4" />}
+                label="TCP Flags"
+                value={`0x${scan.tcpflags.toString(16).toUpperCase()}`}
+              />
+            )}
+            {scan.num_phases && scan.num_phases > 1 && (
+              <MetadataItem
+                icon={<Layers className="h-4 w-4" />}
+                label="Phases"
+                value={scan.num_phases.toString()}
+              />
+            )}
           </div>
 
           {/* Stats row */}

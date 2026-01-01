@@ -6,6 +6,7 @@
 
 import type { Scan, IpReport, Host } from '@/types/database'
 import { decodeTcpFlags, getProtocolName } from '@/types/database'
+import { parseTimestamp } from '@/lib/utils'
 import type {
   ScanExportData,
   HostExportData,
@@ -198,8 +199,8 @@ function hostToJSON(host: Host, depth: MetadataDepth): HostJSONBasic | HostJSONS
   const standard: HostJSONStandard = {
     ...basic,
     hostname: host.hostname,
-    firstSeen: new Date(host.first_seen * 1000).toISOString(),
-    lastSeen: new Date(host.last_seen * 1000).toISOString(),
+    firstSeen: new Date(parseTimestamp(host.first_seen) * 1000).toISOString(),
+    lastSeen: new Date(parseTimestamp(host.last_seen) * 1000).toISOString(),
     scanCount: host.scan_count,
   }
 
@@ -295,8 +296,8 @@ export function exportHostsListToJSON(
     hosts: hosts.map((h) => hostToJSON(h, depth)),
     summary: {
       totalHosts: hosts.length,
-      hostsWithOpenPorts: hosts.filter((h) => getPortCount(h) > 0).length,
-      totalOpenPorts: hosts.reduce((sum, h) => sum + getPortCount(h), 0),
+      hostsWithResponses: hosts.filter((h) => getPortCount(h) > 0).length,
+      totalRespondingPorts: hosts.reduce((sum, h) => sum + getPortCount(h), 0),
     },
   }
 
