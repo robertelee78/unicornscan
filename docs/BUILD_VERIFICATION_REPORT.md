@@ -49,16 +49,14 @@
 
 | Module | Size | Status | Features |
 |--------|------|--------|----------|
-| pgsqldb.so | 393 KB | ✅ BUILT | PostgreSQL + Supabase support |
+| pgsqldb.so | 393 KB | ✅ BUILT | PostgreSQL support |
 
 **Location**: `src/output_modules/database/.libs/`
 
 **PostgreSQL Module Features**:
 - ✅ Linked against libpq.so.5
-- ✅ Supabase cloud database support
-- ✅ AWS pooler region support
 - ✅ Environment variable configuration
-- ✅ Interactive setup wizard
+- ✅ Connection string support
 
 ### Report Modules (1 module)
 
@@ -138,7 +136,7 @@ $ src/unicornscan --help
 **Key Features Verified in Help**:
 - ✅ TCP/UDP/ARP scan modes
 - ✅ OS fingerprinting (12 profiles: 0-11)
-- ✅ Supabase cloud database integration
+- ✅ PostgreSQL database integration
 - ✅ Module loading options
 - ✅ Packet crafting options
 - ✅ Source address spoofing
@@ -170,38 +168,31 @@ at Thu Dec 18 10:29:44 PST 2025 with gcc version 15.2.0
 | unisend | Executable | ✅ PRESENT (drone component) |
 | unilisten | Executable | ✅ PRESENT (drone component) |
 
-## 6. Supabase Integration Features
+## 6. PostgreSQL Database Features
 
-The build includes complete Supabase cloud database support:
+The build includes PostgreSQL database export support:
 
 ### CLI Options Available
 
 ```bash
---supabase-setup          # Interactive setup wizard
---supabase-url           # Project URL
---supabase-key           # API key
---supabase-db-password   # Database password
---supabase-region        # AWS region (e.g., us-west-2)
+-e pgsqldb                # Enable PostgreSQL output module
 ```
 
-### Environment Variables Supported
+### Configuration
 
-```bash
-UNICORNSCAN_SUPABASE_URL
-UNICORNSCAN_SUPABASE_KEY
-UNICORNSCAN_SUPABASE_DB_PASSWORD
-SUPABASE_URL
-SUPABASE_KEY
-SUPABASE_REGION
-```
+PostgreSQL connection is configured via `dbconf` in `modules.conf`:
+- `host` - Database server hostname or IP
+- `port` - Database port (default: 5432)
+- `user` - Database username
+- `password` - Database password
+- `dbname` - Database name (default: unicornscan)
 
-### Supabase Features
+### Features
 
-- ✅ Connection pooler support (aws-0-{region}.pooler.supabase.com)
-- ✅ Direct connection support (*.supabase.co)
-- ✅ Configuration file storage (~/.unicornscan/)
-- ✅ Secure credential management
-- ✅ IPv6 transaction pooler support
+- ✅ Connection pooling via PgBouncer/PostgREST compatible
+- ✅ Schema auto-creation on first connection
+- ✅ Configuration file storage (`/etc/unicornscan/modules.conf`)
+- ✅ Secure password management (separate password file)
 - ✅ Connection retry logic
 
 ## 7. OS Fingerprinting Profiles
@@ -277,7 +268,7 @@ The binaries include:
 - **11 modules** built successfully (9 payload + 1 output + 1 report)
 - **All features** enabled as expected
 - **No missing dependencies**
-- **Full Supabase integration** working
+- **PostgreSQL integration** working
 - **Modern features** included (12 OS fingerprints, cloud DB, etc.)
 
 The build can be deployed or tested immediately.
@@ -286,7 +277,7 @@ The build can be deployed or tested immediately.
 
 1. ✅ Install modules to system directories if desired
 2. ✅ Test actual scanning functionality
-3. ✅ Configure Supabase credentials for cloud database
+3. ✅ Configure PostgreSQL credentials for database export
 4. ✅ Test module loading with `-e` option
 5. ✅ Verify network interface access and raw socket permissions
 
