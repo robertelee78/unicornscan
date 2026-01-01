@@ -94,31 +94,87 @@ jobs:
 
           make DESTDIR=$(pwd)/debian/unicornscan install
           mkdir -p debian/unicornscan/DEBIAN
+
+          # =================================================================
+          # Install Alicorn Web UI files
+          # =================================================================
+          mkdir -p debian/unicornscan/opt/unicornscan-web/{src,public,cli,sql}
+
+          # Docker configuration
+          cp alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-web/docker-compose.yml
+          cp alicorn/Dockerfile debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/nginx.conf debian/unicornscan/opt/unicornscan-web/
+
+          # Build configuration
+          cp alicorn/package.json debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/package-lock.json debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/vite.config.ts debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/tailwind.config.js debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/postcss.config.js debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/index.html debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/components.json debian/unicornscan/opt/unicornscan-web/
+
+          # Source code
+          cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-web/src/
+          cp -r alicorn/public/* debian/unicornscan/opt/unicornscan-web/public/
+
+          # CLI / Setup wizard
+          cp alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-web/cli/
+
+          # SQL schema
+          cp src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
+
+          # Web management script
+          install -m 755 debian/unicornscan-web debian/unicornscan/usr/bin/
+
+          # =================================================================
           # Create control file for dpkg-deb
+          # =================================================================
           cat > debian/unicornscan/DEBIAN/control << CTRL
           Package: unicornscan
           Version: ${VERSION}
           Architecture: amd64
           Maintainer: Robert E. Lee <robert@unicornscan.org>
           Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5, libcap2-bin
+          Suggests: docker.io, docker-compose-v2
           Section: net
           Priority: optional
           Description: Asynchronous stateless TCP/UDP network scanner
+           Unicornscan is an asynchronous network scanner designed for
+           scalable, accurate, and flexible port scanning.
+           .
+           This package includes the Alicorn web UI for viewing scan results.
+           To start the web interface, run: unicornscan-web start
+           (Requires Docker - install with: apt install docker.io)
           CTRL
           # Remove leading spaces from heredoc
           sed -i 's/^          //' debian/unicornscan/DEBIAN/control
 
-          # Create postinst script to set capabilities
+          # Create postinst script to set capabilities and show instructions
           cat > debian/unicornscan/DEBIAN/postinst << 'POSTINST'
           #!/bin/sh
           # Set Linux capabilities to allow running without root
-          # Fails gracefully if capabilities aren't supported (SELinux, containers, etc.)
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/unicornscan 2>/dev/null || true
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/fantaip 2>/dev/null || true
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unilisten 2>/dev/null || true
           setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unisend 2>/dev/null || true
-          # Note: Non-root users use XDG_RUNTIME_DIR for sockets (e.g., /run/user/$UID/unicornscan/)
-          # The /var/unicornscan directory is only used when running as root
+
+          echo ""
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║              Unicornscan installed successfully!               ║"
+          echo "╠════════════════════════════════════════════════════════════════╣"
+          echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
+          echo "║                                                                ║"
+          echo "║    1. Start the web UI:    unicornscan-web start               ║"
+          echo "║    2. Open browser:        http://localhost:31337              ║"
+          echo "║    3. Run a scan with database export (see man unicornscan)    ║"
+          echo "║                                                                ║"
+          echo "║  Requires Docker. Install with: apt install docker.io          ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
           exit 0
           POSTINST
           sed -i 's/^          //' debian/unicornscan/DEBIAN/postinst
