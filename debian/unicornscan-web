@@ -93,15 +93,23 @@ get_password() {
 }
 
 # Detect docker compose command (v2 plugin vs v1 standalone)
-get_compose_cmd() {
+check_compose_available() {
     if docker compose version &> /dev/null; then
-        echo "docker compose"
+        return 0
     elif command -v docker-compose &> /dev/null; then
-        echo "docker-compose"
+        return 0
     else
         print_error "Docker Compose is not installed."
         echo "Install with: sudo apt install docker-compose-v2"
         exit 1
+    fi
+}
+
+get_compose_cmd() {
+    if docker compose version &> /dev/null; then
+        echo "docker compose"
+    else
+        echo "docker-compose"
     fi
 }
 
@@ -137,6 +145,7 @@ check_compose_file() {
 
 cmd_start() {
     check_docker
+    check_compose_available
     check_compose_file
     check_write_permission start
 
