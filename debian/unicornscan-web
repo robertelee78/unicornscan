@@ -92,11 +92,23 @@ get_password() {
     fi
 }
 
+# Detect docker compose command (v2 plugin vs v1 standalone)
+get_compose_cmd() {
+    if docker compose version &> /dev/null; then
+        echo "docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+    else
+        print_error "Docker Compose is not installed."
+        echo "Install with: sudo apt install docker-compose-v2"
+        exit 1
+    fi
+}
+
 check_docker() {
     if ! command -v docker &> /dev/null; then
         print_error "Docker is not installed. Please install Docker first:"
-        echo "  curl -fsSL https://get.docker.com | sh"
-        echo "  sudo usermod -aG docker \$USER"
+        echo "  sudo apt install docker.io docker-compose-v2"
         exit 1
     fi
 
@@ -104,6 +116,14 @@ check_docker() {
         print_error "Docker daemon is not running or you don't have permission."
         echo "Try: sudo systemctl start docker"
         echo "Or add yourself to docker group: sudo usermod -aG docker \$USER"
+        exit 1
+    fi
+}
+
+check_write_permission() {
+    if [ ! -w "$INSTALL_DIR" ]; then
+        print_error "Cannot write to $INSTALL_DIR"
+        echo "Run with sudo: sudo unicornscan-web $1"
         exit 1
     fi
 }
@@ -118,6 +138,9 @@ check_compose_file() {
 cmd_start() {
     check_docker
     check_compose_file
+    check_write_permission start
+
+    COMPOSE_CMD=$(get_compose_cmd)
 
     # Generate password on first run
     init_env
@@ -126,10 +149,10 @@ cmd_start() {
     cd "$INSTALL_DIR"
 
     # Pull latest images
-    docker compose pull --quiet 2>/dev/null || true
+    $COMPOSE_CMD pull --quiet 2>/dev/null || true
 
     # Start containers
-    docker compose up -d
+    $COMPOSE_CMD up -d
 
     PASSWORD=$(get_password)
 
@@ -152,9 +175,11 @@ cmd_stop() {
     check_docker
     check_compose_file
 
+    COMPOSE_CMD=$(get_compose_cmd)
+
     print_status "Stopping Alicorn Web UI stack..."
     cd "$INSTALL_DIR"
-    docker compose down
+    $COMPOSE_CMD down
 
     print_success "All containers stopped."
 }
@@ -163,27 +188,33 @@ cmd_status() {
     check_docker
     check_compose_file
 
+    COMPOSE_CMD=$(get_compose_cmd)
+
     print_status "Container status:"
     cd "$INSTALL_DIR"
-    docker compose ps
+    $COMPOSE_CMD ps
 }
 
 cmd_logs() {
     check_docker
     check_compose_file
 
+    COMPOSE_CMD=$(get_compose_cmd)
+
     cd "$INSTALL_DIR"
-    docker compose logs -f "${@:2}"
+    $COMPOSE_CMD logs -f "${@:2}"
 }
 
 cmd_shell() {
     check_docker
     check_compose_file
 
+    COMPOSE_CMD=$(get_compose_cmd)
+
     print_status "Connecting to PostgreSQL..."
     cd "$INSTALL_DIR"
     PASSWORD=$(get_password)
-    docker compose exec -e PGPASSWORD="$PASSWORD" postgres psql -U alicorn -d unicornscan
+    $COMPOSE_CMD exec -e PGPASSWORD="$PASSWORD" postgres psql -U alicorn -d unicornscan
 }
 
 cmd_password() {
@@ -205,6 +236,8 @@ cmd_reset() {
     check_docker
     check_compose_file
 
+    COMPOSE_CMD=$(get_compose_cmd)
+
     print_warning "This will delete ALL scan data! Are you sure? (y/N)"
     read -r confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
@@ -213,7 +246,7 @@ cmd_reset() {
     fi
 
     cd "$INSTALL_DIR"
-    docker compose down -v
+    $COMPOSE_CMD down -v
     print_success "Database reset. Run 'unicornscan-web start' to create fresh database."
 }
 
