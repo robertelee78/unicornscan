@@ -20,7 +20,7 @@ services:
     container_name: alicorn-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alicorn}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alicorn_secret}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-unicornscan}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -43,7 +43,7 @@ services:
     image: postgrest/postgrest:v12.2.3
     container_name: alicorn-postgrest
     environment:
-      PGRST_DB_URI: postgres://${POSTGRES_USER:-alicorn}:${POSTGRES_PASSWORD:-alicorn_secret}@postgres:5432/${POSTGRES_DB:-unicornscan}
+      PGRST_DB_URI: postgres://${POSTGRES_USER:-alicorn}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-unicornscan}
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-alicorn}
       PGRST_SERVER_PORT: 3000
