@@ -26,7 +26,6 @@
 #include <unilib/qfifo.h>
 #include <unilib/output.h>
 #include <unilib/pktutil.h>
-#include <unilib/route.h>
 
 #include <scan_progs/packets.h>
 #include <scan_progs/chksum.h>
@@ -62,33 +61,6 @@ static ip_pseudo_t ipph;
 /* v9: Saved Ethernet source MAC for local network responses */
 static uint8_t saved_eth_shost[6];
 static int saved_eth_valid = 0;
-
-/*
- * v9: Check if target IP is on local network (L2-reachable).
- * Uses route lookup to determine if a gateway is required.
- * Returns 1 if local (no gateway), 0 if remote (requires gateway) or error.
- */
-static int is_local_target(uint32_t target_addr) {
-	struct sockaddr_in target, mask;
-	struct sockaddr *gw = NULL;
-	char *intf = NULL;
-
-	memset(&target, 0, sizeof(target));
-	memset(&mask, 0, sizeof(mask));
-
-	target.sin_family = AF_INET;
-	target.sin_addr.s_addr = target_addr;
-
-	mask.sin_family = AF_INET;
-	mask.sin_addr.s_addr = 0xFFFFFFFF;  /* /32 - single host lookup */
-
-	if (getroutes(&intf, (struct sockaddr *)&target,
-	              (struct sockaddr *)&mask, &gw) == 1) {
-		return (gw == NULL) ? 1 : 0;  /* Local if no gateway required */
-	}
-
-	return 0;  /* Assume remote on error */
-}
 
 /* Statistics tracking for malformed packets */
 #define MALFORMED_TOP_HOSTS 10
@@ -587,13 +559,15 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 			r_u.i.flags |= REPORT_BADNETWORK_CKSUM;
 		}
 
-		/* v9: Capture Ethernet source MAC for local network responses */
-		if (saved_eth_valid && is_local_target(saddr)) {
-			memcpy(r_u.i.eth_hwaddr, saved_eth_shost, 6);
-			r_u.i.eth_hwaddr_valid = 1;
-			DBG(M_PKT, "captured local MAC %02x:%02x:%02x:%02x:%02x:%02x",
-			    r_u.i.eth_hwaddr[0], r_u.i.eth_hwaddr[1], r_u.i.eth_hwaddr[2],
-			    r_u.i.eth_hwaddr[3], r_u.i.eth_hwaddr[4], r_u.i.eth_hwaddr[5]);
+		/* v9: Capture Ethernet MAC for same-subnet responses */
+		if (saved_eth_valid && s->vi[0] != NULL) {
+			uint32_t mymask=((struct sockaddr_in *)&s->vi[0]->mymask)->sin_addr.s_addr;
+			uint32_t mynet=((struct sockaddr_in *)&s->vi[0]->myaddr)->sin_addr.s_addr & mymask;
+
+			if ((saddr & mymask) == mynet) {
+				memcpy(r_u.i.eth_hwaddr, saved_eth_shost, 6);
+				r_u.i.eth_hwaddr_valid = 1;
+			}
 		}
 	}
 	else if (pk_layer == 3) { /* this is a ip header within an icmp header normally */
