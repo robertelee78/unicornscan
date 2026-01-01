@@ -19,5 +19,42 @@ override_dh_auto_install:
 	# Remove .la files
 	find debian/unicornscan -name '*.la' -delete
 
+	# Install Alicorn web UI files
+	install -d debian/unicornscan/opt/unicornscan-web/sql
+	install -d debian/unicornscan/opt/unicornscan-web/src
+	install -d debian/unicornscan/opt/unicornscan-web/public
+
+	# Docker configuration
+	install -m 644 alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-web/docker-compose.yml
+	install -m 644 alicorn/Dockerfile debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/nginx.conf debian/unicornscan/opt/unicornscan-web/
+
+	# Build configuration
+	install -m 644 alicorn/package.json debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/package-lock.json debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/vite.config.ts debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/tailwind.config.js debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/postcss.config.js debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/index.html debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/components.json debian/unicornscan/opt/unicornscan-web/
+
+	# Source code (copy directories)
+	cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-web/src/
+	cp -r alicorn/public/* debian/unicornscan/opt/unicornscan-web/public/
+
+	# CLI / Setup wizard
+	install -d debian/unicornscan/opt/unicornscan-web/cli
+	install -m 644 alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-web/cli/
+
+	# SQL schema
+	install -m 644 src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
+
+	# Web management script
+	install -d debian/unicornscan/usr/bin
+	install -m 755 debian/unicornscan-web debian/unicornscan/usr/bin/
+
 override_dh_installchangelogs:
 	dh_installchangelogs CHANGELOG

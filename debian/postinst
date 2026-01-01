@@ -1,0 +1,43 @@
+#!/bin/bash
+# postinst script for unicornscan
+# Handles post-installation setup
+
+set -e
+
+case "$1" in
+    configure)
+        # Set up capabilities for non-root scanning (optional)
+        if command -v setcap &> /dev/null; then
+            setcap cap_net_raw,cap_net_admin+ep /usr/bin/unicornscan 2>/dev/null || true
+        fi
+
+        # Notify about web UI
+        echo ""
+        echo "╔════════════════════════════════════════════════════════════════╗"
+        echo "║              Unicornscan installed successfully!               ║"
+        echo "╠════════════════════════════════════════════════════════════════╣"
+        echo "║                                                                ║"
+        echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
+        echo "║                                                                ║"
+        echo "║    1. Start the web UI:    unicornscan-web start               ║"
+        echo "║    2. Open browser:        http://localhost:8080               ║"
+        echo "║    3. Run a scan:          unicornscan -edb,host=localhost,    ║"
+        echo "║                            user=alicorn,pass=alicorn_secret,   ║"
+        echo "║                            db=unicornscan <target>             ║"
+        echo "║                                                                ║"
+        echo "║  Requires Docker. Install with: curl -fsSL https://get.docker.com | sh ║"
+        echo "║                                                                ║"
+        echo "╚════════════════════════════════════════════════════════════════╝"
+        echo ""
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
