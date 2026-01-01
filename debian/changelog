@@ -1,3 +1,12 @@
+unicornscan (0.4.21-1) unstable; urgency=medium
+
+  * Remove Supabase cloud service dependency - now uses pure PostgreSQL
+  * Add secure random password generation (no default passwords)
+  * Update Alicorn frontend to use @supabase/postgrest-js directly
+  * Add docker-init.sh script for secure Docker deployments
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 31 Dec 2025 22:55:00 -0800
+
 unicornscan (0.4.20-1) unstable; urgency=medium
 
   * Include Alicorn web UI for viewing scan results

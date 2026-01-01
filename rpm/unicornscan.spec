@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.18
+Version:        0.4.21
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -84,6 +84,12 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %dir %{_localstatedir}/unicornscan
 
 %changelog
+* Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.21-1
+- Remove Supabase cloud service dependency - now uses pure PostgreSQL
+- Add secure random password generation (no default passwords)
+- Update Alicorn frontend to use @supabase/postgrest-js directly
+- Add docker-init.sh script for secure Docker deployments
+
 * Fri Dec 27 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.18-1
 - Fix sf mode in compound mode (-mA+sf) not sending SYN flag
 - sf mode now defaults to TH_SYN like regular T mode
