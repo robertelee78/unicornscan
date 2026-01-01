@@ -10,7 +10,7 @@ LIBNAME=osdetect.la
 all: $(LIBNAME)
 
 $(LIBNAME): $(HDRS) $(OBJS)
-		$(LIBTOOL) --mode=link $(CC) $(MODCLFLAGS) $(CFLAGS) @MY_CPPFLAGS@ -o $(LIBNAME) $(OBJS) @MY_LDFLAGS@ $(G_LDPATH) -lunilib -lscan
+		$(LIBTOOL) --mode=link $(CC) $(MODCLFLAGS) $(CFLAGS) -o $(LIBNAME) $(OBJS) $(G_LDPATH) -lunilib -lscan
 
 clean:
 	$(LIBTOOL) --mode=clean rm -f $(OBJS) $(LIBNAME)
