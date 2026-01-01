@@ -24,7 +24,6 @@ export function RawDataTab({ scan, reports }: RawDataTabProps) {
       profile: scan.profile,
       target_str: scan.target_str,
       port_str: scan.port_str,
-      mode: scan.mode,
       mode_str: scan.mode_str,
       pps: scan.pps,
       user: scan.user,

@@ -165,7 +165,7 @@ export function Topology() {
 
 interface PageHeaderProps {
   scansId: number | null
-  scanInfo?: { target_str: string; profile: string } | null
+  scanInfo?: { target_str: string | null; profile: string } | null
 }
 
 function PageHeader({ scansId, scanInfo }: PageHeaderProps) {
@@ -181,7 +181,7 @@ function PageHeader({ scansId, scanInfo }: PageHeaderProps) {
             </Link>
             {scanInfo && (
               <span className="ml-2">
-                ({scanInfo.target_str} - {scanInfo.profile})
+                ({scanInfo.target_str ?? 'unknown target'} - {scanInfo.profile})
               </span>
             )}
           </p>

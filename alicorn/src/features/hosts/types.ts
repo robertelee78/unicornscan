@@ -53,6 +53,6 @@ export interface HostScanEntry {
   scansId: number
   scanTime: number
   profile: string
-  targetStr: string
+  targetStr: string | null
   portsFound: number
 }

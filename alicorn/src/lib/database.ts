@@ -896,7 +896,7 @@ class RestDatabase implements DatabaseClient {
 
     return {
       scansId,
-      target: scan.target_str,
+      target: scan.target_str ?? '',
       scanTime: scan.s_time,
       portCount: reportsResult.count || 0,
       hostCount: uniqueHosts.size,
@@ -1107,8 +1107,15 @@ class DemoDatabase implements DatabaseClient {
       target_str: '192.168.1.0/24',
       port_str: '1-1024',
       pps: 1000,
-      src_port: 0,
-      mode: 'T',
+      tickrate: 0,
+      num_hosts: 0,
+      num_packets: 0,
+      interface: null,
+      tcpflags: null,
+      send_opts: null,
+      recv_opts: null,
+      recv_timeout: null,
+      repeats: null,
       mode_str: 'TCP SYN',
       mode_flags: null,
       num_phases: 1,
@@ -1135,8 +1142,15 @@ class DemoDatabase implements DatabaseClient {
       target_str: '10.0.0.0/24',
       port_str: 'quick',
       pps: 500,
-      src_port: 0,
-      mode: 'U',
+      tickrate: 0,
+      num_hosts: 0,
+      num_packets: 0,
+      interface: null,
+      tcpflags: null,
+      send_opts: null,
+      recv_opts: null,
+      recv_timeout: null,
+      repeats: null,
       mode_str: 'UDP',
       mode_flags: null,
       num_phases: 1,
@@ -1270,7 +1284,7 @@ class DemoDatabase implements DatabaseClient {
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase()
-      filtered = filtered.filter((s) => s.target_str.toLowerCase().includes(searchLower))
+      filtered = filtered.filter((s) => (s.target_str ?? '').toLowerCase().includes(searchLower))
     }
 
     // Apply notes search filter
@@ -1314,8 +1328,8 @@ class DemoDatabase implements DatabaseClient {
           bVal = b.profile
           break
         case 'target_str':
-          aVal = a.target_str
-          bVal = b.target_str
+          aVal = a.target_str ?? ''
+          bVal = b.target_str ?? ''
           break
         case 's_time':
         default:
@@ -1427,6 +1441,7 @@ class DemoDatabase implements DatabaseClient {
     return [
       {
         host_id: 1,
+        host_addr: '192.168.1.1',
         ip_addr: '192.168.1.1',
         mac_addr: '00:11:22:33:44:55',
         hostname: 'router.local',
@@ -1434,8 +1449,9 @@ class DemoDatabase implements DatabaseClient {
         first_seen: Math.floor(Date.now() / 1000) - 86400,
         last_seen: Math.floor(Date.now() / 1000) - 3550,
         scan_count: 2,
+        port_count: 3,
         open_port_count: 3,
-        metadata: null,
+        extra_data: null,
       },
     ]
   }
@@ -1445,6 +1461,7 @@ class DemoDatabase implements DatabaseClient {
     if (hostId === 1) {
       return {
         host_id: 1,
+        host_addr: '192.168.1.1',
         ip_addr: '192.168.1.1',
         mac_addr: '00:11:22:33:44:55',
         hostname: 'router.local',
@@ -1452,8 +1469,9 @@ class DemoDatabase implements DatabaseClient {
         first_seen: Math.floor(Date.now() / 1000) - 86400,
         last_seen: Math.floor(Date.now() / 1000) - 3550,
         scan_count: 2,
+        port_count: 3,
         open_port_count: 3,
-        metadata: null,
+        extra_data: null,
       }
     }
     return null
@@ -1791,7 +1809,7 @@ class DemoDatabase implements DatabaseClient {
 
     return {
       scansId,
-      target: scan.target_str,
+      target: scan.target_str ?? '',
       scanTime: scan.s_time,
       portCount: reports.length,
       hostCount: uniqueHosts.size,

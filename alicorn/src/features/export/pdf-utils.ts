@@ -462,7 +462,7 @@ export function exportBulkScansToPDF(
     return [
       s.scan.scans_id,
       new Date(s.scan.s_time * 1000).toLocaleDateString(),
-      s.scan.target_str,
+      s.scan.target_str ?? '—',
       hostCount,
       s.reports.length,
       s.scan.profile,
@@ -496,18 +496,19 @@ export function exportHostsListToPDF(
   addPageHeader(doc, 'Host Inventory Report', 1)
 
   // Summary
+  const getPortCount = (h: Host) => h.open_port_count ?? h.port_count
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text(`Total Hosts: ${hosts.length}`, PAGE_MARGIN, yPosition)
   yPosition += 6
-  doc.text(`Hosts with Open Ports: ${hosts.filter((h) => h.open_port_count > 0).length}`, PAGE_MARGIN, yPosition)
+  doc.text(`Hosts with Open Ports: ${hosts.filter((h) => getPortCount(h) > 0).length}`, PAGE_MARGIN, yPosition)
   yPosition += 15
 
   // Hosts table
   const hostsTableData = hosts.map((h) => [
-    h.ip_addr,
+    h.ip_addr ?? h.host_addr,
     h.hostname || '-',
-    h.open_port_count,
+    getPortCount(h),
     h.scan_count,
     new Date(h.last_seen * 1000).toLocaleDateString(),
     h.os_guess || '-',
@@ -544,13 +545,13 @@ function addScanMetadataSection(doc: jsPDF, scan: Scan, reportCount: number, sta
   doc.setFont('helvetica', 'normal')
 
   const metadata = [
-    ['Target:', scan.target_str],
-    ['Port Range:', scan.port_str],
+    ['Target:', scan.target_str ?? '—'],
+    ['Port Range:', scan.port_str ?? '—'],
     ['Start Time:', new Date(scan.s_time * 1000).toLocaleString()],
     ['Duration:', formatDuration(scan.e_time - scan.s_time)],
     ['Profile:', scan.profile],
-    ['Mode:', scan.mode_str || scan.mode],
-    ['PPS:', scan.pps.toLocaleString()],
+    ['Mode:', scan.mode_str ?? '—'],
+    ['PPS:', (scan.pps ?? 0).toLocaleString()],
     ['Responses:', reportCount.toLocaleString()],
   ]
 
@@ -577,15 +578,16 @@ function addHostMetadataSection(doc: jsPDF, host: Host, startY: number): number 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
 
+  const portCount = host.open_port_count ?? host.port_count
   const metadata = [
-    ['IP Address:', host.ip_addr],
-    ['Hostname:', host.hostname || '-'],
-    ['MAC Address:', host.mac_addr || '-'],
-    ['OS Guess:', host.os_guess || '-'],
+    ['IP Address:', host.ip_addr ?? host.host_addr],
+    ['Hostname:', host.hostname ?? '-'],
+    ['MAC Address:', host.mac_addr ?? '-'],
+    ['OS Guess:', host.os_guess ?? '-'],
     ['First Seen:', new Date(host.first_seen * 1000).toLocaleString()],
     ['Last Seen:', new Date(host.last_seen * 1000).toLocaleString()],
     ['Scan Count:', host.scan_count.toString()],
-    ['Open Ports:', host.open_port_count.toString()],
+    ['Open Ports:', portCount.toString()],
   ]
 
   for (const [label, value] of metadata) {

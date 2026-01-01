@@ -186,20 +186,21 @@ export function useHostExport(
     try {
       const data: HostExportData = { host, reports, scanHistory }
 
+      const hostIp = host.ip_addr ?? host.host_addr
       switch (options.format) {
         case 'csv': {
           const csv = exportHostToCSV(data, options.metadataDepth)
-          downloadString(csv, hostFilename(host.ip_addr, 'csv'), 'csv')
+          downloadString(csv, hostFilename(hostIp, 'csv'), 'csv')
           break
         }
         case 'json': {
           const json = exportHostToJSON(data, options.metadataDepth)
-          downloadString(json, hostFilename(host.ip_addr, 'json'), 'json')
+          downloadString(json, hostFilename(hostIp, 'json'), 'json')
           break
         }
         case 'pdf': {
           const blob = exportHostToPDF(data, options)
-          downloadBlob(blob, hostFilename(host.ip_addr, 'pdf'))
+          downloadBlob(blob, hostFilename(hostIp, 'pdf'))
           break
         }
       }
@@ -368,10 +369,19 @@ export function useScansListExport(
         user: '',
         pcap_dumpfile: null,
         pcap_readfile: null,
+        tickrate: 0,
+        num_hosts: 0,
+        num_packets: 0,
         port_str: '',
+        interface: null,
+        tcpflags: null,
+        send_opts: null,
+        recv_opts: null,
         pps: 0,
-        src_port: 0,
-        mode: '',
+        recv_timeout: null,
+        repeats: null,
+        target_str: s.target_str,
+        mode_str: s.mode_str,
         mode_flags: null,
         num_phases: null,
         scan_metadata: null,
@@ -448,21 +458,22 @@ export function quickExportHost(
 ): void {
   const data: HostExportData = { host, reports, scanHistory: [] }
   const options = { ...DEFAULT_EXPORT_OPTIONS, format }
+  const hostIp = host.ip_addr ?? host.host_addr
 
   switch (format) {
     case 'csv': {
       const csv = exportHostToCSV(data, options.metadataDepth)
-      downloadString(csv, hostFilename(host.ip_addr, 'csv'), 'csv')
+      downloadString(csv, hostFilename(hostIp, 'csv'), 'csv')
       break
     }
     case 'json': {
       const json = exportHostToJSON(data, options.metadataDepth)
-      downloadString(json, hostFilename(host.ip_addr, 'json'), 'json')
+      downloadString(json, hostFilename(hostIp, 'json'), 'json')
       break
     }
     case 'pdf': {
       const blob = exportHostToPDF(data, options)
-      downloadBlob(blob, hostFilename(host.ip_addr, 'pdf'))
+      downloadBlob(blob, hostFilename(hostIp, 'pdf'))
       break
     }
   }

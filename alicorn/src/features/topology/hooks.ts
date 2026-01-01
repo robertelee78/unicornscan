@@ -55,8 +55,10 @@ function buildTopologyData(
 
   // Add hosts as nodes
   for (const host of hosts) {
+    const hostIp = host.ip_addr ?? host.host_addr
+    const portCount = host.open_port_count ?? host.port_count
     // Try to infer OS from reports for this host
-    const hostReports = reports.filter(r => r.host_addr === host.ip_addr)
+    const hostReports = reports.filter(r => r.host_addr === hostIp)
     const avgTtl = hostReports.length > 0
       ? Math.round(hostReports.reduce((sum, r) => sum + r.ttl, 0) / hostReports.length)
       : undefined
@@ -65,13 +67,13 @@ function buildTopologyData(
       ? inferOsFromTtl(avgTtl)
       : { osFamily: 'unknown' as const, estimatedHops: 0 }
 
-    nodeMap.set(host.ip_addr, {
-      id: host.ip_addr,
+    nodeMap.set(hostIp, {
+      id: hostIp,
       type: 'host',
-      label: host.hostname || host.ip_addr,
+      label: host.hostname || hostIp,
       osFamily: host.os_guess ? inferOsFamilyFromGuess(host.os_guess) : osFamily,
       osGuess: host.os_guess || undefined,
-      portCount: host.open_port_count,
+      portCount,
       connectionCount: 0,
       observedTtl: avgTtl,
       estimatedHops,
@@ -118,14 +120,15 @@ function buildTopologyData(
   if (scannerAddr && hops.length === 0) {
     // No hops discovered - connect scanner directly to all hosts
     for (const host of hosts) {
-      const edgeId = `${scannerAddr}->${host.ip_addr}`
+      const hostIp = host.ip_addr ?? host.host_addr
+      const edgeId = `${scannerAddr}->${hostIp}`
       edges.push({
         id: edgeId,
         source: scannerAddr,
-        target: host.ip_addr,
+        target: hostIp,
       })
       const scannerNode = nodeMap.get(scannerAddr)
-      const hostNode = nodeMap.get(host.ip_addr)
+      const hostNode = nodeMap.get(hostIp)
       if (scannerNode) scannerNode.connectionCount++
       if (hostNode) hostNode.connectionCount++
     }
@@ -202,7 +205,7 @@ export function useTopologyForScan(scansId: number) {
     // Filter hosts to those in this scan's reports
     const scanHosts = reportsQuery.data.map(r => r.host_addr)
     const uniqueHosts = new Set(scanHosts)
-    const filteredHosts = hostsQuery.data.filter(h => uniqueHosts.has(h.ip_addr))
+    const filteredHosts = hostsQuery.data.filter(h => uniqueHosts.has(h.ip_addr ?? h.host_addr))
 
     // Get scanner address from the first report's send_addr
     const scannerAddr = reportsQuery.data[0]?.send_addr
@@ -242,7 +245,7 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
 
     // Apply filters
     if (filters.minPorts !== undefined) {
-      hosts = hosts.filter(h => h.open_port_count >= filters.minPorts!)
+      hosts = hosts.filter(h => (h.open_port_count ?? h.port_count) >= filters.minPorts!)
     }
     if (filters.since !== undefined) {
       hosts = hosts.filter(h => h.last_seen >= filters.since!)

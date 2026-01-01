@@ -188,7 +188,7 @@ export function HostDetail() {
 
       {/* Enhanced Host Timeline (with change detection, zoom, filtering, export) */}
       <HostTimeline
-        hostIp={host.ip_addr}
+        hostIp={host.ip_addr ?? host.host_addr}
         title="Port Activity Timeline (Enhanced)"
         maxPorts={30}
         height={500}

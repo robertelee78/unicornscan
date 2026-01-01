@@ -59,7 +59,7 @@ export function useHostList(
       const searchLower = filters.search.toLowerCase()
       filtered = filtered.filter(
         (h) =>
-          h.ip_addr.toLowerCase().includes(searchLower) ||
+          (h.ip_addr ?? h.host_addr).toLowerCase().includes(searchLower) ||
           (h.hostname?.toLowerCase().includes(searchLower) ?? false) ||
           (h.mac_addr?.toLowerCase().includes(searchLower) ?? false)
       )
@@ -67,8 +67,9 @@ export function useHostList(
 
     // Apply hasOpenPorts filter
     if (filters.hasOpenPorts !== null) {
+      const getPortCount = (h: Host) => h.open_port_count ?? h.port_count
       filtered = filtered.filter((h) =>
-        filters.hasOpenPorts ? h.open_port_count > 0 : h.open_port_count === 0
+        filters.hasOpenPorts ? getPortCount(h) > 0 : getPortCount(h) === 0
       )
     }
 
@@ -80,18 +81,18 @@ export function useHostList(
       let bVal: string | number | null
 
       switch (sort.field) {
-        case 'ip_addr':
+        case 'host_addr':
           // Sort IP addresses numerically
-          aVal = a.ip_addr.split('.').reduce((acc, octet) => acc * 256 + parseInt(octet), 0)
-          bVal = b.ip_addr.split('.').reduce((acc, octet) => acc * 256 + parseInt(octet), 0)
+          aVal = (a.ip_addr ?? a.host_addr).split('.').reduce((acc, octet) => acc * 256 + parseInt(octet), 0)
+          bVal = (b.ip_addr ?? b.host_addr).split('.').reduce((acc, octet) => acc * 256 + parseInt(octet), 0)
           break
         case 'hostname':
           aVal = a.hostname?.toLowerCase() ?? ''
           bVal = b.hostname?.toLowerCase() ?? ''
           break
-        case 'open_port_count':
-          aVal = a.open_port_count
-          bVal = b.open_port_count
+        case 'port_count':
+          aVal = a.open_port_count ?? a.port_count
+          bVal = b.open_port_count ?? b.port_count
           break
         case 'scan_count':
           aVal = a.scan_count
