@@ -35,7 +35,7 @@ export function RecentScans({ scans, isLoading }: RecentScansProps) {
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="min-w-0">
-                    <p className="font-mono text-sm truncate">{scan.target_str}</p>
+                    <p className="font-mono text-sm truncate">{scan.target_str || `Scan #${scan.scans_id}`}</p>
                     <p className="text-xs text-muted">{formatRelativeTime(scan.s_time)}</p>
                   </div>
                 </div>
