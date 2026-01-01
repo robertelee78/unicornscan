@@ -37,7 +37,7 @@ Features include:
  - Asynchronous UDP scanning with custom payloads
  - ARP scanning for local network discovery
  - OS fingerprinting via p0f v3 integration
- - PostgreSQL/Supabase database export
+ - PostgreSQL database export
  - Configurable packet rates up to millions of PPS
 
 %prep
@@ -112,5 +112,5 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 
 * Fri Dec 20 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.8-1
 - Fix libdumbnet/libdnet support for cross-platform builds
-- Add Supabase cloud database support
+- Add PostgreSQL cloud database support via PostgREST
 - Fix NULL pointer dereferences in pgsqldb module

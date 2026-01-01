@@ -50,7 +50,7 @@ sudo pacman -S base-devel autoconf automake libtool pkgconf \
 | Feature | Debian/Ubuntu | Fedora/RHEL | Arch | Configure Flag |
 |---------|---------------|-------------|------|----------------|
 | GeoIP (country lookup) | `libmaxminddb-dev` | `libmaxminddb-devel` | `libmaxminddb` | auto-detected |
-| PostgreSQL/Supabase | `libpq-dev` | `postgresql-devel` | `postgresql-libs` | `--with-pgsql` |
+| PostgreSQL | `libpq-dev` | `postgresql-devel` | `postgresql-libs` | `--with-pgsql` |
 | MySQL | `libmysqlclient-dev` | `mysql-devel` | `mariadb-libs` | `--with-mysql` |
 
 ### Runtime Dependencies
@@ -332,30 +332,12 @@ global {
 }
 ```
 
-## Cloud Database (Supabase)
-
-Store scan results in [Supabase](https://supabase.com) cloud PostgreSQL:
-
-```bash
-# Quick setup - schema auto-creates on first connection
-unicornscan --supabase-url https://xxxxx.supabase.co \
-            --supabase-db-password YOUR_DB_PASSWORD \
-            -e pgsql -I 192.168.1.0/24
-
-# Or use environment variables
-export SUPABASE_URL="https://xxxxx.supabase.co"
-export SUPABASE_DB_PASSWORD="your_database_password"
-unicornscan -e pgsql 10.0.0.0/24
-```
-
-See [Supabase Integration Guide](docs/supabase-integration.md) for full documentation.
-
 ## Building with Optional Features
 
 See the [Dependencies](#dependencies) section for required packages.
 
 ```bash
-# With PostgreSQL output support (required for Supabase)
+# With PostgreSQL output support
 # Requires: libpq-dev (Debian) / postgresql-devel (Fedora) / postgresql-libs (Arch)
 ./configure --with-pgsql
 
@@ -503,7 +485,6 @@ $PREFIX/
 - `man unicornscan` - Full manual page
 - `docs/Unicornscan-Getting_Started.pdf` - Original getting started guide
 - [Cluster Mode Guide](docs/cluster/CLUSTER_MODE_GUIDE.md) - Distributed scanning setup
-- [Supabase Integration Guide](docs/supabase-integration.md) - Cloud database setup
 
 ## License
 
