@@ -13,11 +13,7 @@ GEOIP_LDFLAGS=@GEOIP_LIBS@
 
 all: $(DBTYPES)
 
-mysql: mysqldb.la
 pgsql: pgsqldb.la
-
-mysqldb.la: mysqldb.lo $(HDRS)
-		$(LIBTOOL) --mode=link $(CC) $(MODCLFLAGS) $(CFLAGS) @MY_CPPFLAGS@ -o mysqldb.la mysqldb.lo @MY_LDFLAGS@ $(G_LDPATH) -lmysqlclient -lunilib
 
 pgsqldb.la: pgsqldb.lo $(GEOIP_OBJS) $(HDRS)
 	$(LIBTOOL) --mode=link $(CC) $(MODCLFLAGS) $(CFLAGS) @PG_CPPFLAGS@ -o pgsqldb.la pgsqldb.lo $(GEOIP_OBJS) $(G_LDPATH) @PG_LDFLAGS@ $(GEOIP_LDFLAGS) -lpq -lunilib
