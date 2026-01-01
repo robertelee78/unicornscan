@@ -29,6 +29,7 @@ export function ResultsTab({ reports, isLoading }: ResultsTabProps) {
         <thead>
           <tr className="border-b border-border text-left text-muted">
             <th className="pb-2 pr-4 font-medium">Host</th>
+            <th className="pb-2 pr-4 font-medium">MAC</th>
             <th className="pb-2 pr-4 font-medium">Port</th>
             <th className="pb-2 pr-4 font-medium">Protocol</th>
             <th className="pb-2 pr-4 font-medium">TTL</th>
@@ -58,6 +59,9 @@ function ResultRow({ report }: ResultRowProps) {
   return (
     <tr className="border-b border-border/50 hover:bg-muted/30">
       <td className="py-2 pr-4 text-primary">{report.host_addr}</td>
+      <td className="py-2 pr-4 text-muted text-xs">
+        {report.eth_hwaddr || '—'}
+      </td>
       <td className="py-2 pr-4">
         <Badge variant="open">{formatPort(report.dport)}</Badge>
       </td>
