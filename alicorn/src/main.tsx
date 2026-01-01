@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+import { ThemeProvider } from '@/features/theme'
 import { AppLayout } from '@/components/layout'
 import {
   Dashboard,
@@ -42,23 +43,25 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="scans" element={<Scans />} />
-            <Route path="scans/:id" element={<ScanDetail />} />
-            <Route path="hosts" element={<Hosts />} />
-            <Route path="hosts/:id" element={<HostDetail />} />
-            <Route path="topology" element={<Topology />} />
-            <Route path="compare" element={<Compare />} />
-            <Route path="statistics" element={<Statistics />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="system">
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="scans" element={<Scans />} />
+              <Route path="scans/:id" element={<ScanDetail />} />
+              <Route path="hosts" element={<Hosts />} />
+              <Route path="hosts/:id" element={<HostDetail />} />
+              <Route path="topology" element={<Topology />} />
+              <Route path="compare" element={<Compare />} />
+              <Route path="statistics" element={<Statistics />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 )
