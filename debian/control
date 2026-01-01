@@ -19,7 +19,8 @@ Rules-Requires-Root: no
 Package: unicornscan
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Suggests: docker.io, docker-compose-v2
+Recommends: docker.io, docker-compose-v2
+Suggests: nodejs
 Description: Asynchronous stateless TCP/UDP network scanner
  Unicornscan is an asynchronous network scanner designed for
  scalable, accurate, and flexible port scanning. It separates
