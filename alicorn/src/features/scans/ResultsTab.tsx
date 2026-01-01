@@ -52,7 +52,7 @@ interface ResultRowProps {
 }
 
 function ResultRow({ report }: ResultRowProps) {
-  const flags = decodeTcpFlags(report.subtype)
+  const flags = decodeTcpFlags(report.type)
   const protocol = getProtocolName(report.proto)
 
   return (
