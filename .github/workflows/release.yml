@@ -102,11 +102,15 @@ jobs:
           mkdir -p debian/unicornscan/opt/unicornscan-web/public
           mkdir -p debian/unicornscan/opt/unicornscan-web/cli
           mkdir -p debian/unicornscan/opt/unicornscan-web/sql
+          mkdir -p debian/unicornscan/opt/unicornscan-web/postgrest
 
           # Docker configuration
           cp alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-web/docker-compose.yml
           cp alicorn/Dockerfile debian/unicornscan/opt/unicornscan-web/
           cp alicorn/nginx.conf debian/unicornscan/opt/unicornscan-web/
+
+          # PostgREST custom build (Alpine with wget for healthcheck)
+          cp alicorn/postgrest/Dockerfile debian/unicornscan/opt/unicornscan-web/postgrest/
 
           # Build configuration
           cp alicorn/package.json debian/unicornscan/opt/unicornscan-web/
