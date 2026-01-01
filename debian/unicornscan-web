@@ -148,11 +148,13 @@ cmd_start() {
     print_status "Starting Alicorn Web UI stack..."
     cd "$INSTALL_DIR"
 
-    # Pull latest images
-    $COMPOSE_CMD pull --quiet 2>/dev/null || true
+    # Build and start containers (first run will build images, takes ~2 minutes)
+    print_status "Building containers (first run may take 1-2 minutes)..."
+    $COMPOSE_CMD up -d --build
 
-    # Start containers
-    $COMPOSE_CMD up -d
+    # Wait for services to be healthy
+    print_status "Waiting for services to start..."
+    sleep 5
 
     PASSWORD=$(get_password)
 
