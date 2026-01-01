@@ -4,7 +4,9 @@
  */
 
 import { useState, useCallback } from 'react'
+import { Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
   ScanTable,
   ScanFilterBar,
@@ -25,11 +27,17 @@ import {
   useScansListExport,
   type ExportFormat,
 } from '@/features/export'
+import {
+  BulkDeleteConfirmDialog,
+  useBulkScanDeletion,
+} from '@/features/deletion'
 
 export function Scans() {
   const [filters, setFilters] = useState<ScanFilters>(DEFAULT_FILTERS)
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
+  const [showSelection, setShowSelection] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   const { data: scans, total, isLoading, error } = useScanList(filters, sort, pagination)
 
@@ -37,10 +45,53 @@ export function Scans() {
   const exportDialog = useExportDialog()
   const { exportScansList, isExporting } = useScansListExport(scans)
 
+  // Bulk deletion functionality
+  const {
+    selectedIds,
+    isDeleting,
+    progress,
+    deleteScans,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    selectedCount,
+  } = useBulkScanDeletion({
+    onComplete: () => {
+      setBulkDeleteOpen(false)
+      setShowSelection(false)
+    },
+  })
+
   // Quick export handler
   const handleQuickExport = useCallback((format: ExportFormat) => {
     exportScansList({ ...exportDialog.options, format })
   }, [exportScansList, exportDialog.options])
+
+  // Toggle selection mode
+  const handleToggleSelection = useCallback(() => {
+    if (showSelection) {
+      clearSelection()
+    }
+    setShowSelection((prev) => !prev)
+  }, [showSelection, clearSelection])
+
+  // Handle bulk delete
+  const handleBulkDelete = useCallback(() => {
+    setBulkDeleteOpen(true)
+  }, [])
+
+  const handleConfirmBulkDelete = useCallback(() => {
+    deleteScans(Array.from(selectedIds))
+  }, [deleteScans, selectedIds])
+
+  // Handle select all (toggle)
+  const handleSelectAll = useCallback((ids: number[]) => {
+    if (ids.length === 0) {
+      clearSelection()
+    } else {
+      selectAll(ids)
+    }
+  }, [clearSelection, selectAll])
 
   // Handle column header click for sorting
   const handleSort = useCallback((field: SortField) => {
@@ -76,12 +127,44 @@ export function Scans() {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Scan History</CardTitle>
-            <ExportDropdown
-              onExport={handleQuickExport}
-              onOpenDialog={exportDialog.openDialog}
-              disabled={scans.length === 0}
-            />
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-lg">Scan History</CardTitle>
+              {showSelection && selectedCount > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {selectedCount} selected
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Selection mode toggle */}
+              <Button
+                variant={showSelection ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={handleToggleSelection}
+              >
+                {showSelection ? 'Cancel' : 'Select'}
+              </Button>
+
+              {/* Bulk delete button (only when items selected) */}
+              {showSelection && selectedCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete ({selectedCount})
+                </Button>
+              )}
+
+              {/* Export dropdown */}
+              <ExportDropdown
+                onExport={handleQuickExport}
+                onOpenDialog={exportDialog.openDialog}
+                disabled={scans.length === 0}
+              />
+            </div>
           </div>
           <ScanFilterBar filters={filters} onChange={handleFilterChange} />
         </CardHeader>
@@ -91,6 +174,10 @@ export function Scans() {
             sort={sort}
             onSort={handleSort}
             isLoading={isLoading}
+            showSelection={showSelection}
+            selectedIds={selectedIds}
+            onSelectionChange={toggleSelection}
+            onSelectAll={handleSelectAll}
           />
           <Pagination
             pagination={pagination}
@@ -112,6 +199,16 @@ export function Scans() {
         isExporting={isExporting}
         filteredCount={scans.length}
         totalCount={total}
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <BulkDeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        scanIds={Array.from(selectedIds)}
+        onConfirm={handleConfirmBulkDelete}
+        isDeleting={isDeleting}
+        progress={progress}
       />
     </div>
   )

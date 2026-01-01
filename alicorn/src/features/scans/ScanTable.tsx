@@ -1,11 +1,12 @@
 /**
- * Scan list table with sortable headers
+ * Scan list table with sortable headers and multi-select
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { Link } from 'react-router-dom'
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatTimestamp, formatRelativeTime } from '@/lib/utils'
 import type { ScanSummary } from '@/types/database'
 import type { SortState, SortField } from './types'
@@ -15,9 +16,23 @@ interface ScanTableProps {
   sort: SortState
   onSort: (field: SortField) => void
   isLoading: boolean
+  // Selection props (optional for backward compatibility)
+  selectedIds?: Set<number>
+  onSelectionChange?: (id: number) => void
+  onSelectAll?: (ids: number[]) => void
+  showSelection?: boolean
 }
 
-export function ScanTable({ scans, sort, onSort, isLoading }: ScanTableProps) {
+export function ScanTable({
+  scans,
+  sort,
+  onSort,
+  isLoading,
+  selectedIds = new Set(),
+  onSelectionChange,
+  onSelectAll,
+  showSelection = false,
+}: ScanTableProps) {
   if (isLoading) {
     return <div className="text-muted py-8 text-center">Loading scans...</div>
   }
@@ -26,11 +41,34 @@ export function ScanTable({ scans, sort, onSort, isLoading }: ScanTableProps) {
     return <div className="text-muted py-8 text-center">No scans match your filters</div>
   }
 
+  const allSelected = scans.length > 0 && scans.every((s) => selectedIds.has(s.scans_id))
+  const someSelected = scans.some((s) => selectedIds.has(s.scans_id))
+
+  const handleSelectAll = () => {
+    if (onSelectAll) {
+      if (allSelected) {
+        onSelectAll([]) // Clear selection
+      } else {
+        onSelectAll(scans.map((s) => s.scans_id))
+      }
+    }
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b border-border text-left text-sm text-muted">
+            {showSelection && (
+              <th className="pb-3 px-2 w-10">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Select all"
+                  className={someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                />
+              </th>
+            )}
             <SortableHeader
               field="scans_id"
               label="ID"
@@ -73,19 +111,30 @@ export function ScanTable({ scans, sort, onSort, isLoading }: ScanTableProps) {
           </tr>
         </thead>
         <tbody className="font-mono text-sm">
-          {scans.map((scan) => (
-            <tr
-              key={scan.scans_id}
-              className="border-b border-border/50 hover:bg-surface-light/50"
-            >
-              <td className="py-3 px-2">
-                <Link
-                  to={`/scans/${scan.scans_id}`}
-                  className="text-primary hover:underline"
-                >
-                  #{scan.scans_id}
-                </Link>
-              </td>
+          {scans.map((scan) => {
+            const isSelected = selectedIds.has(scan.scans_id)
+            return (
+              <tr
+                key={scan.scans_id}
+                className={`border-b border-border/50 hover:bg-surface-light/50 ${isSelected ? 'bg-primary/5' : ''}`}
+              >
+                {showSelection && (
+                  <td className="py-3 px-2">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onSelectionChange?.(scan.scans_id)}
+                      aria-label={`Select scan ${scan.scans_id}`}
+                    />
+                  </td>
+                )}
+                <td className="py-3 px-2">
+                  <Link
+                    to={`/scans/${scan.scans_id}`}
+                    className="text-primary hover:underline"
+                  >
+                    #{scan.scans_id}
+                  </Link>
+                </td>
               <td className="py-3 px-2 max-w-[200px] truncate" title={scan.target_str}>
                 {scan.target_str}
               </td>
@@ -113,8 +162,9 @@ export function ScanTable({ scans, sort, onSort, isLoading }: ScanTableProps) {
                   )}
                 </div>
               </td>
-            </tr>
-          ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

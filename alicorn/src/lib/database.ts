@@ -11,6 +11,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Scan, IpReport, ArpReport, Host, Hop, ScanSummary, HostSummary, Note, GeoIPRecord, GeoIPCountryStats, GeoIPQueryOptions } from '@/types/database'
+import type { ScanDeleteStats, DeleteScanResult } from '@/features/deletion/types'
 import type {
   DashboardStats,
   PortCount,
@@ -121,6 +122,10 @@ export interface DatabaseClient {
   getGeoIPHistory(hostIp: string): Promise<GeoIPRecord[]>
   getGeoIPByScan(scansId: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]>
   getGeoIPCountryStats(scansId: number): Promise<GeoIPCountryStats[]>
+
+  // Deletion
+  getScanDeleteStats(scansId: number): Promise<ScanDeleteStats | null>
+  deleteScan(scansId: number): Promise<DeleteScanResult>
 }
 
 // =============================================================================
@@ -802,6 +807,108 @@ class RestDatabase implements DatabaseClient {
     return Array.from(countryMap.values())
       .sort((a, b) => b.host_count - a.host_count)
   }
+
+  async getScanDeleteStats(scansId: number): Promise<ScanDeleteStats | null> {
+    // Get scan info
+    const scan = await this.getScan(scansId)
+    if (!scan) return null
+
+    // Get counts for all related tables
+    const [reportsResult, arpResult, hopsResult, notesResult, tagsResult] = await Promise.all([
+      this.client.from('uni_ipreport').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
+      this.client.from('uni_arpreport').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
+      this.client.from('uni_hops').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
+      this.client.from('uni_notes').select('*', { count: 'exact', head: true }).eq('entity_type', 'scan').eq('entity_id', scansId),
+      this.client.from('uni_scan_tags').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
+    ])
+
+    // Count unique hosts
+    const hostsResult = await this.client.from('uni_ipreport').select('host_addr').eq('scans_id', scansId)
+    const uniqueHosts = new Set(hostsResult.data?.map((r) => r.host_addr) || [])
+
+    return {
+      scansId,
+      target: scan.target_str,
+      scanTime: scan.s_time,
+      portCount: reportsResult.count || 0,
+      hostCount: uniqueHosts.size,
+      arpCount: arpResult.count || 0,
+      hopCount: hopsResult.count || 0,
+      noteCount: notesResult.count || 0,
+      tagCount: tagsResult.count || 0,
+    }
+  }
+
+  async deleteScan(scansId: number): Promise<DeleteScanResult> {
+    const result: DeleteScanResult = {
+      success: false,
+      scansId,
+      deleted: {
+        reports: 0,
+        arp: 0,
+        hops: 0,
+        notes: 0,
+        tags: 0,
+      },
+    }
+
+    try {
+      // Delete in order to avoid foreign key violations
+      // 1. Delete IP reports
+      const reportsDelete = await this.client.from('uni_ipreport').delete().eq('scans_id', scansId)
+      if (reportsDelete.error && reportsDelete.error.code !== 'PGRST116') {
+        throw reportsDelete.error
+      }
+      result.deleted.reports = reportsDelete.count || 0
+
+      // 2. Delete ARP reports
+      const arpDelete = await this.client.from('uni_arpreport').delete().eq('scans_id', scansId)
+      if (arpDelete.error && arpDelete.error.code !== 'PGRST116') {
+        throw arpDelete.error
+      }
+      result.deleted.arp = arpDelete.count || 0
+
+      // 3. Delete hops/traceroute data
+      const hopsDelete = await this.client.from('uni_hops').delete().eq('scans_id', scansId)
+      if (hopsDelete.error && hopsDelete.error.code !== 'PGRST116') {
+        // Table might not exist
+        if (hopsDelete.error.code !== '42P01') throw hopsDelete.error
+      }
+      result.deleted.hops = hopsDelete.count || 0
+
+      // 4. Delete notes
+      const notesDelete = await this.client.from('uni_notes').delete().eq('entity_type', 'scan').eq('entity_id', scansId)
+      if (notesDelete.error && notesDelete.error.code !== 'PGRST116' && notesDelete.error.code !== '42P01') {
+        throw notesDelete.error
+      }
+      result.deleted.notes = notesDelete.count || 0
+
+      // 5. Delete tags
+      const tagsDelete = await this.client.from('uni_scan_tags').delete().eq('scans_id', scansId)
+      if (tagsDelete.error && tagsDelete.error.code !== 'PGRST116' && tagsDelete.error.code !== '42P01') {
+        throw tagsDelete.error
+      }
+      result.deleted.tags = tagsDelete.count || 0
+
+      // 6. Delete GeoIP records
+      const geoDelete = await this.client.from('uni_geoip').delete().eq('scans_id', scansId)
+      if (geoDelete.error && geoDelete.error.code !== 'PGRST116' && geoDelete.error.code !== '42P01') {
+        // Ignore if table doesn't exist
+      }
+
+      // 7. Finally, delete the scan record
+      const scanDelete = await this.client.from('uni_scans').delete().eq('scans_id', scansId)
+      if (scanDelete.error) {
+        throw scanDelete.error
+      }
+
+      result.success = true
+    } catch (err) {
+      result.error = err instanceof Error ? err.message : 'Unknown error during deletion'
+    }
+
+    return result
+  }
 }
 
 // =============================================================================
@@ -1476,6 +1583,58 @@ class DemoDatabase implements DatabaseClient {
 
     return Array.from(countryMap.values())
       .sort((a, b) => b.host_count - a.host_count)
+  }
+
+  async getScanDeleteStats(scansId: number): Promise<ScanDeleteStats | null> {
+    await this.simulateDelay()
+    const scan = this.mockScans.find((s) => s.scans_id === scansId)
+    if (!scan) return null
+
+    const reports = this.mockReports.filter((r) => r.scans_id === scansId)
+    const uniqueHosts = new Set(reports.map((r) => r.host_addr))
+
+    return {
+      scansId,
+      target: scan.target_str,
+      scanTime: scan.s_time,
+      portCount: reports.length,
+      hostCount: uniqueHosts.size,
+      arpCount: 0,
+      hopCount: 0,
+      noteCount: 0,
+      tagCount: 0,
+    }
+  }
+
+  async deleteScan(scansId: number): Promise<DeleteScanResult> {
+    await this.simulateDelay()
+
+    const scanIndex = this.mockScans.findIndex((s) => s.scans_id === scansId)
+    if (scanIndex === -1) {
+      return {
+        success: false,
+        scansId,
+        deleted: { reports: 0, arp: 0, hops: 0, notes: 0, tags: 0 },
+        error: 'Scan not found',
+      }
+    }
+
+    // Count what we're deleting
+    const reportsToDelete = this.mockReports.filter((r) => r.scans_id === scansId).length
+
+    // In demo mode, we don't actually modify the arrays to keep demo data intact
+    // But we return realistic results
+    return {
+      success: true,
+      scansId,
+      deleted: {
+        reports: reportsToDelete,
+        arp: 0,
+        hops: 0,
+        notes: 0,
+        tags: 0,
+      },
+    }
   }
 
   private simulateDelay(): Promise<void> {
