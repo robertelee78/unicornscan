@@ -29,7 +29,7 @@
  * Schema version: 7
  * - v7: Added target_str column for original command line target specification
  *       Added src_addr column for source address / phantom IP (-s option)
- *       Updated v_hosts view to calculate port_count from uni_ipreport
+ *       Updated v_hosts view to calculate port_count and scan_count correctly
  * - v6: Added GeoIP integration for geographic and network metadata
  *       uni_geoip: Geographic and network data (country, region, city, lat/long, ISP, ASN, ip_type)
  *       Supports multiple providers: MaxMind (GeoLite2/GeoIP2), IP2Location, IPinfo
@@ -1095,9 +1095,8 @@ static const char *pgsql_schema_v5_views_ddl =
 	"    h.hostname,\n"
 	"    h.first_seen,\n"
 	"    h.last_seen,\n"
-	"    h.scan_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT hs.scans_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id), 0)::int4 AS scan_count,\n"
 	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
-	"    (SELECT COUNT(DISTINCT hs.scans_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id) AS actual_scan_count,\n"
 	"    h.extra_data\n"
 	"FROM uni_hosts h\n"
 	"ORDER BY h.last_seen DESC;\n"

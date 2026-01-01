@@ -180,10 +180,9 @@ export interface Host {
   os_guess?: string | null // From OS fingerprinting (optional)
   first_seen: string | number  // ISO 8601 string from timestamptz, or Unix timestamp
   last_seen: string | number   // ISO 8601 string from timestamptz, or Unix timestamp
-  scan_count: number
-  port_count: number       // Database column name (may be 0 if not populated)
-  open_port_count?: number // Calculated port count from reports
-  actual_scan_count?: number
+  scan_count: number       // Number of unique scans this host appeared in
+  port_count: number       // Number of distinct responding ports
+  open_port_count?: number // Alias for port_count (deprecated)
   extra_data: Record<string, unknown> | null
 }
 
