@@ -235,74 +235,9 @@ case "${host_os}" in
 esac
 
 DBTYPES=""
-MY_LDFLAGS=""
-MY_CPPFLAGS=""
 PG_LDFLAGS=""
 PG_CPPFLAGS=""
-mysql="no"
 pgsql="no"
-
-dnl lifted from the snort mysql configure.in
-default_directory="/usr /usr/local /usr/local/mysql"
-
-AC_ARG_WITH(mysql,
-    [  --with-mysql=DIR        support for mysql],
-    [ with_mysql="$withval" ],
-    [ with_mysql=no ])
-if test "$with_mysql" != "no"; then
-  if test "$with_mysql" = "yes"; then
-    mysql_directory="$default_directory";
-    mysql_fail="yes"
-  elif test -d $withval; then
-    mysql_directory="$withval"
-    mysql_fail="no"
-  elif test "$with_mysql" = ""; then
-    mysql_directory="$default_directory";
-    mysql_fail="no"
-  fi
-  AC_MSG_CHECKING(for mysql)
-  for i in $mysql_directory; do
-    if test -r $i/include/mysql/mysql.h; then
-      MYSQL_DIR=$i
-      MYSQL_INC_DIR=$i/include/mysql
-    elif test -r $i/include/mysql.h; then
-      MYSQL_DIR=$i
-      MYSQL_INC_DIR=$i/include
-    fi
-  done
-  if test -z "$MYSQL_DIR"; then
-    if test "$mysql_fail" != "no"; then
-      AC_MSG_ERROR(cant find mysql headers (mysql.h), rerun configure with --with-mysql=/path/to/mysql/prefix, 1)
-    else
-      AC_MSG_RESULT(no)
-    fi
-  else
-    for i in lib lib/mysql; do
-      str="$MYSQL_DIR/$i/libmysqlclient.*"
-      for j in `echo $str`; do
-        if test -r $j; then
-          MYSQL_LIB_DIR="$MYSQL_DIR/$i"
-          break 2
-        fi
-      done
-    done
-    if test -z "$MYSQL_LIB_DIR"; then
-      if test "$mysql_fail" != "no"; then
-        AC_MSG_ERROR(cant find mysqlclient library, libmysqlclient.?, rerun configure --with-mysql=/path/to/mysql/prefix, 1)
-      else
-        AC_MSG_RESULT(no)
-      fi
-    else
-      AC_MSG_RESULT(yes)
-      AC_DEFINE([WITH_MYSQL], [1], [Define if MySQL support is enabled])
-      AC_CHECK_LIB(z, compress)
-      MY_LDFLAGS="-L${MYSQL_LIB_DIR}"
-      MY_CPPFLAGS="-I${MYSQL_INC_DIR}"
-      DBTYPES="${DBTYPES} mysql"
-      mysql="yes"
-    fi
-  fi
-fi
 
 dnl PostgreSQL detection - modernized to use pkg-config
 AC_ARG_WITH(pgsql,
@@ -389,8 +324,6 @@ AC_SUBST(DESTDIR)
 AC_SUBST(DBTYPES)
 AC_SUBST(PG_LDFLAGS)
 AC_SUBST(PG_CPPFLAGS)
-AC_SUBST(MY_LDFLAGS)
-AC_SUBST(MY_CPPFLAGS)
 AC_SUBST(GEOIP_LIBS)
 AC_SUBST(GEOIP_CFLAGS)
 
@@ -466,7 +399,6 @@ echo
 echo "--                Configuration Summary                                      --"
 echo "prefix:                           ${prefix}"
 echo "PostgreSQL Support:               $pgsql"
-echo "MySQL Support:                    $mysql"
 echo "GeoIP support (MaxMind):          $geoip_found"
 echo "GeoIP support (IP2Location):      $ip2location_found"
 echo "SELinux Support:                  $selinux"

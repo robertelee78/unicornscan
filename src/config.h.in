@@ -81,9 +81,6 @@
 /* Define to 1 if you have the 'pcap' library (-lpcap). */
 #undef HAVE_LIBPCAP
 
-/* Define to 1 if you have the 'z' library (-lz). */
-#undef HAVE_LIBZ
-
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
@@ -285,9 +282,6 @@
 
 /* Define if getopt_long is available */
 #undef WITH_LONGOPTS
-
-/* Define if MySQL support is enabled */
-#undef WITH_MYSQL
 
 /* Define if PostgreSQL support is enabled */
 #undef WITH_PGSQL

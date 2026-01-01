@@ -1,6 +1,6 @@
 #ifndef VERSION
 
-#define VERSION "0.4.19"
+#define VERSION "0.4.22"
 #define BUGURL "osace-users@lists.sourceforge.net"
 
 #ifdef WITH_SELINUX
@@ -9,19 +9,13 @@
 #define _B_SE ""
 #endif
 
-#ifdef WITH_MYSQL
-#define _B_MYSQL " MySQL"
-#else
-#define _B_MYSQL ""
-#endif
-
 #ifdef WITH_PGSQL
 #define _B_PGSQL " PostgreSQL"
 #else
 #define _B_PGSQL ""
 #endif
 
-#define BUILDOPTS _B_SE _B_MYSQL _B_PGSQL
+#define BUILDOPTS _B_SE _B_PGSQL
 
 #define MODULE_IVER	0x0103 /* 1.02 */
 
