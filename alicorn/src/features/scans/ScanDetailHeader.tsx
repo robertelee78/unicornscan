@@ -4,7 +4,7 @@
  */
 
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Clock, User, Gauge, Target, Layers } from 'lucide-react'
+import { ArrowLeft, Clock, User, Gauge, Target, Layers, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,6 +18,7 @@ interface ScanDetailHeaderProps {
   hostCount: number
   onQuickExport?: (format: ExportFormat) => void
   onAdvancedExport?: () => void
+  onDelete?: () => void
 }
 
 function formatDuration(start: number, end: number): string {
@@ -39,6 +40,7 @@ export function ScanDetailHeader({
   hostCount,
   onQuickExport,
   onAdvancedExport,
+  onDelete,
 }: ScanDetailHeaderProps) {
   const duration = formatDuration(scan.s_time, scan.e_time)
 
@@ -53,14 +55,30 @@ export function ScanDetailHeader({
           </Link>
         </Button>
 
-        {/* Export button */}
-        {onQuickExport && (
-          <ExportDropdown
-            onExport={onQuickExport}
-            onOpenDialog={onAdvancedExport}
-            showAdvanced={!!onAdvancedExport}
-          />
-        )}
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          {/* Delete button */}
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete
+            </Button>
+          )}
+
+          {/* Export button */}
+          {onQuickExport && (
+            <ExportDropdown
+              onExport={onQuickExport}
+              onOpenDialog={onAdvancedExport}
+              showAdvanced={!!onAdvancedExport}
+            />
+          )}
+        </div>
       </div>
 
       <div className="flex items-start justify-between">

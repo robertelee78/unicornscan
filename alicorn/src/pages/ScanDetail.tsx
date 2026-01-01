@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useScan, useIpReports } from '@/hooks'
 import {
   ScanDetailHeader,
@@ -25,14 +25,21 @@ import {
   quickExportScan,
   type ExportFormat,
 } from '@/features/export'
+import {
+  DeleteConfirmDialog,
+  useScanDeletion,
+  recordDeletion,
+} from '@/features/deletion'
 import { Card, CardContent } from '@/components/ui/card'
 
 type TabId = 'results' | 'hosts' | 'raw' | 'notes'
 
 export function ScanDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const scansId = parseInt(id || '0', 10)
   const [activeTab, setActiveTab] = useState<TabId>('results')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   // Fetch scan data
   const { data: scan, isLoading: scanLoading, error: scanError } = useScan(scansId)
@@ -44,12 +51,32 @@ export function ScanDetail() {
   const exportDialog = useExportDialog()
   const { exportScan, isExporting } = useScanExport(scan ?? null, reports)
 
+  // Delete functionality
+  const { mutate: deleteScan, isPending: isDeleting } = useScanDeletion({
+    onSuccess: (result) => {
+      if (scan) {
+        recordDeletion(result, scan.target_str)
+      }
+      setDeleteDialogOpen(false)
+      navigate('/scans')
+    },
+  })
+
   // Quick export handler
   const handleQuickExport = useCallback((format: ExportFormat) => {
     if (scan) {
       quickExportScan(scan, reports, format)
     }
   }, [scan, reports])
+
+  // Delete handler
+  const handleDelete = useCallback(() => {
+    setDeleteDialogOpen(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(() => {
+    deleteScan(scansId)
+  }, [deleteScan, scansId])
 
   // Calculate host count
   const hostCount = useMemo(() => {
@@ -102,6 +129,16 @@ export function ScanDetail() {
         hostCount={hostCount}
         onQuickExport={handleQuickExport}
         onAdvancedExport={exportDialog.openDialog}
+        onDelete={handleDelete}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        scansId={scansId}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
       />
 
       {/* Export Dialog */}
