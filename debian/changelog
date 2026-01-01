@@ -3,6 +3,7 @@ unicornscan (0.4.22-2) unstable; urgency=medium
   * Fix pgsqldb schema bug: tcpflags -> tcphdrflgs for uni_scan_phases
   * Improve modules.conf update with proper error handling and verification
   * Remove MySQL database module completely (unmaintained deadweight)
+  * Remove legacy www-front-end PHP code (replaced by Alicorn React UI)
   * unicornscan-web now reports exactly what fails during password setup
 
  -- Robert E. Lee <robert@unicornscan.org>  Thu, 01 Jan 2026 00:00:00 -0800
