@@ -108,7 +108,7 @@ function HostCard({ group }: HostCardProps) {
             </thead>
             <tbody className="font-mono">
               {reports.map((report) => {
-                const flags = decodeTcpFlags(report.subtype)
+                const flags = decodeTcpFlags(report.type)
                 return (
                   <tr key={report.ipreport_id} className="border-b border-border/50">
                     <td className="py-1.5 pr-4">
