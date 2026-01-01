@@ -1,4 +1,9 @@
--- Unicornscan PostgreSQL Schema v5
+-- Unicornscan PostgreSQL Schema v6
+-- v6: Added GeoIP integration for geographic and network metadata
+--     uni_geoip: Geographic and network data (country, region, city, lat/long, ISP, ASN, ip_type)
+--     Supports multiple providers: MaxMind (GeoLite2/GeoIP2), IP2Location, IPinfo
+--     IP type detection: residential, datacenter, vpn, proxy, tor, mobile
+--     Historical accuracy: stores data at scan time for audit trails
 -- v5: Added frontend support tables for web/mobile interfaces
 --     uni_hosts: Aggregate host tracking with fn_upsert_host()
 --     uni_host_scans: Junction table linking hosts to scans
@@ -17,7 +22,13 @@
 --     Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
 -- v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
 
--- Drop new v5 tables first (reverse dependency order)
+-- Drop v6 tables first
+drop view if exists v_geoip_stats;
+drop view if exists v_geoip;
+drop table if exists "uni_geoip";
+drop sequence if exists "uni_geoip_id_seq";
+
+-- Drop new v5 tables (reverse dependency order)
 drop function if exists fn_upsert_host(inet, macaddr);
 drop table if exists "uni_saved_filters";
 drop table if exists "uni_notes";
@@ -1171,5 +1182,112 @@ select
 from uni_hosts h
 order by h.last_seen desc;
 
+-- ============================================================================
+-- Schema v6: GeoIP Integration
+-- ============================================================================
+
+-- uni_geoip: Geographic and network metadata
+-- Stores geolocation data at scan time for historical accuracy
+create sequence "uni_geoip_id_seq";
+
+create table "uni_geoip" (
+    "geoip_id"       int8 not null default nextval('uni_geoip_id_seq'),
+    "host_ip"        inet not null,
+    "scans_id"       int8 not null,
+
+    -- Geographic data
+    "country_code"   char(2),
+    "country_name"   varchar(100),
+    "region_code"    varchar(10),
+    "region_name"    varchar(100),
+    "city"           varchar(100),
+    "postal_code"    varchar(20),
+    "latitude"       decimal(9,6),
+    "longitude"      decimal(9,6),
+    "timezone"       varchar(64),
+
+    -- Network data (optional - requires paid databases)
+    "ip_type"        varchar(20),  -- residential, datacenter, vpn, proxy, tor, mobile
+    "isp"            varchar(200),
+    "organization"   varchar(200),
+    "asn"            int4,
+    "as_org"         varchar(200),
+
+    -- Metadata
+    "provider"       varchar(50) not null,  -- maxmind, ip2location, ipinfo
+    "database_version" varchar(50),
+    "lookup_time"    timestamptz default now(),
+    "confidence"     int2 check (confidence is null or (confidence >= 0 and confidence <= 100)),
+    "extra_data"     jsonb default '{}'::jsonb,
+
+    primary key ("geoip_id"),
+    constraint "uni_geoip_unique" unique ("host_ip", "scans_id")
+);
+
+-- Indexes for common query patterns
+create index idx_geoip_host on uni_geoip("host_ip");
+create index idx_geoip_scan on uni_geoip("scans_id");
+create index idx_geoip_country on uni_geoip("country_code");
+create index idx_geoip_type on uni_geoip("ip_type") where "ip_type" is not null;
+create index idx_geoip_asn on uni_geoip("asn") where "asn" is not null;
+create index idx_geoip_location on uni_geoip("latitude", "longitude") where "latitude" is not null;
+
+-- Foreign key constraint
+alter table "uni_geoip" add constraint "uni_geoip_scans_FK"
+    foreign key("scans_id") references "uni_scans"("scans_id") on delete cascade;
+
+-- RLS for Supabase
+alter table "uni_geoip" enable row level security;
+drop policy if exists "Allow full access to geoip" on uni_geoip;
+create policy "Allow full access to geoip" on uni_geoip for all using (true) with check (true);
+
+-- v_geoip: Geographic data with scan context
+create or replace view v_geoip
+with (security_invoker = true) as
+select
+    g.geoip_id,
+    g.host_ip,
+    g.scans_id,
+    g.country_code,
+    g.country_name,
+    g.region_code,
+    g.region_name,
+    g.city,
+    g.postal_code,
+    g.latitude,
+    g.longitude,
+    g.timezone,
+    g.ip_type,
+    g.isp,
+    g.organization,
+    g.asn,
+    g.as_org,
+    g.provider,
+    g.database_version,
+    g.lookup_time,
+    g.confidence,
+    g.extra_data
+from uni_geoip g
+order by g.lookup_time desc;
+
+-- v_geoip_stats: Aggregated country/type statistics per scan
+create or replace view v_geoip_stats
+with (security_invoker = true) as
+select
+    g.scans_id,
+    g.country_code,
+    g.country_name,
+    count(*) as host_count,
+    count(distinct g.asn) as unique_asns,
+    count(case when g.ip_type = 'datacenter' then 1 end) as datacenter_count,
+    count(case when g.ip_type = 'residential' then 1 end) as residential_count,
+    count(case when g.ip_type = 'vpn' then 1 end) as vpn_count,
+    count(case when g.ip_type = 'proxy' then 1 end) as proxy_count,
+    count(case when g.ip_type = 'tor' then 1 end) as tor_count,
+    count(case when g.ip_type = 'mobile' then 1 end) as mobile_count
+from uni_geoip g
+group by g.scans_id, g.country_code, g.country_name
+order by host_count desc;
+
 -- Record schema version
-insert into uni_schema_version (version) values (5);
+insert into uni_schema_version (version) values (6);

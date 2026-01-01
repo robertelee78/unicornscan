@@ -7,7 +7,25 @@
 export { ScanTable } from './ScanTable'
 export { ScanFilterBar } from './ScanFilters'
 export { Pagination } from './Pagination'
-export { useScanList, useAvailableProfiles, useAvailableModes } from './hooks'
+export {
+  useScanList,
+  useAvailableProfiles,
+  useAvailableModes,
+  useSavedFilters,
+  useSavedFilter,
+  useCreateSavedFilter,
+  useUpdateSavedFilter,
+  useDeleteSavedFilter,
+  savedFilterKeys,
+} from './hooks'
+
+// Filter components
+export {
+  CheckboxFilterGroup,
+  FilterChipBar,
+  FilterPanel,
+  SavedFiltersSection,
+} from './components'
 
 // Detail page components
 export { ScanDetailHeader } from './ScanDetailHeader'
@@ -17,9 +35,19 @@ export { HostsTab } from './HostsTab'
 export { ArpResults } from './ArpResults'
 export { RawDataTab } from './RawDataTab'
 export { NotesTab } from './NotesTab'
+export { NotesSidebar } from './NotesSidebar'
 // Re-export from ports feature for backwards compatibility
 export { TcpFlagBadge, TcpFlagsDisplay } from '@/features/ports'
-export { useArpReports, useScanNotes } from './detail-hooks'
+export {
+  useArpReports,
+  useScanNotes,
+  useEntityNotes,
+  useAllNotes,
+  useCreateNote,
+  useUpdateNote,
+  useDeleteNote,
+  notesKeys,
+} from './detail-hooks'
 
 // Types
 export * from './types'

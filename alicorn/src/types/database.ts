@@ -230,13 +230,27 @@ export interface ScanTag {
   created_at: string
 }
 
+export type NoteEntityType = 'scan' | 'host' | 'ipreport' | 'arpreport' | 'service' | 'network'
+
 export interface Note {
   note_id: number
-  entity_type: 'scan' | 'host' | 'port' | 'service'
+  entity_type: NoteEntityType
   entity_id: number
-  content: string
+  note_text: string
   created_at: string
   updated_at: string
+  created_by: string | null
+}
+
+export interface NoteCreate {
+  entity_type: NoteEntityType
+  entity_id: number
+  note_text: string
+  created_by?: string
+}
+
+export interface NoteUpdate {
+  note_text: string
 }
 
 export interface SavedFilter {
