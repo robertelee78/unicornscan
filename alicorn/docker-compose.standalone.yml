@@ -67,7 +67,7 @@ services:
         VITE_DEBUG: ${VITE_DEBUG:-false}
     container_name: alicorn-web
     ports:
-      - "8080:80"
+      - "31337:80"
     depends_on:
       postgrest:
         condition: service_healthy
