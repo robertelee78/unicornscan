@@ -6,7 +6,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
-import type { Host } from '@/types/database'
+import type { Host, IpReport } from '@/types/database'
 import type { HostFilters, SortState, PaginationState, PortHistoryEntry, HostScanEntry } from './types'
 
 const db = getDatabase()
@@ -21,6 +21,7 @@ export const hostListKeys = {
     [...hostListKeys.all, 'filtered', filters, sort, pagination] as const,
   portHistory: (hostIp: string) => [...hostListKeys.all, 'portHistory', hostIp] as const,
   hostScans: (hostIp: string) => [...hostListKeys.all, 'hostScans', hostIp] as const,
+  hostReports: (hostIp: string) => [...hostListKeys.all, 'hostReports', hostIp] as const,
 }
 
 // =============================================================================
@@ -193,6 +194,34 @@ export function useHostScans(hostIp: string) {
 
       // Sort by scan time descending
       return entries.sort((a, b) => b.scanTime - a.scanTime)
+    },
+    enabled: !!hostIp,
+    staleTime: 30000,
+  })
+}
+
+// =============================================================================
+// Host Reports Hook (for export)
+// =============================================================================
+
+export function useHostReports(hostIp: string) {
+  return useQuery({
+    queryKey: hostListKeys.hostReports(hostIp),
+    queryFn: async (): Promise<IpReport[]> => {
+      // Get all scans and collect reports for this host
+      const scans = await db.getScans({ limit: 100 })
+      const allReports: IpReport[] = []
+
+      for (const scan of scans) {
+        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+        allReports.push(...reports)
+      }
+
+      // Sort by scan ID (most recent first), then by port
+      return allReports.sort((a, b) => {
+        if (a.scans_id !== b.scans_id) return b.scans_id - a.scans_id
+        return a.dport - b.dport
+      })
     },
     enabled: !!hostIp,
     staleTime: 30000,
