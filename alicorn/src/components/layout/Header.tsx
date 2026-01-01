@@ -4,10 +4,11 @@
  */
 
 import { useLocation, Link } from 'react-router-dom'
-import { Moon, Sun, Bell } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { config } from '@/lib/database'
 import { Badge } from '@/components/ui/badge'
+import { ThemeDropdown } from '@/features/theme'
 
 export function Header() {
   const location = useLocation()
@@ -43,11 +44,8 @@ export function Header() {
           <Bell className="h-5 w-5" />
         </Button>
 
-        {/* Theme toggle (stub - will be implemented in Phase 5.1) */}
-        <Button variant="ghost" size="icon" className="text-muted" title="Toggle theme (coming soon)">
-          <Sun className="h-5 w-5 hidden dark:block" />
-          <Moon className="h-5 w-5 block dark:hidden" />
-        </Button>
+        {/* Theme toggle */}
+        <ThemeDropdown className="text-muted" />
       </div>
     </header>
   )

@@ -4,7 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="description" content="Alicorn - Web interface for unicornscan network scanner" />
+    <title>Alicorn - Unicornscan Web UI</title>
+    <!-- Theme detection script - prevents flash of wrong theme -->
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('alicorn-theme');
+          var resolved = theme;
+          if (!theme || theme === 'system') {
+            resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          if (resolved === 'light') {
+            document.documentElement.classList.add('light');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.querySelector('meta[name="theme-color"]').content = '#fafafa';
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
