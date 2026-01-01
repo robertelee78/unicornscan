@@ -1153,6 +1153,18 @@ static int pgsql_migrate_schema(PGconn *conn, int from_version) {
 		VRB(0, "PostgreSQL: schema migration to v8 complete (MAC<->IP history added)");
 	}
 
+	/* Upgrade to v9: add eth_hwaddr column for local network MAC capture */
+	if (from_version < 9) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v9_add_eth_hwaddr_ddl, "add eth_hwaddr column")) {
+			return 0;
+		}
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 9);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 9")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v9 complete (eth_hwaddr column added)");
+	}
+
 	return 1;
 }
 
