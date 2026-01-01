@@ -20,6 +20,7 @@ import {
   useHostPortTrend,
   usePortTimeline,
 } from '@/features/charts'
+import { HostTimeline } from '@/features/timeline'
 import {
   ExportDialog,
   useHostExport,
@@ -160,12 +161,20 @@ export function HostDetail() {
         }}
       />
 
-      {/* Port Timeline */}
+      {/* Port Timeline (simple lifespan view) */}
       <PortTimeline
         data={portTimeline}
         isLoading={timelineLoading}
         title="Port Observation Timeline"
         maxPorts={25}
+      />
+
+      {/* Enhanced Host Timeline (with change detection, zoom, filtering, export) */}
+      <HostTimeline
+        hostIp={host.ip_addr}
+        title="Port Activity Timeline (Enhanced)"
+        maxPorts={30}
+        height={500}
       />
 
       {/* Port History */}
