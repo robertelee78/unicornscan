@@ -676,7 +676,7 @@ static int pgsql_insert_phases(unsigned long long int scanid, const settings_t *
 	for (i = 0; i < settings->num_phases; i++) {
 		snprintf(querybuf, sizeof(querybuf) - 1,
 			"INSERT INTO uni_scan_phases ("
-			"    scans_id, phase_idx, mode, mode_char, tcpflags, "
+			"    scans_id, phase_idx, mode, mode_char, tcphdrflgs, "
 			"    send_opts, recv_opts, pps, repeats, recv_timeout"
 			") VALUES ("
 			"    %llu, %d, %d, '%c', %u, "
