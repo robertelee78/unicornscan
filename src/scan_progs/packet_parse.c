@@ -586,6 +586,15 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 		if (bad_cksum) {
 			r_u.i.flags |= REPORT_BADNETWORK_CKSUM;
 		}
+
+		/* v9: Capture Ethernet source MAC for local network responses */
+		if (saved_eth_valid && is_local_target(saddr)) {
+			memcpy(r_u.i.eth_hwaddr, saved_eth_shost, 6);
+			r_u.i.eth_hwaddr_valid = 1;
+			DBG(M_PKT, "captured local MAC %02x:%02x:%02x:%02x:%02x:%02x",
+			    r_u.i.eth_hwaddr[0], r_u.i.eth_hwaddr[1], r_u.i.eth_hwaddr[2],
+			    r_u.i.eth_hwaddr[3], r_u.i.eth_hwaddr[4], r_u.i.eth_hwaddr[5]);
+		}
 	}
 	else if (pk_layer == 3) { /* this is a ip header within an icmp header normally */
 		/*
