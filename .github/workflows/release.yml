@@ -98,7 +98,10 @@ jobs:
           # =================================================================
           # Install Alicorn Web UI files
           # =================================================================
-          mkdir -p debian/unicornscan/opt/unicornscan-web/{src,public,cli,sql}
+          mkdir -p debian/unicornscan/opt/unicornscan-web/src
+          mkdir -p debian/unicornscan/opt/unicornscan-web/public
+          mkdir -p debian/unicornscan/opt/unicornscan-web/cli
+          mkdir -p debian/unicornscan/opt/unicornscan-web/sql
 
           # Docker configuration
           cp alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-web/docker-compose.yml
