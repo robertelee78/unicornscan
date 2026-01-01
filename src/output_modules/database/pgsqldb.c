@@ -304,25 +304,28 @@ static int pgsql_insert_host_scan(unsigned long long int host_id, unsigned long 
  */
 static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const char *mac_addr, unsigned long long int scans_id) {
 	PGresult *res;
-	unsigned long long int history_id = 0;
-	char *escaped_host = NULL;
-	char *escaped_mac = NULL;
+	unsigned long long int history_id=0;
+	char esc_host[128], esc_mac[64];
+	char *tmp=NULL;
 
 	if (host_addr == NULL || mac_addr == NULL || pgconn == NULL) {
 		return 0;
 	}
 
-	escaped_host = pgsql_escstr(host_addr);
-	escaped_mac = pgsql_escstr(mac_addr);
+	/* pgsql_escstr uses static buffer - copy before next call */
+	tmp=pgsql_escstr(host_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_host, tmp, sizeof(esc_host)-1);
+	esc_host[sizeof(esc_host)-1]='\0';
 
-	if (escaped_host == NULL || escaped_mac == NULL) {
-		return 0;
-	}
+	tmp=pgsql_escstr(mac_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_mac, tmp, sizeof(esc_mac)-1);
+	esc_mac[sizeof(esc_mac)-1]='\0';
 
-	snprintf(querybuf2, sizeof(querybuf2) - 1,
+	snprintf(querybuf2, sizeof(querybuf2)-1,
 		"SELECT fn_record_mac_ip('%s'::inet, '%s'::macaddr, %llu);",
-		escaped_host, escaped_mac, scans_id
-	);
+		esc_host, esc_mac, scans_id);
 
 	res = PQexec(pgconn, querybuf2);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) == 1) {
@@ -345,26 +348,29 @@ static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const c
 static int pgsql_insert_hop(unsigned long long int ipreport_id, unsigned long long int scans_id,
                             const char *target_addr, const char *hop_addr, int ttl) {
 	PGresult *res;
-	int ret = 0;
-	char *escaped_target = NULL;
-	char *escaped_hop = NULL;
+	int ret=0;
+	char esc_target[64], esc_hop[64];
+	char *tmp=NULL;
 
 	if (target_addr == NULL || hop_addr == NULL || pgconn == NULL) {
 		return 0;
 	}
 
-	escaped_target = pgsql_escstr(target_addr);
-	escaped_hop = pgsql_escstr(hop_addr);
+	/* pgsql_escstr uses static buffer - copy before next call */
+	tmp=pgsql_escstr(target_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_target, tmp, sizeof(esc_target)-1);
+	esc_target[sizeof(esc_target)-1]='\0';
 
-	if (escaped_target == NULL || escaped_hop == NULL) {
-		return 0;
-	}
+	tmp=pgsql_escstr(hop_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_hop, tmp, sizeof(esc_hop)-1);
+	esc_hop[sizeof(esc_hop)-1]='\0';
 
-	snprintf(querybuf2, sizeof(querybuf2) - 1,
+	snprintf(querybuf2, sizeof(querybuf2)-1,
 		"INSERT INTO uni_hops (ipreport_id, scans_id, target_addr, hop_addr, ttl_observed) "
 		"VALUES (%llu, %llu, '%s', '%s', %d);",
-		ipreport_id, scans_id, escaped_target, escaped_hop, ttl
-	);
+		ipreport_id, scans_id, esc_target, esc_hop, ttl);
 
 	res = PQexec(pgconn, querybuf2);
 	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
