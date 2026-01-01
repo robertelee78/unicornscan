@@ -26,7 +26,15 @@
  * This schema is auto-created when connecting to a fresh database.
  * Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 7
+ * Schema version: 9
+ * - v9: Added eth_hwaddr to uni_ipreport for local network MAC capture
+ *       TCP/UDP/ICMP responses from L2-reachable hosts now include source MAC
+ *       Extends v8 MAC<->IP history with IP scan data (not just ARP scans)
+ * - v8: Added MAC<->IP history tracking for temporal address associations
+ *       uni_mac_ip_history: Tracks every MAC<->IP pairing with first/last seen
+ *       fn_record_mac_ip(): Records MAC<->IP association from ARP scans
+ *       v_mac_ip_history, v_current_mac_by_ip, v_current_ip_by_mac views
+ *       v_hosts updated to show most recent MAC from history and mac_count
  * - v7: Added target_str column for original command line target specification
  *       Added src_addr column for source address / phantom IP (-s option)
  *       Updated v_hosts view to calculate port_count and scan_count correctly
@@ -54,7 +62,7 @@
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 7
+#define PGSQL_SCHEMA_VERSION 9
 
 /*
  * Schema version tracking table - created first
@@ -82,7 +90,9 @@ static const char *pgsql_schema_sequences_ddl =
 	"CREATE SEQUENCE IF NOT EXISTS uni_notes_id_seq;\n"
 	"CREATE SEQUENCE IF NOT EXISTS uni_saved_filters_id_seq;\n"
 	/* v6: GeoIP sequence */
-	"CREATE SEQUENCE IF NOT EXISTS uni_geoip_id_seq;\n";
+	"CREATE SEQUENCE IF NOT EXISTS uni_geoip_id_seq;\n"
+	/* v8: MAC-IP history sequence */
+	"CREATE SEQUENCE IF NOT EXISTS uni_mac_ip_history_id_seq;\n";
 
 /*
  * Main scan tracking table
@@ -1302,6 +1312,177 @@ static const char *pgsql_schema_v6_views_ddl =
 static const char *pgsql_schema_migration_v7_ddl =
 	"ALTER TABLE uni_scans ADD COLUMN IF NOT EXISTS target_str TEXT;\n"
 	"ALTER TABLE uni_scans ADD COLUMN IF NOT EXISTS src_addr INET;\n";
+
+/*
+ * Schema v8 migration - add MAC<->IP history tracking
+ */
+static const char *pgsql_schema_migration_v8_ddl =
+	/* uni_mac_ip_history table */
+	"CREATE TABLE IF NOT EXISTS uni_mac_ip_history (\n"
+	"    history_id       BIGINT NOT NULL DEFAULT nextval('uni_mac_ip_history_id_seq'),\n"
+	"    host_addr        INET NOT NULL,\n"
+	"    mac_addr         MACADDR NOT NULL,\n"
+	"    first_seen       TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n"
+	"    last_seen        TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n"
+	"    first_scans_id   BIGINT NOT NULL,\n"
+	"    last_scans_id    BIGINT,\n"
+	"    observation_count INTEGER NOT NULL DEFAULT 1,\n"
+	"    extra_data       JSONB DEFAULT '{}'::jsonb,\n"
+	"    PRIMARY KEY (history_id)\n"
+	");\n"
+	"\n"
+	/* Indexes for MAC-IP history */
+	"CREATE UNIQUE INDEX IF NOT EXISTS uni_mac_ip_history_addr_mac_uniq ON uni_mac_ip_history(host_addr, mac_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_mac_ip_history_addr_idx ON uni_mac_ip_history(host_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_mac_ip_history_mac_idx ON uni_mac_ip_history(mac_addr);\n"
+	"CREATE INDEX IF NOT EXISTS uni_mac_ip_history_first_seen_idx ON uni_mac_ip_history(first_seen);\n"
+	"CREATE INDEX IF NOT EXISTS uni_mac_ip_history_last_seen_idx ON uni_mac_ip_history(last_seen);\n"
+	"\n"
+	/* Foreign keys */
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_mac_ip_history_first_scans_fk') THEN\n"
+	"        ALTER TABLE uni_mac_ip_history ADD CONSTRAINT uni_mac_ip_history_first_scans_FK\n"
+	"            FOREIGN KEY(first_scans_id) REFERENCES uni_scans(scans_id) ON DELETE SET NULL;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_mac_ip_history_last_scans_fk') THEN\n"
+	"        ALTER TABLE uni_mac_ip_history ADD CONSTRAINT uni_mac_ip_history_last_scans_FK\n"
+	"            FOREIGN KEY(last_scans_id) REFERENCES uni_scans(scans_id) ON DELETE SET NULL;\n"
+	"    END IF;\n"
+	"END $$;\n"
+	"\n"
+	/* RLS for MAC-IP history */
+	"ALTER TABLE uni_mac_ip_history ENABLE ROW LEVEL SECURITY;\n"
+	"DROP POLICY IF EXISTS \"Allow full access to mac_ip_history\" ON uni_mac_ip_history;\n"
+	"CREATE POLICY \"Allow full access to mac_ip_history\" ON uni_mac_ip_history FOR ALL USING (true) WITH CHECK (true);\n";
+
+/*
+ * Schema v8 function - fn_record_mac_ip for tracking MAC<->IP associations
+ */
+static const char *pgsql_schema_v8_functions_ddl =
+	"CREATE OR REPLACE FUNCTION fn_record_mac_ip(\n"
+	"    p_host_addr INET,\n"
+	"    p_mac_addr MACADDR,\n"
+	"    p_scans_id BIGINT\n"
+	") RETURNS BIGINT\n"
+	"LANGUAGE plpgsql\n"
+	"AS $$\n"
+	"DECLARE\n"
+	"    v_history_id BIGINT;\n"
+	"BEGIN\n"
+	"    SELECT history_id INTO v_history_id\n"
+	"    FROM uni_mac_ip_history\n"
+	"    WHERE host_addr = p_host_addr AND mac_addr = p_mac_addr;\n"
+	"    \n"
+	"    IF v_history_id IS NOT NULL THEN\n"
+	"        UPDATE uni_mac_ip_history\n"
+	"        SET last_seen = NOW(),\n"
+	"            last_scans_id = p_scans_id,\n"
+	"            observation_count = observation_count + 1\n"
+	"        WHERE history_id = v_history_id;\n"
+	"    ELSE\n"
+	"        INSERT INTO uni_mac_ip_history (host_addr, mac_addr, first_scans_id, last_scans_id)\n"
+	"        VALUES (p_host_addr, p_mac_addr, p_scans_id, p_scans_id)\n"
+	"        RETURNING history_id INTO v_history_id;\n"
+	"    END IF;\n"
+	"    RETURN v_history_id;\n"
+	"END;\n"
+	"$$;\n";
+
+/*
+ * Schema v8 views - MAC<->IP history views
+ */
+static const char *pgsql_schema_v8_views_ddl =
+	/* v_mac_ip_history: Full history */
+	"CREATE OR REPLACE VIEW v_mac_ip_history WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    h.history_id,\n"
+	"    h.host_addr,\n"
+	"    h.mac_addr,\n"
+	"    h.first_seen,\n"
+	"    h.last_seen,\n"
+	"    h.first_scans_id,\n"
+	"    h.last_scans_id,\n"
+	"    h.observation_count,\n"
+	"    EXTRACT(epoch FROM (NOW() - h.last_seen))::int4 AS age_seconds,\n"
+	"    (SELECT s.profile FROM uni_scans s WHERE s.scans_id = h.first_scans_id) AS first_scan_profile,\n"
+	"    (SELECT s.profile FROM uni_scans s WHERE s.scans_id = h.last_scans_id) AS last_scan_profile,\n"
+	"    h.extra_data\n"
+	"FROM uni_mac_ip_history h\n"
+	"ORDER BY h.last_seen DESC;\n"
+	"\n"
+	/* v_current_mac_by_ip: Most recent MAC for each IP */
+	"CREATE OR REPLACE VIEW v_current_mac_by_ip WITH (security_invoker = true) AS\n"
+	"SELECT DISTINCT ON (host_addr)\n"
+	"    host_addr,\n"
+	"    mac_addr,\n"
+	"    first_seen,\n"
+	"    last_seen,\n"
+	"    observation_count,\n"
+	"    first_scans_id,\n"
+	"    last_scans_id\n"
+	"FROM uni_mac_ip_history\n"
+	"ORDER BY host_addr, last_seen DESC;\n"
+	"\n"
+	/* v_current_ip_by_mac: Most recent IP for each MAC */
+	"CREATE OR REPLACE VIEW v_current_ip_by_mac WITH (security_invoker = true) AS\n"
+	"SELECT DISTINCT ON (mac_addr)\n"
+	"    mac_addr,\n"
+	"    host_addr,\n"
+	"    first_seen,\n"
+	"    last_seen,\n"
+	"    observation_count,\n"
+	"    first_scans_id,\n"
+	"    last_scans_id\n"
+	"FROM uni_mac_ip_history\n"
+	"ORDER BY mac_addr, last_seen DESC;\n"
+	"\n"
+	/* v_mac_ip_changes: IPs with multiple MACs */
+	"CREATE OR REPLACE VIEW v_mac_ip_changes WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    host_addr,\n"
+	"    COUNT(*) AS mac_count,\n"
+	"    ARRAY_AGG(mac_addr ORDER BY last_seen DESC) AS mac_addresses,\n"
+	"    MIN(first_seen) AS first_observed,\n"
+	"    MAX(last_seen) AS last_observed,\n"
+	"    SUM(observation_count) AS total_observations\n"
+	"FROM uni_mac_ip_history\n"
+	"GROUP BY host_addr\n"
+	"HAVING COUNT(*) > 1\n"
+	"ORDER BY COUNT(*) DESC, MAX(last_seen) DESC;\n";
+
+/*
+ * Schema v8 update v_hosts view - add current_mac and mac_count
+ */
+static const char *pgsql_schema_v8_update_v_hosts_ddl =
+	"CREATE OR REPLACE VIEW v_hosts WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    h.host_id,\n"
+	"    h.host_addr,\n"
+	"    h.mac_addr,\n"
+	"    COALESCE(h.mac_addr, (\n"
+	"        SELECT mh.mac_addr FROM uni_mac_ip_history mh\n"
+	"        WHERE mh.host_addr = h.host_addr\n"
+	"        ORDER BY mh.last_seen DESC LIMIT 1\n"
+	"    )) AS current_mac,\n"
+	"    h.hostname,\n"
+	"    h.first_seen,\n"
+	"    h.last_seen,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT hs.scans_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id), 0)::int4 AS scan_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    COALESCE((SELECT COUNT(*) FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr), 0)::int4 AS mac_count,\n"
+	"    h.extra_data\n"
+	"FROM uni_hosts h\n"
+	"ORDER BY h.last_seen DESC;\n";
+
+/*
+ * Schema v9 migration - add eth_hwaddr column to uni_ipreport
+ * This column stores the Ethernet source MAC for local network responses
+ */
+static const char *pgsql_schema_v9_add_eth_hwaddr_ddl =
+	"ALTER TABLE uni_ipreport ADD COLUMN IF NOT EXISTS eth_hwaddr MACADDR;\n";
 
 /*
  * Record schema version
