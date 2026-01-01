@@ -13,6 +13,9 @@ set -e
 
 INSTALL_DIR="/opt/unicornscan-web"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
+ENV_FILE="$INSTALL_DIR/.env"
+PASSWORD_FILE="$INSTALL_DIR/.db_password"
+MODULES_CONF="/etc/unicornscan/modules.conf"
 
 # Colors for output
 RED='\033[0;31m'
@@ -35,6 +38,58 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[✗]${NC} $1"
+}
+
+# Generate a random 32-character password
+generate_password() {
+    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
+}
+
+# Initialize environment with random password if not exists
+init_env() {
+    if [ -f "$ENV_FILE" ]; then
+        return 0
+    fi
+
+    print_status "First run - generating secure database password..."
+
+    PASSWORD=$(generate_password)
+
+    # Create .env file
+    cat > "$ENV_FILE" << EOF
+# Alicorn Docker Configuration
+# Generated on $(date -Iseconds)
+POSTGRES_USER=alicorn
+POSTGRES_PASSWORD=${PASSWORD}
+POSTGRES_DB=unicornscan
+EOF
+    chmod 600 "$ENV_FILE"
+
+    # Save password to separate file for easy access
+    echo "$PASSWORD" > "$PASSWORD_FILE"
+    chmod 600 "$PASSWORD_FILE"
+
+    # Update modules.conf if it exists
+    if [ -f "$MODULES_CONF" ]; then
+        if grep -q 'module "pgsqldb"' "$MODULES_CONF"; then
+            # Update password in existing pgsqldb config
+            sed -i "s/password=[^;[:space:]]*/password=${PASSWORD}/" "$MODULES_CONF" 2>/dev/null || true
+            print_success "Updated $MODULES_CONF with new password"
+        fi
+    fi
+
+    print_success "Generated secure password (saved to $PASSWORD_FILE)"
+}
+
+# Get the current password (from .env or default)
+get_password() {
+    if [ -f "$PASSWORD_FILE" ]; then
+        cat "$PASSWORD_FILE"
+    elif [ -f "$ENV_FILE" ]; then
+        grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d'=' -f2
+    else
+        echo "changeme"
+    fi
 }
 
 check_docker() {
@@ -64,6 +119,9 @@ cmd_start() {
     check_docker
     check_compose_file
 
+    # Generate password on first run
+    init_env
+
     print_status "Starting Alicorn Web UI stack..."
     cd "$INSTALL_DIR"
 
@@ -73,6 +131,8 @@ cmd_start() {
     # Start containers
     docker compose up -d
 
+    PASSWORD=$(get_password)
+
     echo ""
     print_success "Alicorn Web UI started!"
     echo ""
@@ -80,8 +140,11 @@ cmd_start() {
     echo "  API:       http://localhost:3000"
     echo "  Database:  postgresql://localhost:5432/unicornscan"
     echo ""
-    echo "Configure unicornscan to use this database:"
-    echo "  unicornscan -edb,host=localhost,user=alicorn,pass=changeme,db=unicornscan ..."
+    echo "Run a scan with database export:"
+    echo "  unicornscan -epgsqldb <target>"
+    echo ""
+    echo "Or with explicit connection (password: $PASSWORD):"
+    echo "  unicornscan -epgsqldb,host=localhost,user=alicorn,pass=$PASSWORD,db=unicornscan <target>"
     echo ""
 }
 
@@ -119,7 +182,23 @@ cmd_shell() {
 
     print_status "Connecting to PostgreSQL..."
     cd "$INSTALL_DIR"
-    docker compose exec postgres psql -U alicorn -d unicornscan
+    PASSWORD=$(get_password)
+    docker compose exec -e PGPASSWORD="$PASSWORD" postgres psql -U alicorn -d unicornscan
+}
+
+cmd_password() {
+    if [ -f "$PASSWORD_FILE" ]; then
+        echo "Database password: $(cat $PASSWORD_FILE)"
+        echo ""
+        echo "Password file: $PASSWORD_FILE"
+    elif [ -f "$ENV_FILE" ]; then
+        PASSWORD=$(grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d'=' -f2)
+        echo "Database password: $PASSWORD"
+        echo ""
+        echo "Config file: $ENV_FILE"
+    else
+        print_warning "No password file found. Run 'unicornscan-web start' first."
+    fi
 }
 
 cmd_reset() {
@@ -210,6 +289,7 @@ cmd_help() {
     echo "  status    Show container status"
     echo "  logs      View container logs (use: logs [service])"
     echo "  shell     Open PostgreSQL shell"
+    echo "  password  Show database password"
     echo "  reset     Delete all data and reset database (WARNING: destructive!)"
     echo ""
     echo "Development Commands (requires Node.js 18+):"
@@ -219,14 +299,11 @@ cmd_help() {
     echo ""
     echo "  help      Show this help message"
     echo ""
-    echo "Quick Start (Docker):"
+    echo "Quick Start:"
     echo "  1. unicornscan-web start"
-    echo "  2. Open http://localhost:31337"
-    echo "  3. unicornscan -edb,host=localhost,user=alicorn,pass=changeme,db=unicornscan <target>"
+    echo "  2. unicornscan -epgsqldb <target>"
+    echo "  3. Open http://localhost:31337"
     echo ""
-    echo "Quick Start (Development):"
-    echo "  1. unicornscan-web setup     # Configure database connection"
-    echo "  2. unicornscan-web dev       # Start development server"
 }
 
 # Main command dispatcher
@@ -245,6 +322,9 @@ case "${1:-help}" in
         ;;
     shell)
         cmd_shell
+        ;;
+    password|pass|pw)
+        cmd_password
         ;;
     reset)
         cmd_reset
