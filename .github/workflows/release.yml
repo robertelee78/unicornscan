@@ -145,7 +145,7 @@ jobs:
           Architecture: amd64
           Maintainer: Robert E. Lee <robert@unicornscan.org>
           Depends: libpcap0.8, libdumbnet1, libltdl7, libpq5, libcap2-bin
-          Suggests: docker.io, docker-compose-v2
+          Recommends: docker.io, docker-compose-v2
           Section: net
           Priority: optional
           Description: Asynchronous stateless TCP/UDP network scanner
