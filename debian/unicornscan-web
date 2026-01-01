@@ -73,9 +73,24 @@ EOF
     if [ -f "$MODULES_CONF" ]; then
         if grep -q 'module "pgsqldb"' "$MODULES_CONF"; then
             # Update password in existing pgsqldb config
-            sed -i "s/password=[^;[:space:]]*/password=${PASSWORD}/" "$MODULES_CONF" 2>/dev/null || true
-            print_success "Updated $MODULES_CONF with new password"
+            if [ -w "$MODULES_CONF" ]; then
+                sed -i "s/password=[^;[:space:]]*/password=${PASSWORD}/" "$MODULES_CONF"
+                # Verify the update worked
+                if grep -q "password=${PASSWORD}" "$MODULES_CONF"; then
+                    print_success "Updated $MODULES_CONF with new password"
+                else
+                    print_warning "Failed to update password in $MODULES_CONF"
+                    print_warning "Manually update: password=${PASSWORD}"
+                fi
+            else
+                print_warning "Cannot write to $MODULES_CONF (run with sudo)"
+                print_warning "Manually update: password=${PASSWORD}"
+            fi
+        else
+            print_warning "$MODULES_CONF exists but has no pgsqldb module configured"
         fi
+    else
+        print_warning "$MODULES_CONF not found - unicornscan may not export to database"
     fi
 
     print_success "Generated secure password (saved to $PASSWORD_FILE)"
