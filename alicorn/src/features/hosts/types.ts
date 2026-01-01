@@ -8,7 +8,7 @@ export interface HostFilters {
   hasOpenPorts: boolean | null
 }
 
-export type SortField = 'ip_addr' | 'hostname' | 'open_port_count' | 'scan_count' | 'last_seen' | 'first_seen'
+export type SortField = 'host_addr' | 'hostname' | 'port_count' | 'scan_count' | 'last_seen' | 'first_seen'
 export type SortDirection = 'asc' | 'desc'
 
 export interface SortState {

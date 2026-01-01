@@ -135,8 +135,8 @@ export function ScanTable({
                     #{scan.scans_id}
                   </Link>
                 </td>
-              <td className="py-3 px-2 max-w-[200px] truncate" title={scan.target_str}>
-                {scan.target_str}
+              <td className="py-3 px-2 max-w-[200px] truncate" title={scan.target_str || undefined}>
+                {scan.target_str || <span className="text-muted">—</span>}
               </td>
               <td className="py-3 px-2">{scan.profile}</td>
               <td className="py-3 px-2">

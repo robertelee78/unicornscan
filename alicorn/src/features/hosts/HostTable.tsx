@@ -42,7 +42,7 @@ export function HostTable({ hosts, sort, onSort, isLoading }: HostTableProps) {
         <thead>
           <tr className="border-b border-border text-left">
             <SortableHeader
-              field="ip_addr"
+              field="host_addr"
               label="IP Address"
               sort={sort}
               onSort={onSort}
@@ -56,7 +56,7 @@ export function HostTable({ hosts, sort, onSort, isLoading }: HostTableProps) {
             <th className="pb-3 pr-4 font-medium text-muted">MAC Address</th>
             <th className="pb-3 pr-4 font-medium text-muted">OS</th>
             <SortableHeader
-              field="open_port_count"
+              field="port_count"
               label="Open Ports"
               sort={sort}
               onSort={onSort}
@@ -127,6 +127,9 @@ interface HostRowProps {
 }
 
 function HostRow({ host }: HostRowProps) {
+  const portCount = host.port_count ?? host.open_port_count ?? 0
+  const ipAddr = host.host_addr ?? host.ip_addr
+
   return (
     <tr className="border-b border-border/50 hover:bg-muted/30">
       <td className="py-3 pr-4">
@@ -134,7 +137,7 @@ function HostRow({ host }: HostRowProps) {
           to={`/hosts/${host.host_id}`}
           className="text-primary hover:underline"
         >
-          {host.ip_addr}
+          {ipAddr}
         </Link>
       </td>
       <td className="py-3 pr-4 text-muted">
@@ -157,8 +160,8 @@ function HostRow({ host }: HostRowProps) {
         )}
       </td>
       <td className="py-3 pr-4">
-        {host.open_port_count > 0 ? (
-          <Badge variant="open">{host.open_port_count}</Badge>
+        {portCount > 0 ? (
+          <Badge variant="open">{portCount}</Badge>
         ) : (
           <span className="text-muted">0</span>
         )}

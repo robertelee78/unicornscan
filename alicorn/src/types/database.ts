@@ -1,5 +1,5 @@
 /**
- * TypeScript types matching unicornscan PostgreSQL schema v5
+ * TypeScript types matching unicornscan PostgreSQL schema v7
  * These types map directly to database tables for type-safe queries
  */
 
@@ -24,16 +24,23 @@ export interface Scan {
   user: string
   pcap_dumpfile: string | null
   pcap_readfile: string | null
-  target_str: string
-  port_str: string
-  pps: number
-  src_port: number
-  mode: string
+  tickrate: number
+  num_hosts: number
+  num_packets: number
+  port_str: string | null
+  interface: string | null
+  tcpflags: number | null
+  send_opts: number | null
+  recv_opts: number | null
+  pps: number | null
+  recv_timeout: number | null
+  repeats: number | null
   mode_str: string | null
   mode_flags: number | null
   num_phases: number | null
   scan_metadata: Record<string, unknown> | null
   scan_notes: string | null
+  target_str: string | null  // Original command line target specification (v7)
 }
 
 export interface IpReport {
@@ -165,15 +172,18 @@ export interface OutputEntry {
 
 export interface Host {
   host_id: number
-  ip_addr: string
+  host_addr: string        // IP address (database column name)
+  ip_addr?: string         // Alias for compatibility
   mac_addr: string | null
   hostname: string | null
-  os_guess: string | null
-  first_seen: number
-  last_seen: number
+  os_guess?: string | null // From OS fingerprinting (optional)
+  first_seen: string       // ISO timestamp from database
+  last_seen: string        // ISO timestamp from database
   scan_count: number
-  open_port_count: number
-  metadata: Record<string, unknown> | null
+  port_count: number       // Database column name
+  open_port_count?: number // Alias for compatibility
+  actual_scan_count?: number
+  extra_data: Record<string, unknown> | null
 }
 
 export interface HostScan {
@@ -373,7 +383,7 @@ export interface ScanSummary {
   s_time: number
   e_time: number
   profile: string
-  target_str: string
+  target_str: string | null  // Original command line target specification
   mode_str: string | null
   host_count: number
   port_count: number

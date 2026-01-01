@@ -107,6 +107,8 @@ create table "uni_scans" (
 	"recv_timeout"	int2 default 0,
 	"repeats"	int4 default 0,
 	"scan_notes"	text,
+	-- v7: original command line target specification
+	"target_str"	text,
 	primary key("scans_id")
 );
 

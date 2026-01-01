@@ -152,6 +152,48 @@ static uint8_t compute_mode_flags(const settings_t *settings) {
 }
 
 /*
+ * Build target_str from settings->target_strs fifo
+ * Concatenates all target specifications with space separator
+ * Returns: pointer to static buffer containing target string, or NULL
+ */
+static char target_str_buf[4096];
+static int target_str_offset;
+
+static void append_target_str(void *ptr) {
+	char *str = (char *)ptr;
+	int len;
+
+	if (str == NULL) return;
+	len = strlen(str);
+
+	if (target_str_offset + len + 2 < (int)sizeof(target_str_buf)) {
+		if (target_str_offset > 0) {
+			target_str_buf[target_str_offset++] = ' ';
+		}
+		memcpy(target_str_buf + target_str_offset, str, len);
+		target_str_offset += len;
+		target_str_buf[target_str_offset] = '\0';
+	}
+}
+
+static const char *build_target_str(const settings_t *settings) {
+	if (settings == NULL || settings->target_strs == NULL) {
+		return NULL;
+	}
+
+	target_str_offset = 0;
+	target_str_buf[0] = '\0';
+
+	fifo_walk(settings->target_strs, append_target_str);
+
+	if (target_str_offset == 0) {
+		return NULL;
+	}
+
+	return target_str_buf;
+}
+
+/*
  * v5: Call fn_upsert_host() to insert/update host and return host_id
  * Parameters:
  *   host_addr: IP address string (e.g., "192.168.1.1")
@@ -1005,6 +1047,18 @@ static int pgsql_migrate_schema(PGconn *conn, int from_version) {
 		VRB(0, "PostgreSQL: schema migration to v6 complete (GeoIP integration added)");
 	}
 
+	/* Upgrade to v7: add target_str column */
+	if (from_version < 7) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v7_ddl, "add target_str column")) {
+			return 0;
+		}
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 7);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 7")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v7 complete (target_str added)");
+	}
+
 	return 1;
 }
 
@@ -1206,8 +1260,8 @@ void pgsql_database_init(void) {
 	keyval_t *kv=NULL;
 	char *connstr=NULL, *escres=NULL;
 	char profile[200], dronestr[200], modules[200], user[200], pcap_dumpfile[200], pcap_readfile[200];
-	char mode_str_buf[64], interface_str[64], port_str_buf[4096];
-	const char *mode_str_ptr;
+	char mode_str_buf[64], interface_str[64], port_str_buf[4096], target_str_esc[4096];
+	const char *mode_str_ptr, *target_str_ptr;
 	uint8_t mode_flags;
 	long long int est_e_time=0;
 	int schema_exists, current_version;
@@ -1400,6 +1454,16 @@ void pgsql_database_init(void) {
 		}
 	}
 
+	/* Get target string from command line targets */
+	target_str_esc[0] = '\0';
+	target_str_ptr = build_target_str(s);
+	if (target_str_ptr != NULL) {
+		escres = pgsql_escstr(target_str_ptr);
+		if (escres != NULL) {
+			strncpy(target_str_esc, escres, sizeof(target_str_esc) - 1);
+		}
+	}
+
 	est_e_time=(long long int )s->s_time + (long long int )s->ss->recv_timeout + (long long int )s->num_secs;
 
 	snprintf(querybuf, sizeof(querybuf) -1,
@@ -1411,7 +1475,7 @@ void pgsql_database_init(void) {
 		"\"num_hosts\",		\"num_packets\",	\"mode_str\",		\"mode_flags\",	"
 		"\"num_phases\",	\"port_str\",		\"interface\",		\"tcpflags\",	"
 		"\"send_opts\",		\"recv_opts\",		\"pps\",		\"recv_timeout\","
-		"\"repeats\"									"
+		"\"repeats\",		\"target_str\"						"
 	") 												"
 	"values(											"
 		"%lld,			%lld,			%lld,			%d,		"
@@ -1421,7 +1485,7 @@ void pgsql_database_init(void) {
 		"%f,			%f,			'%s',			%hu,		"
 		"%hu,			'%s',			'%s',			%u,		"
 		"%hu,			%hu,			%u,			%hu,		"
-		"%u										"
+		"%u,			'%s'							"
 	");												"
 	"select currval('uni_scans_id_seq') as scanid;							",
 	(long long int )s->s_time,	(long long int )0,	est_e_time,		s->senders,
@@ -1431,7 +1495,7 @@ void pgsql_database_init(void) {
 	s->num_hosts,			s->num_packets,		mode_str_buf,		mode_flags,
 	s->num_phases,			port_str_buf,		interface_str,		s->ss->tcphdrflgs,
 	s->send_opts,			s->recv_opts,		s->pps,			s->ss->recv_timeout,
-	s->repeats
+	s->repeats,			target_str_esc
 	);
 
 	pgres=PQexec(pgconn, querybuf);

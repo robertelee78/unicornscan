@@ -91,7 +91,9 @@ export function ScanDetailHeader({
               </Badge>
             )}
           </h1>
-          <p className="text-muted mt-1 font-mono">{scan.target_str}</p>
+          {scan.target_str && (
+            <p className="text-muted mt-1 font-mono">{scan.target_str}</p>
+          )}
         </div>
       </div>
 
