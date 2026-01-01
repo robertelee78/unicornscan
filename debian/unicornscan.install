@@ -5,6 +5,7 @@
 alicorn/docker-compose.standalone.yml  opt/unicornscan-web/docker-compose.yml
 alicorn/Dockerfile                     opt/unicornscan-web/
 alicorn/nginx.conf                     opt/unicornscan-web/
+alicorn/postgrest                      opt/unicornscan-web/
 
 # Alicorn Web UI - Build configuration
 alicorn/package.json             opt/unicornscan-web/
