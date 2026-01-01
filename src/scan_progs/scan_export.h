@@ -98,6 +98,10 @@ typedef struct _PACKED_ ip_report_t {
 
 	struct ip_report_t *next;	/* if keys can collide, well store chains here			*/
 
+	/* v9: Ethernet source MAC for L2-local responses */
+	uint8_t eth_hwaddr[6];		/* source MAC from Ethernet header (valid only for local targets) */
+	uint8_t eth_hwaddr_valid;	/* 1 if eth_hwaddr contains valid MAC, 0 otherwise		*/
+
 	uint16_t doff;			/*
 					 * is there a packet following this report structure?
 					 * if so how many bytes is it
