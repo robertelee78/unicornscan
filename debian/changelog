@@ -1,3 +1,16 @@
+unicornscan (0.4.25-1) unstable; urgency=medium
+
+  * MAC address capture for local network targets (schema v9)
+    - Captures Ethernet source MAC from response packets for L2-local hosts
+    - New is_local_target() function detects hosts reachable without gateway
+    - MAC stored in uni_ipreport.eth_hwaddr column (MACADDR type)
+    - MAC<->IP history tracking for IP reports (like ARP scans)
+    - %M and %o format specifiers now work for IP reports with MAC
+    - Alicorn UI displays MAC column in IP reports table
+    - Automatic v8->v9 migration adds eth_hwaddr column
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 01 Jan 2026 14:45:00 -0800
+
 unicornscan (0.4.24-1) unstable; urgency=medium
 
   * Store target specification in database (schema v7)
