@@ -58,6 +58,10 @@ static const uint8_t *trailgarbage=NULL, *p_ptr=NULL;
 static size_t trailgarbage_len=0, p_len=0;
 static ip_pseudo_t ipph;
 
+/* v9: Saved Ethernet source MAC for local network responses */
+static uint8_t saved_eth_shost[6];
+static int saved_eth_valid = 0;
+
 /* Statistics tracking for malformed packets */
 #define MALFORMED_TOP_HOSTS 10
 #define MALFORMED_RATE_LIMIT_INTERVAL 5  /* seconds between rate-limited messages */
@@ -289,6 +293,14 @@ void parse_packet(uint8_t *notused, const struct pcap_pkthdr *phdr, const uint8_
 
 	if (ISDBG(M_PKT) || GET_SNIFF()) {
 		INF("got packet with length %u (cap %u) with header length at %u", phdr->len, phdr->caplen, s->ss->header_len);
+	}
+
+	/* v9: Save Ethernet source MAC before skipping header (for local network responses) */
+	saved_eth_valid = 0;
+	if (s->ss->header_len == 14) {  /* Ethernet (DLT_EN10MB) */
+		const struct my6etherheader *eth = (const struct my6etherheader *)packet;
+		memcpy(saved_eth_shost, eth->ether_shost, 6);
+		saved_eth_valid = 1;
 	}
 
 	pk_len -= s->ss->header_len;
