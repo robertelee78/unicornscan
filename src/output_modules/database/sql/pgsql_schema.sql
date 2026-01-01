@@ -971,13 +971,17 @@ select
     h.hostname,
     h.first_seen,
     h.last_seen,
-    h.scan_count,
+    -- scan_count: Number of unique scans this host appeared in (from uni_host_scans)
+    -- NOT the raw uni_hosts.scan_count which is incremented per-report
+    coalesce(
+        (select count(distinct hs.scans_id) from uni_host_scans hs where hs.host_id = h.host_id),
+        0
+    )::int4 as scan_count,
     -- Calculate port_count from uni_ipreport since C code doesn't update uni_hosts.port_count
     coalesce(
         (select count(distinct i.dport) from uni_ipreport i where i.host_addr = h.host_addr),
         0
     )::int4 as port_count,
-    (select count(distinct hs.scans_id) from uni_host_scans hs where hs.host_id = h.host_id) as actual_scan_count,
     h.extra_data
 from uni_hosts h
 order by h.last_seen desc;
