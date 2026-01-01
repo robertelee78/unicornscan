@@ -92,19 +92,31 @@ static const char *build_mode_str(const settings_t *settings) {
 				*p++ = '+';
 				remaining--;
 			}
-			*p++ = mode_to_char(phases[i].mode);
-			remaining--;
 
-			/* Add TCP flag suffixes for TCP mode */
-			if (phases[i].mode == 1 && remaining > 0) { /* MODE_TCPSCAN */
-				/* Check for common TCP flag combinations */
-				uint16_t flags = phases[i].tcphdrflgs;
-				if (flags & 0x02) { /* TH_SYN */ }
-				if ((flags & 0x01) && remaining > 0) { *p++ = 'f'; remaining--; } /* TH_FIN */
-				if ((flags & 0x04) && remaining > 0) { *p++ = 'r'; remaining--; } /* TH_RST */
-				if ((flags & 0x08) && remaining > 0) { *p++ = 'p'; remaining--; } /* TH_PSH */
-				if ((flags & 0x10) && remaining > 0) { *p++ = 'a'; remaining--; } /* TH_ACK */
-				if ((flags & 0x20) && remaining > 0) { *p++ = 'u'; remaining--; } /* TH_URG */
+			/* Check for sf (connect) mode: TCP scan with L_DO_CONNECT in recv_opts */
+			if (phases[i].mode == 1 && (phases[i].recv_opts & 4)) { /* MODE_TCPSCAN + L_DO_CONNECT */
+				*p++ = 's';
+				remaining--;
+				if (remaining > 0) {
+					*p++ = 'f';
+					remaining--;
+				}
+			}
+			else {
+				*p++ = mode_to_char(phases[i].mode);
+				remaining--;
+
+				/* Add TCP flag suffixes for TCP mode */
+				if (phases[i].mode == 1 && remaining > 0) { /* MODE_TCPSCAN */
+					/* Check for common TCP flag combinations */
+					uint16_t flags = phases[i].tcphdrflgs;
+					if (flags & 0x02) { /* TH_SYN */ }
+					if ((flags & 0x01) && remaining > 0) { *p++ = 'f'; remaining--; } /* TH_FIN */
+					if ((flags & 0x04) && remaining > 0) { *p++ = 'r'; remaining--; } /* TH_RST */
+					if ((flags & 0x08) && remaining > 0) { *p++ = 'p'; remaining--; } /* TH_PSH */
+					if ((flags & 0x10) && remaining > 0) { *p++ = 'a'; remaining--; } /* TH_ACK */
+					if ((flags & 0x20) && remaining > 0) { *p++ = 'u'; remaining--; } /* TH_URG */
+				}
 			}
 		}
 	}
@@ -284,6 +296,47 @@ static int pgsql_insert_host_scan(unsigned long long int host_id, unsigned long 
 
 	PQclear(res);
 	return ret;
+}
+
+/*
+ * v8: Record MAC<->IP association in uni_mac_ip_history
+ * Tracks historical MAC<->IP pairings for temporal analysis
+ */
+static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const char *mac_addr, unsigned long long int scans_id) {
+	PGresult *res;
+	unsigned long long int history_id = 0;
+	char *escaped_host = NULL;
+	char *escaped_mac = NULL;
+
+	if (host_addr == NULL || mac_addr == NULL || pgconn == NULL) {
+		return 0;
+	}
+
+	escaped_host = pgsql_escstr(host_addr);
+	escaped_mac = pgsql_escstr(mac_addr);
+
+	if (escaped_host == NULL || escaped_mac == NULL) {
+		return 0;
+	}
+
+	snprintf(querybuf2, sizeof(querybuf2) - 1,
+		"SELECT fn_record_mac_ip('%s'::inet, '%s'::macaddr, %llu);",
+		escaped_host, escaped_mac, scans_id
+	);
+
+	res = PQexec(pgconn, querybuf2);
+	if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) == 1) {
+		const char *val = PQgetvalue(res, 0, 0);
+		if (val != NULL) {
+			sscanf(val, "%llu", &history_id);
+		}
+	}
+	else {
+		DBG(M_MOD, "fn_record_mac_ip failed: %s", PQerrorMessage(pgconn));
+	}
+
+	PQclear(res);
+	return history_id;
 }
 
 /*
@@ -1070,6 +1123,36 @@ static int pgsql_migrate_schema(PGconn *conn, int from_version) {
 		VRB(0, "PostgreSQL: schema migration to v7 complete (target_str added)");
 	}
 
+	/* Upgrade to v8: add MAC<->IP history tracking */
+	if (from_version < 8) {
+		/* Create sequence first */
+		if (!pgsql_exec_ddl(conn, "CREATE SEQUENCE IF NOT EXISTS uni_mac_ip_history_id_seq;", "create mac_ip_history sequence")) {
+			return 0;
+		}
+		/* Create table and indexes */
+		if (!pgsql_exec_ddl(conn, pgsql_schema_migration_v8_ddl, "create mac_ip_history table")) {
+			return 0;
+		}
+		/* Create function */
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v8_functions_ddl, "create fn_record_mac_ip function")) {
+			return 0;
+		}
+		/* Create views */
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v8_views_ddl, "create v8 views")) {
+			return 0;
+		}
+		/* Update v_hosts view */
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v8_update_v_hosts_ddl, "update v_hosts view")) {
+			return 0;
+		}
+		/* Record new version */
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 8);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 8")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v8 complete (MAC<->IP history added)");
+	}
+
 	return 1;
 }
 
@@ -1809,6 +1892,8 @@ static int pgsql_dealwith_rworkunit(uint32_t wid, const recv_workunit_t *w) {
 static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	uint32_t tv_sec=0, tv_usec=0;
 	char send_addr[128], host_addr[128], trace_addr[128];
+	char eth_hwaddr_sql[40]; /* v9: "NULL" or "'xx:xx:xx:xx:xx:xx'" for INSERT */
+	char eth_hwaddr_str[32]; /* v9: "xx:xx:xx:xx:xx:xx" for helper functions */
 	unsigned long long int ipreportid=0;
 	unsigned long long int host_id=0; /* v5: for uni_hosts */
 	struct in_addr ia;
@@ -1820,6 +1905,18 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	ia.s_addr=i->trace_addr;
 	inet_ntop(AF_INET, &ia, trace_addr, sizeof(trace_addr));
 
+	/* v9: Format Ethernet source MAC if available */
+	eth_hwaddr_str[0] = '\0'; /* empty string means no MAC */
+	if (i->eth_hwaddr_valid) {
+		snprintf(eth_hwaddr_str, sizeof(eth_hwaddr_str),
+			"%02x:%02x:%02x:%02x:%02x:%02x",
+			i->eth_hwaddr[0], i->eth_hwaddr[1], i->eth_hwaddr[2],
+			i->eth_hwaddr[3], i->eth_hwaddr[4], i->eth_hwaddr[5]);
+		snprintf(eth_hwaddr_sql, sizeof(eth_hwaddr_sql), "'%s'", eth_hwaddr_str);
+	} else {
+		strcpy(eth_hwaddr_sql, "NULL");
+	}
+
 	tv_sec=(uint32_t )i->recv_time.tv_sec;
 	tv_usec=(uint32_t )i->recv_time.tv_usec;
 
@@ -1829,21 +1926,21 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	"	\"proto\",		\"type\",	\"subtype\",	\"send_addr\",	\n"
 	"	\"host_addr\",		\"trace_addr\",	\"ttl\",	\"tstamp\",	\n"
 	"	\"utstamp\",		\"flags\",	\"mseq\",	\"tseq\",	\n"
-	"	\"window_size\",	\"t_tstamp\",	\"m_tstamp\"			\n"
+	"	\"window_size\",	\"t_tstamp\",	\"m_tstamp\",	\"eth_hwaddr\"	\n"
 	")										\n"
 	"values(									\n"
 	"	%llu,			%u,		%hu,		%hu,		\n"
 	"	%hu,			%hu,		%hu,		'%s',		\n"
 	"	'%s',			'%s',		%hu,		%u,		\n"
 	"	%u,			%hu,		%u,		%u,		\n"
-	"	%hu,			%u,		%u				\n"
+	"	%hu,			%u,		%u,		%s		\n"
 	");										\n"
 	"select currval('uni_ipreport_id_seq') as ipreportid;				\n",
 		pgscanid,		i->magic,	i->sport,	i->dport,
 		i->proto,		i->type,	i->subtype,	send_addr,
 		host_addr,		trace_addr,	i->ttl,		tv_sec,
 		tv_usec,		i->flags,	i->mseq,	i->tseq,
-		i->window_size,		i->t_tstamp,	i->m_tstamp
+		i->window_size,		i->t_tstamp,	i->m_tstamp,	eth_hwaddr_sql
 	);
 
 	pgres=PQexec(pgconn, querybuf);
@@ -1881,8 +1978,9 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	/*
 	 * v5: Populate uni_hosts and uni_host_scans for frontend support
 	 * Call fn_upsert_host() to insert/update host record
+	 * v9: Pass MAC address if captured from local network response
 	 */
-	host_id = pgsql_upsert_host(host_addr, NULL); /* NULL for MAC - IP reports don't have MAC */
+	host_id = pgsql_upsert_host(host_addr, i->eth_hwaddr_valid ? eth_hwaddr_str : NULL);
 	if (host_id > 0) {
 		/* Link host to this scan */
 		pgsql_insert_host_scan(host_id, pgscanid);
@@ -1892,6 +1990,14 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 		 * Only done once per host per scan due to UNIQUE constraint
 		 */
 		pgsql_insert_geoip(pgscanid, host_addr);
+
+		/*
+		 * v9: Record MAC<->IP association in history table if MAC is available
+		 * This enables temporal tracking of address relationships for local network hosts
+		 */
+		if (i->eth_hwaddr_valid) {
+			pgsql_record_mac_ip(host_addr, eth_hwaddr_str, pgscanid);
+		}
 	}
 
 	/*
@@ -2061,6 +2167,12 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 		/* Link host to this scan */
 		pgsql_insert_host_scan(host_id, pgscanid);
 	}
+
+	/*
+	 * v8: Record MAC<->IP association in history table
+	 * This enables temporal tracking of address relationships
+	 */
+	pgsql_record_mac_ip(host_addr, hwaddr, pgscanid);
 
 	/*
 	 * trust problem
