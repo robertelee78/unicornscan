@@ -45,10 +45,32 @@ generate_password() {
     tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32
 }
 
+# Check if postgres volume exists (from previous install)
+check_orphan_volume() {
+    local volume_name="unicornscan-web_postgres_data"
+    if docker volume inspect "$volume_name" &>/dev/null; then
+        return 0  # Volume exists
+    fi
+    return 1  # No volume
+}
+
 # Initialize environment with random password if not exists
 init_env() {
     if [ -f "$ENV_FILE" ]; then
         return 0
+    fi
+
+    # Check for orphan volume with old password
+    if check_orphan_volume; then
+        print_error "Database volume exists but no password file found!"
+        print_error "This happens after reinstalling without removing Docker volumes."
+        echo ""
+        echo "To fix this, reset the database:"
+        echo "  sudo unicornscan-web reset"
+        echo "  sudo unicornscan-web start"
+        echo ""
+        echo "WARNING: This will delete any existing scan data."
+        exit 1
     fi
 
     print_status "First run - generating secure database password..."
