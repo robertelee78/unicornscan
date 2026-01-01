@@ -9,25 +9,43 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatTimestamp, formatRelativeTime } from '@/lib/utils'
+import { ExportDropdown, type ExportFormat } from '@/features/export'
 import type { Host } from '@/types/database'
 
 interface HostDetailHeaderProps {
   host: Host
   portHistoryCount: number
   scanCount: number
+  onQuickExport?: (format: ExportFormat) => void
+  onAdvancedExport?: () => void
 }
 
-export function HostDetailHeader({ host, portHistoryCount, scanCount }: HostDetailHeaderProps) {
+export function HostDetailHeader({
+  host,
+  portHistoryCount,
+  scanCount,
+  onQuickExport,
+  onAdvancedExport,
+}: HostDetailHeaderProps) {
   return (
     <div className="space-y-4">
       {/* Back link and title */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="h-8 px-2">
           <Link to="/hosts">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Hosts
           </Link>
         </Button>
+
+        {/* Export button */}
+        {onQuickExport && (
+          <ExportDropdown
+            onExport={onQuickExport}
+            onOpenDialog={onAdvancedExport}
+            showAdvanced={!!onAdvancedExport}
+          />
+        )}
       </div>
 
       <div className="flex items-start justify-between">
