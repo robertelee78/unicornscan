@@ -1,3 +1,18 @@
+unicornscan (0.4.25-2) unstable; urgency=medium
+
+  * Alicorn frontend fixes (16 broken windows resolved)
+    - Fix TCP flags using wrong IpReport field in 3 components
+    - Fix port history flags using wrong field (subtype→flags)
+    - Standardize on port_count field (deprecate open_port_count)
+    - Add IP-based host routing for consistency across views
+    - Fix N+1 query issues with optimized database methods
+    - Add accessible Radix tooltips replacing HTML title attributes
+    - Consolidate duplicate formatMac utility functions
+    - Fix MAC display in host tables and detail views
+    - Add proper null handling for optional host.ip_addr field
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 00:50:00 -0800
+
 unicornscan (0.4.25-1) unstable; urgency=medium
 
   * MAC address capture for local network targets (schema v9)
