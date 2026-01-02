@@ -1,3 +1,16 @@
+unicornscan (0.4.25-3) unstable; urgency=medium
+
+  * Fix MAC capture for IP reports
+    - Remove broken subnet check that prevented MAC capture
+    - MAC now correctly captured from Ethernet header for all responses
+    - Verified: eth_hwaddr populated in uni_ipreport table
+
+  * Fix TCP flags display in Alicorn frontend
+    - Use report.type field (TCP header flags) not report.flags (CRC errors)
+    - Fixed in ResultsTab, HostsTab, hooks, and all export utilities
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 18:10:00 -0800
+
 unicornscan (0.4.25-2) unstable; urgency=medium
 
   * Alicorn frontend fixes (16 broken windows resolved)
