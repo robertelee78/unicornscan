@@ -10,7 +10,7 @@ import {
   HostDetailHeader,
   PortHistory,
   AssociatedScans,
-  useHostPortHistory,
+  useAggregatedPortHistory,
   useHostScans,
   useHostReports,
 } from '@/features/hosts'
@@ -57,8 +57,8 @@ export function HostDetail() {
   // Resolve host IP address - prefer ip_addr but fall back to host_addr (guaranteed)
   const hostIp = host?.ip_addr ?? host?.host_addr ?? ''
 
-  // Fetch port history and associated scans using the host's IP
-  const { data: portHistory = [], isLoading: portHistoryLoading } = useHostPortHistory(hostIp)
+  // Fetch aggregated port history and associated scans using the host's IP
+  const { data: portHistory = [], isLoading: portHistoryLoading } = useAggregatedPortHistory(hostIp)
   const { data: hostScans = [], isLoading: scansLoading, error: scansError } = useHostScans(hostIp)
 
   // Fetch reports for export
