@@ -559,15 +559,10 @@ static void decode_ip  (const uint8_t *packet, size_t pk_len, int pk_layer) {
 			r_u.i.flags |= REPORT_BADNETWORK_CKSUM;
 		}
 
-		/* v9: Capture Ethernet MAC for same-subnet responses */
-		if (saved_eth_valid && s->vi[0] != NULL) {
-			uint32_t mymask=((struct sockaddr_in *)&s->vi[0]->mymask)->sin_addr.s_addr;
-			uint32_t mynet=((struct sockaddr_in *)&s->vi[0]->myaddr)->sin_addr.s_addr & mymask;
-
-			if ((saddr & mymask) == mynet) {
-				memcpy(r_u.i.eth_hwaddr, saved_eth_shost, 6);
-				r_u.i.eth_hwaddr_valid = 1;
-			}
+		/* v9: Capture Ethernet source MAC from response */
+		if (saved_eth_valid) {
+			memcpy(r_u.i.eth_hwaddr, saved_eth_shost, 6);
+			r_u.i.eth_hwaddr_valid = 1;
 		}
 	}
 	else if (pk_layer == 3) { /* this is a ip header within an icmp header normally */
