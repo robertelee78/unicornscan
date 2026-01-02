@@ -47,6 +47,10 @@ export {
   ipReportToPortTableRow,
   ipReportsToPortTableRows,
   getTtlColorClass,
+  // Banner utilities
+  BANNER_PREVIEW_LENGTH,
+  truncateBanner,
+  bannerNeedsExpansion,
 } from './port-utils'
 export type {
   PortTableColumn,
