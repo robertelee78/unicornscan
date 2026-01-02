@@ -226,29 +226,33 @@ static const char *build_target_str(const settings_t *settings) {
 static unsigned long long int pgsql_upsert_host(const char *host_addr, const char *mac_addr) {
 	PGresult *res;
 	unsigned long long int host_id = 0;
-	char *escaped_host = NULL;
+	char host_escaped[64];  /* Fixed buffer - IP addresses are max ~45 chars */
 	char *escaped_mac = NULL;
 
 	if (host_addr == NULL || pgconn == NULL) {
 		return 0;
 	}
 
-	escaped_host = pgsql_escstr(host_addr);
-	if (escaped_host == NULL) {
-		return 0;
+	/* Copy escaped host immediately - pgsql_escstr uses static buffer */
+	{
+		char *tmp = pgsql_escstr(host_addr);
+		if (tmp == NULL) {
+			return 0;
+		}
+		snprintf(host_escaped, sizeof(host_escaped), "%s", tmp);
 	}
 
 	if (mac_addr != NULL) {
 		escaped_mac = pgsql_escstr(mac_addr);
 		snprintf(querybuf2, sizeof(querybuf2) - 1,
 			"SELECT fn_upsert_host('%s'::inet, '%s'::macaddr);",
-			escaped_host, escaped_mac ? escaped_mac : "00:00:00:00:00:00"
+			host_escaped, escaped_mac ? escaped_mac : "00:00:00:00:00:00"
 		);
 	}
 	else {
 		snprintf(querybuf2, sizeof(querybuf2) - 1,
 			"SELECT fn_upsert_host('%s'::inet, NULL);",
-			escaped_host
+			host_escaped
 		);
 	}
 
@@ -547,11 +551,9 @@ static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned lon
 	PGresult *res;
 	int ret = 0;
 	char service_name[64], product[128], version[64];
-	char *escaped_host = NULL;
-	char *escaped_banner = NULL;
-	char *escaped_svc = NULL;
-	char *escaped_prod = NULL;
-	char *escaped_ver = NULL;
+	/* Local buffers for escaped strings - pgsql_escstr uses static buffer */
+	char esc_host[128], esc_banner[4096], esc_svc[128], esc_prod[256], esc_ver[128];
+	char *tmp = NULL;
 
 	if (host_addr == NULL || banner == NULL || pgconn == NULL) {
 		return 0;
@@ -566,11 +568,28 @@ static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned lon
 		version[0] = '\0';
 	}
 
-	escaped_host = pgsql_escstr(host_addr);
-	escaped_banner = pgsql_escstr(banner);
-	escaped_svc = pgsql_escstr(service_name);
-	escaped_prod = pgsql_escstr(product);
-	escaped_ver = pgsql_escstr(version);
+	/* pgsql_escstr uses static buffer - copy each result before next call */
+	tmp = pgsql_escstr(host_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_host, tmp, sizeof(esc_host) - 1);
+	esc_host[sizeof(esc_host) - 1] = '\0';
+
+	tmp = pgsql_escstr(banner);
+	if (tmp == NULL) return 0;
+	strncpy(esc_banner, tmp, sizeof(esc_banner) - 1);
+	esc_banner[sizeof(esc_banner) - 1] = '\0';
+
+	tmp = pgsql_escstr(service_name);
+	if (tmp == NULL) { esc_svc[0] = '\0'; }
+	else { strncpy(esc_svc, tmp, sizeof(esc_svc) - 1); esc_svc[sizeof(esc_svc) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(product);
+	if (tmp == NULL) { esc_prod[0] = '\0'; }
+	else { strncpy(esc_prod, tmp, sizeof(esc_prod) - 1); esc_prod[sizeof(esc_prod) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(version);
+	if (tmp == NULL) { esc_ver[0] = '\0'; }
+	else { strncpy(esc_ver, tmp, sizeof(esc_ver) - 1); esc_ver[sizeof(esc_ver) - 1] = '\0'; }
 
 	snprintf(querybuf2, sizeof(querybuf2) - 1,
 		"INSERT INTO uni_services (host_addr, port, proto, scans_id, ipreport_id, "
@@ -582,12 +601,12 @@ static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned lon
 		"product = COALESCE(NULLIF(EXCLUDED.product,''), uni_services.product), "
 		"version = COALESCE(NULLIF(EXCLUDED.version,''), uni_services.version), "
 		"banner_raw = EXCLUDED.banner_raw;",
-		escaped_host ? escaped_host : "",
+		esc_host,
 		port, proto, scans_id, ipreport_id,
-		escaped_svc ? escaped_svc : "",
-		escaped_prod ? escaped_prod : "",
-		escaped_ver ? escaped_ver : "",
-		escaped_banner ? escaped_banner : ""
+		esc_svc,
+		esc_prod,
+		esc_ver,
+		esc_banner
 	);
 
 	res = PQexec(pgconn, querybuf2);
@@ -711,12 +730,9 @@ static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsig
 	PGresult *res;
 	int ret = 0;
 	char os_family[64], os_name[128], os_version[64], device_type[64];
-	char *escaped_host = NULL;
-	char *escaped_os_str = NULL;
-	char *escaped_family = NULL;
-	char *escaped_name = NULL;
-	char *escaped_version = NULL;
-	char *escaped_device = NULL;
+	/* Local buffers for escaped strings - pgsql_escstr uses static buffer */
+	char esc_host[128], esc_os_str[512], esc_family[128], esc_name[256], esc_version[128], esc_device[128];
+	char *tmp = NULL;
 
 	if (host_addr == NULL || os_str == NULL || pgconn == NULL) {
 		return 0;
@@ -735,12 +751,32 @@ static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsig
 		device_type[0] = '\0';
 	}
 
-	escaped_host = pgsql_escstr(host_addr);
-	escaped_os_str = pgsql_escstr(os_str);
-	escaped_family = pgsql_escstr(os_family);
-	escaped_name = pgsql_escstr(os_name);
-	escaped_version = pgsql_escstr(os_version);
-	escaped_device = pgsql_escstr(device_type);
+	/* pgsql_escstr uses static buffer - copy each result before next call */
+	tmp = pgsql_escstr(host_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_host, tmp, sizeof(esc_host) - 1);
+	esc_host[sizeof(esc_host) - 1] = '\0';
+
+	tmp = pgsql_escstr(os_str);
+	if (tmp == NULL) return 0;
+	strncpy(esc_os_str, tmp, sizeof(esc_os_str) - 1);
+	esc_os_str[sizeof(esc_os_str) - 1] = '\0';
+
+	tmp = pgsql_escstr(os_family);
+	if (tmp == NULL) { esc_family[0] = '\0'; }
+	else { strncpy(esc_family, tmp, sizeof(esc_family) - 1); esc_family[sizeof(esc_family) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(os_name);
+	if (tmp == NULL) { esc_name[0] = '\0'; }
+	else { strncpy(esc_name, tmp, sizeof(esc_name) - 1); esc_name[sizeof(esc_name) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(os_version);
+	if (tmp == NULL) { esc_version[0] = '\0'; }
+	else { strncpy(esc_version, tmp, sizeof(esc_version) - 1); esc_version[sizeof(esc_version) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(device_type);
+	if (tmp == NULL) { esc_device[0] = '\0'; }
+	else { strncpy(esc_device, tmp, sizeof(esc_device) - 1); esc_device[sizeof(esc_device) - 1] = '\0'; }
 
 	snprintf(querybuf2, sizeof(querybuf2) - 1,
 		"INSERT INTO uni_os_fingerprints (host_addr, scans_id, ipreport_id, "
@@ -749,13 +785,13 @@ static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsig
 		"VALUES ('%s', %llu, %llu, "
 		"NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), '%s', NULLIF('%s',''), "
 		"%d, %d, NOW());",
-		escaped_host ? escaped_host : "",
+		esc_host,
 		scans_id, ipreport_id,
-		escaped_family ? escaped_family : "",
-		escaped_name ? escaped_name : "",
-		escaped_version ? escaped_version : "",
-		escaped_os_str ? escaped_os_str : "",
-		escaped_device ? escaped_device : "",
+		esc_family,
+		esc_name,
+		esc_version,
+		esc_os_str,
+		esc_device,
 		ttl, window_size
 	);
 
@@ -818,20 +854,11 @@ static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_
 	PGresult *res;
 	int ret = 0;
 	geoip_result_t geoip;
-	char *escaped_host = NULL;
-	char *escaped_country = NULL;
-	char *escaped_country_name = NULL;
-	char *escaped_region = NULL;
-	char *escaped_region_name = NULL;
-	char *escaped_city = NULL;
-	char *escaped_postal = NULL;
-	char *escaped_timezone = NULL;
-	char *escaped_ip_type = NULL;
-	char *escaped_isp = NULL;
-	char *escaped_org = NULL;
-	char *escaped_as_org = NULL;
-	char *escaped_provider = NULL;
-	char *escaped_db_version = NULL;
+	/* Local buffers for escaped strings - pgsql_escstr uses static buffer */
+	char esc_host[128], esc_country[8], esc_country_name[128], esc_region[16], esc_region_name[128];
+	char esc_city[128], esc_postal[32], esc_timezone[64], esc_ip_type[32];
+	char esc_isp[256], esc_org[256], esc_as_org[256], esc_provider[64], esc_db_version[64];
+	char *tmp = NULL;
 	char lat_str[32], lon_str[32], asn_str[32], conf_str[16];
 
 	if (!geoip_enabled || host_addr == NULL || pgconn == NULL) {
@@ -843,21 +870,64 @@ static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_
 		return 0; /* Lookup failed or not found - not an error */
 	}
 
-	/* Escape all strings for SQL */
-	escaped_host = pgsql_escstr(host_addr);
-	escaped_country = pgsql_escstr(geoip.country_code);
-	escaped_country_name = pgsql_escstr(geoip.country_name);
-	escaped_region = pgsql_escstr(geoip.region_code);
-	escaped_region_name = pgsql_escstr(geoip.region_name);
-	escaped_city = pgsql_escstr(geoip.city);
-	escaped_postal = pgsql_escstr(geoip.postal_code);
-	escaped_timezone = pgsql_escstr(geoip.timezone);
-	escaped_ip_type = pgsql_escstr(geoip.ip_type);
-	escaped_isp = pgsql_escstr(geoip.isp);
-	escaped_org = pgsql_escstr(geoip.organization);
-	escaped_as_org = pgsql_escstr(geoip.as_org);
-	escaped_provider = pgsql_escstr(geoip.provider);
-	escaped_db_version = pgsql_escstr(geoip.db_version);
+	/* pgsql_escstr uses static buffer - copy each result before next call */
+	tmp = pgsql_escstr(host_addr);
+	if (tmp == NULL) return 0;
+	strncpy(esc_host, tmp, sizeof(esc_host) - 1);
+	esc_host[sizeof(esc_host) - 1] = '\0';
+
+	tmp = pgsql_escstr(geoip.country_code);
+	if (tmp == NULL) { esc_country[0] = '\0'; }
+	else { strncpy(esc_country, tmp, sizeof(esc_country) - 1); esc_country[sizeof(esc_country) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.country_name);
+	if (tmp == NULL) { esc_country_name[0] = '\0'; }
+	else { strncpy(esc_country_name, tmp, sizeof(esc_country_name) - 1); esc_country_name[sizeof(esc_country_name) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.region_code);
+	if (tmp == NULL) { esc_region[0] = '\0'; }
+	else { strncpy(esc_region, tmp, sizeof(esc_region) - 1); esc_region[sizeof(esc_region) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.region_name);
+	if (tmp == NULL) { esc_region_name[0] = '\0'; }
+	else { strncpy(esc_region_name, tmp, sizeof(esc_region_name) - 1); esc_region_name[sizeof(esc_region_name) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.city);
+	if (tmp == NULL) { esc_city[0] = '\0'; }
+	else { strncpy(esc_city, tmp, sizeof(esc_city) - 1); esc_city[sizeof(esc_city) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.postal_code);
+	if (tmp == NULL) { esc_postal[0] = '\0'; }
+	else { strncpy(esc_postal, tmp, sizeof(esc_postal) - 1); esc_postal[sizeof(esc_postal) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.timezone);
+	if (tmp == NULL) { esc_timezone[0] = '\0'; }
+	else { strncpy(esc_timezone, tmp, sizeof(esc_timezone) - 1); esc_timezone[sizeof(esc_timezone) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.ip_type);
+	if (tmp == NULL) { esc_ip_type[0] = '\0'; }
+	else { strncpy(esc_ip_type, tmp, sizeof(esc_ip_type) - 1); esc_ip_type[sizeof(esc_ip_type) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.isp);
+	if (tmp == NULL) { esc_isp[0] = '\0'; }
+	else { strncpy(esc_isp, tmp, sizeof(esc_isp) - 1); esc_isp[sizeof(esc_isp) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.organization);
+	if (tmp == NULL) { esc_org[0] = '\0'; }
+	else { strncpy(esc_org, tmp, sizeof(esc_org) - 1); esc_org[sizeof(esc_org) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.as_org);
+	if (tmp == NULL) { esc_as_org[0] = '\0'; }
+	else { strncpy(esc_as_org, tmp, sizeof(esc_as_org) - 1); esc_as_org[sizeof(esc_as_org) - 1] = '\0'; }
+
+	tmp = pgsql_escstr(geoip.provider);
+	if (tmp == NULL) { strncpy(esc_provider, "unknown", sizeof(esc_provider) - 1); }
+	else { strncpy(esc_provider, tmp, sizeof(esc_provider) - 1); }
+	esc_provider[sizeof(esc_provider) - 1] = '\0';
+
+	tmp = pgsql_escstr(geoip.db_version);
+	if (tmp == NULL) { esc_db_version[0] = '\0'; }
+	else { strncpy(esc_db_version, tmp, sizeof(esc_db_version) - 1); esc_db_version[sizeof(esc_db_version) - 1] = '\0'; }
 
 	/* Format lat/long (handle NAN) */
 	if (isnan(geoip.latitude)) {
@@ -897,23 +967,23 @@ static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_
 		"  NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), %s, NULLIF('%s',''), "
 		"  '%s', NULLIF('%s',''), %s"
 		") ON CONFLICT (host_ip, scans_id) DO NOTHING;",
-		escaped_host ? escaped_host : "",
+		esc_host,
 		scans_id,
-		escaped_country ? escaped_country : "",
-		escaped_country_name ? escaped_country_name : "",
-		escaped_region ? escaped_region : "",
-		escaped_region_name ? escaped_region_name : "",
-		escaped_city ? escaped_city : "",
-		escaped_postal ? escaped_postal : "",
+		esc_country,
+		esc_country_name,
+		esc_region,
+		esc_region_name,
+		esc_city,
+		esc_postal,
 		lat_str, lon_str,
-		escaped_timezone ? escaped_timezone : "",
-		escaped_ip_type ? escaped_ip_type : "",
-		escaped_isp ? escaped_isp : "",
-		escaped_org ? escaped_org : "",
+		esc_timezone,
+		esc_ip_type,
+		esc_isp,
+		esc_org,
 		asn_str,
-		escaped_as_org ? escaped_as_org : "",
-		escaped_provider ? escaped_provider : "unknown",
-		escaped_db_version ? escaped_db_version : "",
+		esc_as_org,
+		esc_provider,
+		esc_db_version,
 		conf_str
 	);
 
