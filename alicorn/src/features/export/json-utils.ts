@@ -64,7 +64,7 @@ interface ReportJSONBasic {
 
 interface ReportJSONStandard extends ReportJSONBasic {
   id: number
-  scanId: number
+  scan_id: number
   ttl: number
   flags: string[]
   timestamp: string
@@ -112,7 +112,7 @@ interface HostJSONFull extends HostJSONStandard {
 
 function scanToJSON(scan: Scan, hostCount: number, portCount: number, depth: MetadataDepth): ScanJSONBasic | ScanJSONStandard | ScanJSONFull {
   const basic: ScanJSONBasic = {
-    id: scan.scans_id,
+    id: scan.scan_id,
     startTime: new Date(scan.s_time * 1000).toISOString(),
     target: scan.target_str ?? '',
     hostCount,
@@ -160,7 +160,7 @@ function reportToJSON(report: IpReport, depth: MetadataDepth, service?: string):
   const standard: ReportJSONStandard = {
     ...basic,
     id: report.ipreport_id,
-    scanId: report.scans_id,
+    scan_id: report.scan_id,
     ttl: report.ttl,
     flags: decodeTcpFlags(report.type),  // TCP flags are in type field
     timestamp: new Date(report.tstamp * 1000).toISOString(),

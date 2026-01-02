@@ -144,11 +144,11 @@ export function useHostPortHistory(hostIp: string) {
       const entries: PortHistoryEntry[] = []
 
       for (const scan of scans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+        const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
         for (const report of reports) {
           entries.push({
-            scansId: scan.scans_id,
-            scanTime: scan.s_time,
+            scan_id: scan.scan_id,
+            scan_time: scan.s_time,
             port: report.dport,
             protocol: report.proto === 6 ? 'tcp' : report.proto === 17 ? 'udp' : 'other',
             ttl: report.ttl,
@@ -160,7 +160,7 @@ export function useHostPortHistory(hostIp: string) {
 
       // Sort by scan time, then port
       return entries.sort((a, b) => {
-        if (a.scanTime !== b.scanTime) return b.scanTime - a.scanTime
+        if (a.scan_time !== b.scan_time) return b.scan_time - a.scan_time
         return a.port - b.port
       })
     },
@@ -178,7 +178,7 @@ export function useHostScans(hostIp: string) {
     queryKey: hostListKeys.hostScans(hostIp),
     queryFn: async (): Promise<HostScanEntry[]> => {
       // Optimized: Uses 2 queries instead of N+1
-      // 1. Get all reports for this host (with scans_id)
+      // 1. Get all reports for this host (with scan_id)
       // 2. Get scan details for those scan IDs
       return db.getScansForHost(hostIp)
     },

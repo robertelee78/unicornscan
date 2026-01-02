@@ -24,8 +24,8 @@ import { ErrorFallback } from '@/components/error'
 
 export function Topology() {
   const [searchParams] = useSearchParams()
-  const scansIdParam = searchParams.get('scansId')
-  const scansId = scansIdParam ? parseInt(scansIdParam, 10) : null
+  const scan_id_param = searchParams.get('scan_id')
+  const scan_id = scan_id_param ? parseInt(scan_id_param, 10) : null
 
   const [filters, setFilters] = useState<TopologyFilters>({})
   const [config, setConfig] = useState<Partial<TopologyConfig>>({})
@@ -33,11 +33,11 @@ export function Topology() {
   const [aggregated, setAggregated] = useState(false)
 
   // Fetch topology data - either for a specific scan or global
-  const scanTopology = useTopologyForScan(scansId ?? 0)
+  const scanTopology = useTopologyForScan(scan_id ?? 0)
   const globalTopology = useGlobalTopology(filters)
 
   // Use appropriate data source
-  const { data: topologyData, isLoading, error } = scansId
+  const { data: topologyData, isLoading, error } = scan_id
     ? { data: scanTopology.data, isLoading: scanTopology.isLoading, error: scanTopology.error }
     : { data: globalTopology.data, isLoading: globalTopology.isLoading, error: globalTopology.error }
 
@@ -58,7 +58,7 @@ export function Topology() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader scansId={scansId} scanInfo={scanTopology.scan} />
+        <PageHeader scan_id={scan_id} scanInfo={scanTopology.scan} />
         <div className="h-[600px] bg-muted animate-pulse rounded-lg" />
       </div>
     )
@@ -68,7 +68,7 @@ export function Topology() {
   if (error) {
     return (
       <div className="space-y-6">
-        <PageHeader scansId={scansId} scanInfo={scanTopology.scan} />
+        <PageHeader scan_id={scan_id} scanInfo={scanTopology.scan} />
         <ErrorFallback
           error={error}
           resetError={() => window.location.reload()}
@@ -79,7 +79,7 @@ export function Topology() {
 
   return (
     <div className="space-y-6">
-      <PageHeader scansId={scansId} scanInfo={scanTopology.scan} />
+      <PageHeader scan_id={scan_id} scanInfo={scanTopology.scan} />
 
       {/* Controls */}
       {displayData && (
@@ -164,20 +164,20 @@ export function Topology() {
 // =============================================================================
 
 interface PageHeaderProps {
-  scansId: number | null
+  scan_id: number | null
   scanInfo?: { target_str: string | null; profile: string } | null
 }
 
-function PageHeader({ scansId, scanInfo }: PageHeaderProps) {
+function PageHeader({ scan_id, scanInfo }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <div>
         <h1 className="text-2xl font-bold">Network Topology</h1>
-        {scansId ? (
+        {scan_id ? (
           <p className="text-muted mt-1">
             Topology for{' '}
-            <Link to={`/scans/${scansId}`} className="text-primary hover:underline">
-              scan #{scansId}
+            <Link to={`/scans/${scan_id}`} className="text-primary hover:underline">
+              scan #{scan_id}
             </Link>
             {scanInfo && (
               <span className="ml-2">
@@ -192,7 +192,7 @@ function PageHeader({ scansId, scanInfo }: PageHeaderProps) {
         )}
       </div>
       <div className="flex gap-2">
-        {scansId && (
+        {scan_id && (
           <Button variant="outline" asChild>
             <Link to="/topology">View Global</Link>
           </Button>

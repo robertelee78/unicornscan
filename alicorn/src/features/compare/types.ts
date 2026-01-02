@@ -101,9 +101,9 @@ export interface ComparisonSummary {
 // =============================================================================
 
 export interface ScanOption {
-  scansId: number
+  scan_id: number
   label: string
-  targetStr: string | null
+  target_str: string | null
   time: number
 }
 

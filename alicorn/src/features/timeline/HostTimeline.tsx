@@ -324,7 +324,7 @@ function EventDetailPanel({ event, onClose }: EventDetailPanelProps) {
             {event.description}
           </h4>
           <p className="text-xs text-muted-foreground mt-1">
-            {formatTimestamp(event.timestamp, 'datetime')} (Scan #{event.scansId})
+            {formatTimestamp(event.timestamp, 'datetime')} (Scan #{event.scan_id})
           </p>
         </div>
         <button

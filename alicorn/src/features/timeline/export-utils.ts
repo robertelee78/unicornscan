@@ -54,7 +54,7 @@ export function exportChangesToCSV(
     lines.push([
       change.timestamp,
       escapeCSV(formatTimestamp(change.timestamp, 'datetime')),
-      change.scansId,
+      change.scan_id,
       change.port,
       escapeCSV(change.protocol),
       escapeCSV(getChangeTypeLabel(change.type)),
@@ -114,7 +114,7 @@ export function exportTracksToCSV(
         lines.push([
           obs.port,
           escapeCSV(obs.protocol),
-          obs.scansId,
+          obs.scan_id,
           obs.timestamp,
           escapeCSV(formatTimestamp(obs.timestamp, 'datetime')),
           obs.ttl,
@@ -160,7 +160,7 @@ export function exportTimelineToJSON(
       typeLabel: getChangeTypeLabel(change.type),
       timestamp: change.timestamp,
       date: formatTimestamp(change.timestamp, 'datetime'),
-      scansId: change.scansId,
+      scan_id: change.scan_id,
       port: change.port,
       protocol: change.protocol,
       severity: change.severity,
@@ -189,7 +189,7 @@ export function exportTimelineToJSON(
       changeCount: track.changes.length,
       gapCount: track.gapCount,
       observations: track.observations.map(obs => ({
-        scansId: obs.scansId,
+        scan_id: obs.scan_id,
         timestamp: obs.timestamp,
         date: formatTimestamp(obs.timestamp, 'datetime'),
         ttl: obs.ttl,

@@ -13,7 +13,7 @@
  */
 export interface PortObservation {
   /** Scan ID where observed */
-  scansId: number
+  scan_id: number
   /** Scan timestamp */
   timestamp: number
   /** Port number */
@@ -53,7 +53,7 @@ export interface PortStateChange {
   /** Timestamp of change */
   timestamp: number
   /** Scan ID where change detected */
-  scansId: number
+  scan_id: number
   /** Port number */
   port: number
   /** Protocol */
@@ -106,7 +106,7 @@ export interface PortTrack {
  * Scan point on the timeline
  */
 export interface TimelineScanPoint {
-  scansId: number
+  scan_id: number
   timestamp: number
   date: string
   portCount: number

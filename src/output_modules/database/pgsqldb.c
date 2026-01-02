@@ -275,19 +275,19 @@ static unsigned long long int pgsql_upsert_host(const char *host_addr, const cha
  * v5: Insert uni_host_scans junction record (host ↔ scan relationship)
  * Uses ON CONFLICT to handle duplicates gracefully
  */
-static int pgsql_insert_host_scan(unsigned long long int host_id, unsigned long long int scans_id) {
+static int pgsql_insert_host_scan(unsigned long long int host_id, unsigned long long int scan_id) {
 	PGresult *res;
 	int ret = 0;
 
-	if (host_id == 0 || scans_id == 0 || pgconn == NULL) {
+	if (host_id == 0 || scan_id == 0 || pgconn == NULL) {
 		return 0;
 	}
 
 	snprintf(querybuf2, sizeof(querybuf2) - 1,
-		"INSERT INTO uni_host_scans (host_id, scans_id, first_response, response_count) "
+		"INSERT INTO uni_host_scans (host_id, scan_id, first_response, response_count) "
 		"VALUES (%llu, %llu, NOW(), 1) "
-		"ON CONFLICT (host_id, scans_id) DO UPDATE SET response_count = uni_host_scans.response_count + 1;",
-		host_id, scans_id
+		"ON CONFLICT (host_id, scan_id) DO UPDATE SET response_count = uni_host_scans.response_count + 1;",
+		host_id, scan_id
 	);
 
 	res = PQexec(pgconn, querybuf2);
@@ -306,7 +306,7 @@ static int pgsql_insert_host_scan(unsigned long long int host_id, unsigned long 
  * v8: Record MAC<->IP association in uni_mac_ip_history
  * Tracks historical MAC<->IP pairings for temporal analysis
  */
-static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const char *mac_addr, unsigned long long int scans_id) {
+static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const char *mac_addr, unsigned long long int scan_id) {
 	PGresult *res;
 	unsigned long long int history_id=0;
 	char esc_host[128], esc_mac[64];
@@ -329,7 +329,7 @@ static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const c
 
 	snprintf(querybuf2, sizeof(querybuf2)-1,
 		"SELECT fn_record_mac_ip('%s'::inet, '%s'::macaddr, %llu);",
-		esc_host, esc_mac, scans_id);
+		esc_host, esc_mac, scan_id);
 
 	res = PQexec(pgconn, querybuf2);
 	if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) == 1) {
@@ -349,7 +349,7 @@ static unsigned long long int pgsql_record_mac_ip(const char *host_addr, const c
 /*
  * v5: Insert uni_hops record when trace_addr != host_addr (intermediate hop detected)
  */
-static int pgsql_insert_hop(unsigned long long int ipreport_id, unsigned long long int scans_id,
+static int pgsql_insert_hop(unsigned long long int ipreport_id, unsigned long long int scan_id,
                             const char *target_addr, const char *hop_addr, int ttl) {
 	PGresult *res;
 	int ret=0;
@@ -372,9 +372,9 @@ static int pgsql_insert_hop(unsigned long long int ipreport_id, unsigned long lo
 	esc_hop[sizeof(esc_hop)-1]='\0';
 
 	snprintf(querybuf2, sizeof(querybuf2)-1,
-		"INSERT INTO uni_hops (ipreport_id, scans_id, target_addr, hop_addr, ttl_observed) "
+		"INSERT INTO uni_hops (ipreport_id, scan_id, target_addr, hop_addr, ttl_observed) "
 		"VALUES (%llu, %llu, '%s', '%s', %d);",
-		ipreport_id, scans_id, esc_target, esc_hop, ttl);
+		ipreport_id, scan_id, esc_target, esc_hop, ttl);
 
 	res = PQexec(pgconn, querybuf2);
 	if (PQresultStatus(res) == PGRES_COMMAND_OK) {
@@ -546,7 +546,7 @@ static int pgsql_parse_banner(const char *banner, int port, int proto,
 /*
  * v5: Insert uni_services record with parsed banner data
  */
-static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned long long int scans_id,
+static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned long long int scan_id,
                                 const char *host_addr, int port, int proto, const char *banner) {
 	PGresult *res;
 	int ret = 0;
@@ -592,17 +592,17 @@ static int pgsql_insert_service(unsigned long long int ipreport_id, unsigned lon
 	else { strncpy(esc_ver, tmp, sizeof(esc_ver) - 1); esc_ver[sizeof(esc_ver) - 1] = '\0'; }
 
 	snprintf(querybuf2, sizeof(querybuf2) - 1,
-		"INSERT INTO uni_services (host_addr, port, proto, scans_id, ipreport_id, "
+		"INSERT INTO uni_services (host_addr, port, proto, scan_id, ipreport_id, "
 		"service_name, product, version, banner_raw, detected_at) "
 		"VALUES ('%s', %d, %d, %llu, %llu, "
 		"NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), '%s', NOW()) "
-		"ON CONFLICT (host_addr, port, proto, scans_id) DO UPDATE SET "
+		"ON CONFLICT (host_addr, port, proto, scan_id) DO UPDATE SET "
 		"service_name = COALESCE(NULLIF(EXCLUDED.service_name,''), uni_services.service_name), "
 		"product = COALESCE(NULLIF(EXCLUDED.product,''), uni_services.product), "
 		"version = COALESCE(NULLIF(EXCLUDED.version,''), uni_services.version), "
 		"banner_raw = EXCLUDED.banner_raw;",
 		esc_host,
-		port, proto, scans_id, ipreport_id,
+		port, proto, scan_id, ipreport_id,
 		esc_svc,
 		esc_prod,
 		esc_ver,
@@ -725,7 +725,7 @@ static int pgsql_parse_os_fingerprint(const char *os_str, int ttl, int window_si
 /*
  * v5: Insert uni_os_fingerprints record with parsed OS data
  */
-static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsigned long long int scans_id,
+static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsigned long long int scan_id,
                                        const char *host_addr, const char *os_str, int ttl, int window_size) {
 	PGresult *res;
 	int ret = 0;
@@ -779,14 +779,14 @@ static int pgsql_insert_os_fingerprint(unsigned long long int ipreport_id, unsig
 	else { strncpy(esc_device, tmp, sizeof(esc_device) - 1); esc_device[sizeof(esc_device) - 1] = '\0'; }
 
 	snprintf(querybuf2, sizeof(querybuf2) - 1,
-		"INSERT INTO uni_os_fingerprints (host_addr, scans_id, ipreport_id, "
+		"INSERT INTO uni_os_fingerprints (host_addr, scan_id, ipreport_id, "
 		"os_family, os_name, os_version, os_full, device_type, "
 		"ttl_observed, window_size, detected_at) "
 		"VALUES ('%s', %llu, %llu, "
 		"NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), '%s', NULLIF('%s',''), "
 		"%d, %d, NOW());",
 		esc_host,
-		scans_id, ipreport_id,
+		scan_id, ipreport_id,
 		esc_family,
 		esc_name,
 		esc_version,
@@ -824,7 +824,7 @@ static int pgsql_insert_phases(unsigned long long int scanid, const settings_t *
 	for (i = 0; i < settings->num_phases; i++) {
 		snprintf(querybuf, sizeof(querybuf) - 1,
 			"INSERT INTO uni_scan_phases ("
-			"    scans_id, phase_idx, mode, mode_char, tcphdrflgs, "
+			"    scan_id, phase_idx, mode, mode_char, tcphdrflgs, "
 			"    send_opts, recv_opts, pps, repeats, recv_timeout"
 			") VALUES ("
 			"    %llu, %d, %d, '%c', %u, "
@@ -850,7 +850,7 @@ static int pgsql_insert_phases(unsigned long long int scanid, const settings_t *
 /*
  * v6: Insert uni_geoip record with GeoIP lookup data
  */
-static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_addr) {
+static int pgsql_insert_geoip(unsigned long long int scan_id, const char *host_addr) {
 	PGresult *res;
 	int ret = 0;
 	geoip_result_t geoip;
@@ -955,7 +955,7 @@ static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_
 
 	snprintf(querybuf2, sizeof(querybuf2) - 1,
 		"INSERT INTO uni_geoip ("
-		"  host_ip, scans_id, "
+		"  host_ip, scan_id, "
 		"  country_code, country_name, region_code, region_name, city, postal_code, "
 		"  latitude, longitude, timezone, "
 		"  ip_type, isp, organization, asn, as_org, "
@@ -966,9 +966,9 @@ static int pgsql_insert_geoip(unsigned long long int scans_id, const char *host_
 		"  %s, %s, NULLIF('%s',''), "
 		"  NULLIF('%s',''), NULLIF('%s',''), NULLIF('%s',''), %s, NULLIF('%s',''), "
 		"  '%s', NULLIF('%s',''), %s"
-		") ON CONFLICT (host_ip, scans_id) DO NOTHING;",
+		") ON CONFLICT (host_ip, scan_id) DO NOTHING;",
 		esc_host,
-		scans_id,
+		scan_id,
 		esc_country,
 		esc_country_name,
 		esc_region,
@@ -1252,12 +1252,12 @@ static int pgsql_check_schema(PGconn *conn) {
 	PGresult *res;
 	int schema_exists = 0;
 
-	/* Check if uni_scans table exists - it's the primary table */
+	/* Check if uni_scan table exists - it's the primary table */
 	res = PQexec(conn,
 		"SELECT EXISTS ("
 		"    SELECT FROM information_schema.tables "
 		"    WHERE table_schema = 'public' "
-		"    AND table_name = 'uni_scans'"
+		"    AND table_name = 'uni_scan'"
 		");"
 	);
 
@@ -1319,7 +1319,7 @@ static int pgsql_create_schema(PGconn *conn) {
 	}
 
 	/* Create main tables */
-	if (!pgsql_exec_ddl(conn, pgsql_schema_scans_ddl, "create uni_scans table")) {
+	if (!pgsql_exec_ddl(conn, pgsql_schema_scans_ddl, "create uni_scan table")) {
 		return 0;
 	}
 
@@ -1658,7 +1658,7 @@ void pgsql_database_init(void) {
 	est_e_time=(long long int )s->s_time + (long long int )s->ss->recv_timeout + (long long int )s->num_secs;
 
 	snprintf(querybuf, sizeof(querybuf) -1,
-	"insert into uni_scans (									"
+	"insert into uni_scan (									"
 		"\"s_time\",		\"e_time\",		\"est_e_time\",		\"senders\",	"
 		"\"listeners\",		\"scan_iter\",		\"profile\",		\"options\",	"
 		"\"payload_group\",	\"dronestr\",		\"covertness\",		\"modules\",	"
@@ -1678,7 +1678,7 @@ void pgsql_database_init(void) {
 		"%hu,			%hu,			%u,			%hu,		"
 		"%u,			'%s',			%s				"
 	");												"
-	"select currval('uni_scans_id_seq') as scanid;							",
+	"select currval('uni_scan_id_seq') as scanid;							",
 	(long long int )s->s_time,	(long long int )0,	est_e_time,		s->senders,
 	s->listeners,			s->scan_iter,		profile,		s->options,
 	s->payload_group,		dronestr,		s->covertness,		modules,
@@ -1860,7 +1860,7 @@ static int pgsql_dealwith_sworkunit(uint32_t wid, const send_workunit_t *w) {
 
 	snprintf(querybuf, sizeof(querybuf) -1,
 	"insert into uni_sworkunits (									"
-		"\"magic\",		\"scans_id\",		\"repeats\",	\"send_opts\",		"
+		"\"magic\",		\"scan_id\",		\"repeats\",	\"send_opts\",		"
 		"\"pps\",		\"delay_type\",		\"myaddr\",	\"mymask\",		"
 		"\"macaddr\",		\"mtu\",		\"target\",	\"targetmask\",		"
 		"\"tos\",		\"minttl\",		\"maxttl\",	\"fingerprint\",	"
@@ -1915,9 +1915,9 @@ static int pgsql_dealwith_wkstats(uint32_t magic, const workunit_stats_t *w) {
 	strncpy(msg, escret, sizeof(msg) -1);
 
 	snprintf(querybuf, sizeof(querybuf) -1,
-	"insert into uni_workunitstats (\"wid\", \"scans_id\", \"msg\") "
+	"insert into uni_workunitstats (\"wid\", \"scan_id\", \"msg\") "
 	" values(%u, %llu, '%s');					"
-	"update %s set status=1 where wid=%u and scans_id=%llu;		",
+	"update %s set status=1 where wid=%u and scan_id=%llu;		",
 		w->wid,	pgscanid, msg,
 		magic == WKS_SEND_MAGIC ? "uni_sworkunits" : "uni_lworkunits",
 		w->wid, pgscanid
@@ -1948,7 +1948,7 @@ static int pgsql_dealwith_rworkunit(uint32_t wid, const recv_workunit_t *w) {
 
 	snprintf(querybuf, sizeof(querybuf) -1,
 	"insert into uni_lworkunits (									"
-	"	\"magic\",	\"scans_id\",		\"recv_timeout\",	\"ret_layers\",		"
+	"	\"magic\",	\"scan_id\",		\"recv_timeout\",	\"ret_layers\",		"
 	"	\"recv_opts\",	\"window_size\",	\"syn_key\",		\"pcap_str\",		"
 	"	\"wid\",	\"status\"								"
 	")												"
@@ -2010,7 +2010,7 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 
 	snprintf(querybuf, sizeof(querybuf) -1,
 	"insert into uni_ipreport (							\n"
-	"	\"scans_id\",		\"magic\",	\"sport\",	\"dport\",	\n"
+	"	\"scan_id\",		\"magic\",	\"sport\",	\"dport\",	\n"
 	"	\"proto\",		\"type\",	\"subtype\",	\"send_addr\",	\n"
 	"	\"host_addr\",		\"trace_addr\",	\"ttl\",	\"tstamp\",	\n"
 	"	\"utstamp\",		\"flags\",	\"mseq\",	\"tseq\",	\n"
@@ -2202,7 +2202,7 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 
 	snprintf(querybuf, sizeof(querybuf) -1,
 	"insert into uni_arpreport (							\n"
-	"	\"scans_id\",		\"magic\",	\"host_addr\",	\"hwaddr\",	\n"
+	"	\"scan_id\",		\"magic\",	\"host_addr\",	\"hwaddr\",	\n"
 	"	\"tstamp\",		\"utstamp\"					\n"
 	")										\n"
 	"values(									\n"
@@ -2308,7 +2308,7 @@ void pgsql_database_fini(void) {
 		return;
 	}
 
-	snprintf(querybuf, sizeof(querybuf) -1, "update uni_scans set e_time=%lld where scans_id=%llu;",
+	snprintf(querybuf, sizeof(querybuf) -1, "update uni_scan set e_time=%lld where scan_id=%llu;",
 		(long long int )s->e_time,
 		pgscanid
 	);

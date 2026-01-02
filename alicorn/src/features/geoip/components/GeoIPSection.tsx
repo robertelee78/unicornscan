@@ -55,7 +55,7 @@ function ScanSelector({ selectedScanId, onSelect }: ScanSelectorProps) {
     >
       <option value="">Select a scan...</option>
       {recentScans.map((scan) => (
-        <option key={scan.scans_id} value={scan.scans_id}>
+        <option key={scan.scan_id} value={scan.scan_id}>
           {scan.target_str} - {new Date(scan.s_time * 1000).toLocaleString()}
         </option>
       ))}
@@ -68,11 +68,11 @@ function ScanSelector({ selectedScanId, onSelect }: ScanSelectorProps) {
 // =============================================================================
 
 interface GeoIPStatsSummaryProps {
-  scansId: number
+  scanId: number
 }
 
-function GeoIPStatsSummary({ scansId }: GeoIPStatsSummaryProps) {
-  const { data: stats, isLoading } = useGeoIPStats(scansId)
+function GeoIPStatsSummary({ scanId }: GeoIPStatsSummaryProps) {
+  const { data: stats, isLoading } = useGeoIPStats(scanId)
 
   if (isLoading || !stats) {
     return null
@@ -194,7 +194,7 @@ export function GeoIPSection() {
       {selectedScanId && !hasGeoIPLoading && hasGeoIP && (
         <>
           {/* Stats Summary */}
-          <GeoIPStatsSummary scansId={selectedScanId} />
+          <GeoIPStatsSummary scanId={selectedScanId} />
 
           {/* World Map - Full width */}
           <GeoIPWorldMap

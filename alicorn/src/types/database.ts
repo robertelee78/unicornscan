@@ -8,7 +8,7 @@
 // =============================================================================
 
 export interface Scan {
-  scans_id: number
+  scan_id: number
   s_time: number
   e_time: number
   est_e_time: number
@@ -46,7 +46,7 @@ export interface Scan {
 
 export interface IpReport {
   ipreport_id: number
-  scans_id: number
+  scan_id: number
   magic: number
   sport: number
   dport: number
@@ -84,7 +84,7 @@ export interface IpPacket {
 
 export interface ArpReport {
   arpreport_id: number
-  scans_id: number
+  scan_id: number
   magic: number
   host_addr: string
   hwaddr: string  // MAC address
@@ -104,7 +104,7 @@ export interface ArpPacket {
 
 export interface SendWorkunit {
   magic: number
-  scans_id: number
+  scan_id: number
   repeats: number
   send_opts: number
   pps: number
@@ -133,7 +133,7 @@ export interface SendWorkunit {
 
 export interface ListenWorkunit {
   magic: number
-  scans_id: number
+  scan_id: number
   recv_timeout: number
   ret_layers: number
   recv_opts: number
@@ -145,7 +145,7 @@ export interface ListenWorkunit {
 }
 
 export interface ScanPhase {
-  scans_id: number
+  scan_id: number
   phase_idx: number
   mode: number
   mode_char: string
@@ -159,12 +159,12 @@ export interface ScanPhase {
 
 export interface WorkunitStats {
   wid: number
-  scans_id: number
+  scan_id: number
   msg: string
 }
 
 export interface OutputEntry {
-  scans_id: number
+  scan_id: number
   msg: string
 }
 
@@ -195,7 +195,7 @@ export interface Host {
 
 export interface HostScan {
   host_id: number
-  scans_id: number
+  scan_id: number
   ports_found: number
   first_seen_in_scan: number
   last_seen_in_scan: number
@@ -215,8 +215,8 @@ export interface MacIpHistory {
   mac_addr: string
   first_seen: string | number   // ISO 8601 or Unix timestamp
   last_seen: string | number    // ISO 8601 or Unix timestamp
-  first_scans_id: number
-  last_scans_id: number | null
+  first_scan_id: number
+  last_scan_id: number | null
   observation_count: number     // How many times we've seen this pairing
   age_seconds?: number          // Computed: seconds since last_seen
   first_scan_profile?: string   // Profile of first scan
@@ -233,8 +233,8 @@ export interface CurrentMacByIp {
   first_seen: string | number
   last_seen: string | number
   observation_count: number
-  first_scans_id: number
-  last_scans_id: number | null
+  first_scan_id: number
+  last_scan_id: number | null
 }
 
 /**
@@ -246,8 +246,8 @@ export interface CurrentIpByMac {
   first_seen: string | number
   last_seen: string | number
   observation_count: number
-  first_scans_id: number
-  last_scans_id: number | null
+  first_scan_id: number
+  last_scan_id: number | null
 }
 
 /**
@@ -265,7 +265,7 @@ export interface MacIpChange {
 export interface Hop {
   hop_id: number
   ipreport_id: number
-  scans_id: number
+  scan_id: number
   target_addr: string   // The host we were probing
   hop_addr: string      // Intermediate router that responded (trace_addr)
   hop_number: number | null
@@ -303,7 +303,7 @@ export interface Network {
 }
 
 export interface ScanTag {
-  scans_id: number
+  scan_id: number
   tag_name: string
   tag_value: string | null
   created_at: string
@@ -363,7 +363,7 @@ export type GeoIPProvider = 'maxmind' | 'ip2location' | 'ipinfo'
 export interface GeoIPRecord {
   geoip_id: number
   host_ip: string
-  scans_id: number
+  scan_id: number
 
   // Geographic data
   country_code: string | null
@@ -395,7 +395,7 @@ export interface GeoIPRecord {
  * Country statistics from v_geoip_stats view
  */
 export interface GeoIPCountryStats {
-  scans_id: number
+  scan_id: number
   country_code: string | null
   country_name: string | null
   host_count: number
@@ -448,7 +448,7 @@ export interface FilterConfig {
 }
 
 export interface ScanSummary {
-  scans_id: number
+  scan_id: number
   s_time: number
   e_time: number
   profile: string

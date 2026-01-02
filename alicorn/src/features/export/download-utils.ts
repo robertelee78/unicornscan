@@ -55,8 +55,8 @@ export function generateFilename(prefix: string, format: ExportFormat, suffix?: 
 /**
  * Generate a filename for scan export
  */
-export function scanFilename(scansId: number, format: ExportFormat): string {
-  return generateFilename(`scan-${scansId}`, format)
+export function scanFilename(scan_id: number, format: ExportFormat): string {
+  return generateFilename(`scan-${scan_id}`, format)
 }
 
 /**

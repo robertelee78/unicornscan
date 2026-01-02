@@ -54,38 +54,38 @@ export function useScanSummaries(
 }
 
 export function useScan(
-  scansId: number,
+  scan_id: number,
   queryOptions?: Omit<UseQueryOptions<Scan | null, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: scanKeys.detail(scansId),
-    queryFn: () => db.getScan(scansId),
-    enabled: scansId > 0,
+    queryKey: scanKeys.detail(scan_id),
+    queryFn: () => db.getScan(scan_id),
+    enabled: scan_id > 0,
     ...queryOptions,
   })
 }
 
 export function useIpReports(
-  scansId: number,
+  scan_id: number,
   queryOptions?: Omit<UseQueryOptions<IpReport[], Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: scanKeys.reports(scansId),
-    queryFn: () => db.getIpReports(scansId),
-    enabled: scansId > 0,
+    queryKey: scanKeys.reports(scan_id),
+    queryFn: () => db.getIpReports(scan_id),
+    enabled: scan_id > 0,
     ...queryOptions,
   })
 }
 
 export function useIpReportsByHost(
-  scansId: number,
+  scan_id: number,
   hostAddr: string,
   queryOptions?: Omit<UseQueryOptions<IpReport[], Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: scanKeys.reportsByHost(scansId, hostAddr),
-    queryFn: () => db.getIpReportsByHost(scansId, hostAddr),
-    enabled: scansId > 0 && !!hostAddr,
+    queryKey: scanKeys.reportsByHost(scan_id, hostAddr),
+    queryFn: () => db.getIpReportsByHost(scan_id, hostAddr),
+    enabled: scan_id > 0 && !!hostAddr,
     ...queryOptions,
   })
 }

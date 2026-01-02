@@ -47,14 +47,14 @@ export function HostActivityMatrix() {
   // Dialog state
   const [selectedCell, setSelectedCell] = useState<{
     hostIp: string
-    scansId: number
+    scan_id: number
     baselineScansId: number | null
   } | null>(null)
 
   // Fetch diff data when a cell is selected
   const { data: diffData, isLoading: isDiffLoading } = useCellDiff(
     selectedCell?.hostIp ?? null,
-    selectedCell?.scansId ?? null,
+    selectedCell?.scan_id ?? null,
     selectedCell?.baselineScansId ?? null
   )
 
@@ -119,7 +119,7 @@ export function HostActivityMatrix() {
 
     if (matrixData && !cell.isBaseline) {
       // Find the baseline scan based on filter settings
-      const scanIndex = matrixData.scanOrder.indexOf(cell.scansId)
+      const scanIndex = matrixData.scanOrder.indexOf(cell.scan_id)
       if (scanIndex > 0) {
         baselineScansId = matrixData.scanOrder[0] // First scan is baseline
       }
@@ -127,7 +127,7 @@ export function HostActivityMatrix() {
 
     setSelectedCell({
       hostIp: cell.hostIp,
-      scansId: cell.scansId,
+      scan_id: cell.scan_id,
       baselineScansId,
     })
   }, [matrixData])
@@ -273,8 +273,8 @@ export function HostActivityMatrix() {
                       <div className="flex" style={{ gap: CELL_GAP }}>
                         {matrixData.scanOrder
                           .slice(visibleRange.startCol, visibleRange.endCol)
-                          .map((scansId, idx) => {
-                            const column = matrixData.columns.get(scansId)
+                          .map((scan_id, idx) => {
+                            const column = matrixData.columns.get(scan_id)
                             if (!column) return null
 
                             const actualIdx = visibleRange.startCol + idx
@@ -282,7 +282,7 @@ export function HostActivityMatrix() {
 
                             return (
                               <div
-                                key={scansId}
+                                key={scan_id}
                                 className="flex flex-col items-center justify-end text-[10px] text-muted-foreground"
                                 style={{
                                   width: CELL_SIZE,
@@ -345,15 +345,15 @@ export function HostActivityMatrix() {
                               <div className="flex" style={{ gap: CELL_GAP }}>
                                 {matrixData.scanOrder
                                   .slice(visibleRange.startCol, visibleRange.endCol)
-                                  .map((scansId, colIdx) => {
-                                    const cell = row.cells.get(scansId)
+                                  .map((scan_id, colIdx) => {
+                                    const cell = row.cells.get(scan_id)
                                     if (!cell) return null
 
                                     const actualColIdx = visibleRange.startCol + colIdx
 
                                     return (
                                       <div
-                                        key={scansId}
+                                        key={scan_id}
                                         style={{
                                           position: 'absolute',
                                           left: actualColIdx * (CELL_SIZE + CELL_GAP),

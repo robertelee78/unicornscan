@@ -73,10 +73,10 @@ export function MatrixDiffDialog({
                     <div>
                       <span className="text-muted-foreground">ID: </span>
                       <Link
-                        to={`/scans/${data.currentScan.scans_id}`}
+                        to={`/scans/${data.currentScan.scan_id}`}
                         className="text-blue-500 hover:underline font-mono"
                       >
-                        {data.currentScan.scans_id}
+                        {data.currentScan.scan_id}
                       </Link>
                     </div>
                     <div>
@@ -106,10 +106,10 @@ export function MatrixDiffDialog({
                       <div>
                         <span className="text-muted-foreground">ID: </span>
                         <Link
-                          to={`/scans/${data.baselineScan.scans_id}`}
+                          to={`/scans/${data.baselineScan.scan_id}`}
                           className="text-blue-500 hover:underline font-mono"
                         >
-                          {data.baselineScan.scans_id}
+                          {data.baselineScan.scan_id}
                         </Link>
                       </div>
                       <div>
@@ -215,7 +215,7 @@ export function MatrixDiffDialog({
                 Close
               </Button>
               <Button asChild>
-                <Link to={`/scans/${data.currentScan.scans_id}`}>
+                <Link to={`/scans/${data.currentScan.scan_id}`}>
                   View Scan Details
                 </Link>
               </Button>

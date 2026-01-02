@@ -33,9 +33,9 @@ export function useScanOptions() {
     queryFn: async (): Promise<ScanOption[]> => {
       const scans = await db.getScans({ limit: 200 })
       return scans.map((s) => ({
-        scansId: s.scans_id,
-        label: `Scan #${s.scans_id}`,
-        targetStr: s.target_str,
+        scan_id: s.scan_id,
+        label: `Scan #${s.scan_id}`,
+        target_str: s.target_str,
         time: s.s_time,
       }))
     },

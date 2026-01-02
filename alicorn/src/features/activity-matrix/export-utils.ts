@@ -21,16 +21,16 @@ export function matrixToCSV(data: ActivityMatrixData): string {
     const row = data.rows.get(hostIp)
     if (!row) continue
 
-    for (const scansId of data.scanOrder) {
-      const cell = row.cells.get(scansId)
+    for (const scan_id of data.scanOrder) {
+      const cell = row.cells.get(scan_id)
       if (!cell) continue
 
-      const column = data.columns.get(scansId)
+      const column = data.columns.get(scan_id)
       if (!column) continue
 
       rows.push({
         host_ip: hostIp,
-        scan_id: scansId,
+        scan_id: scan_id,
         scan_time: new Date(column.scan.s_time * 1000).toISOString(),
         status: cell.status,
         current_ports: portsToString([...cell.currentPorts]),
@@ -171,18 +171,18 @@ export function exportChangesToCSV(data: ActivityMatrixData): void {
     const row = data.rows.get(hostIp)
     if (!row) continue
 
-    for (const scansId of data.scanOrder) {
-      const cell = row.cells.get(scansId)
+    for (const scan_id of data.scanOrder) {
+      const cell = row.cells.get(scan_id)
       if (!cell) continue
 
       // Only include cells with actual changes
       if (cell.status === 'new' || cell.status === 'removed' || cell.status === 'mixed') {
-        const column = data.columns.get(scansId)
+        const column = data.columns.get(scan_id)
         if (!column) continue
 
         rows.push({
           host_ip: hostIp,
-          scan_id: scansId,
+          scan_id: scan_id,
           scan_time: new Date(column.scan.s_time * 1000).toISOString(),
           status: cell.status,
           current_ports: portsToString([...cell.currentPorts]),

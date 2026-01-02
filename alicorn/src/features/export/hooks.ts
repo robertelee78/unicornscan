@@ -141,17 +141,17 @@ export function useScanExport(
       switch (options.format) {
         case 'csv': {
           const csv = exportScanToCSV(data, options.metadataDepth)
-          downloadString(csv, scanFilename(scan.scans_id, 'csv'), 'csv')
+          downloadString(csv, scanFilename(scan.scan_id, 'csv'), 'csv')
           break
         }
         case 'json': {
           const json = exportScanToJSON(data, options.metadataDepth)
-          downloadString(json, scanFilename(scan.scans_id, 'json'), 'json')
+          downloadString(json, scanFilename(scan.scan_id, 'json'), 'json')
           break
         }
         case 'pdf': {
           const blob = exportScanToPDF(data, options)
-          downloadBlob(blob, scanFilename(scan.scans_id, 'pdf'))
+          downloadBlob(blob, scanFilename(scan.scan_id, 'pdf'))
           break
         }
       }
@@ -175,7 +175,7 @@ export interface UseHostExportReturn {
 export function useHostExport(
   host: Host | null,
   reports: IpReport[],
-  scanHistory: { scansId: number; scanTime: number; portsFound: number }[] = []
+  scanHistory: { scan_id: number; scan_time: number; ports_found: number }[] = []
 ): UseHostExportReturn {
   const [isExporting, setIsExporting] = useState(false)
 
@@ -257,7 +257,7 @@ export function useBulkScansExport(
           }
 
           return {
-            id: `scan-${s.scan.scans_id}`,
+            id: `scan-${s.scan.scan_id}`,
             content,
             format: options.format,
           }
@@ -436,17 +436,17 @@ export function quickExportScan(
   switch (format) {
     case 'csv': {
       const csv = exportScanToCSV(data, options.metadataDepth)
-      downloadString(csv, scanFilename(scan.scans_id, 'csv'), 'csv')
+      downloadString(csv, scanFilename(scan.scan_id, 'csv'), 'csv')
       break
     }
     case 'json': {
       const json = exportScanToJSON(data, options.metadataDepth)
-      downloadString(json, scanFilename(scan.scans_id, 'json'), 'json')
+      downloadString(json, scanFilename(scan.scan_id, 'json'), 'json')
       break
     }
     case 'pdf': {
       const blob = exportScanToPDF(data, options)
-      downloadBlob(blob, scanFilename(scan.scans_id, 'pdf'))
+      downloadBlob(blob, scanFilename(scan.scan_id, 'pdf'))
       break
     }
   }

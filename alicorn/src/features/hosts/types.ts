@@ -40,8 +40,8 @@ export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 
 // Port history entry for timeline display
 export interface PortHistoryEntry {
-  scansId: number
-  scanTime: number
+  scan_id: number
+  scan_time: number
   port: number
   protocol: string
   ttl: number
@@ -50,9 +50,9 @@ export interface PortHistoryEntry {
 
 // Associated scan for a host
 export interface HostScanEntry {
-  scansId: number
-  scanTime: number
+  scan_id: number
+  scan_time: number
   profile: string
-  targetStr: string | null
-  portsFound: number
+  target_str: string | null
+  ports_found: number
 }

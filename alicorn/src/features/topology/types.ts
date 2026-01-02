@@ -69,7 +69,7 @@ export interface TopologyData {
 
   // Metadata
   scannerAddr?: string   // The scanner's IP (center node)
-  scansId?: number
+  scan_id?: number
   nodeCount: number
   edgeCount: number
 
@@ -121,7 +121,7 @@ export const DEFAULT_TOPOLOGY_CONFIG: TopologyConfig = {
 // =============================================================================
 
 export interface TopologyFilters {
-  scansId?: number
+  scan_id?: number
   since?: number        // Unix timestamp
   minPorts?: number     // Only show hosts with >= N ports
   osFamily?: OsFamily[] // Filter by OS family

@@ -80,7 +80,7 @@ export function useHostPortTrend(hostIp: string, timeRange: TimeRange = 'all') {
       let previousPorts = new Set<string>() // "port-protocol" keys
 
       for (const scan of sortedScans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+        const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
 
         if (reports.length === 0) continue
 
@@ -107,7 +107,7 @@ export function useHostPortTrend(hostIp: string, timeRange: TimeRange = 'all') {
         points.push({
           timestamp: scan.s_time,
           date: new Date(scan.s_time * 1000).toISOString().split('T')[0],
-          scansId: scan.scans_id,
+          scan_id: scan.scan_id,
           totalPorts: currentPorts.size,
           tcpPorts: tcpCount,
           udpPorts: udpCount,
@@ -124,7 +124,7 @@ export function useHostPortTrend(hostIp: string, timeRange: TimeRange = 'all') {
 
       // Re-iterate to get all unique ports
       for (const scan of sortedScans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+        const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
         for (const report of reports) {
           allUniquePorts.add(`${report.dport}-${report.proto}`)
         }
@@ -165,18 +165,18 @@ export function usePortTimeline(hostIp: string) {
 
       // Track port lifespans
       const portMap = new Map<string, PortLifespan>()
-      let lastScansId = 0
+      let last_scan_id = 0
       let timeStart = Infinity
       let timeEnd = 0
 
       for (const scan of sortedScans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+        const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
 
         if (reports.length === 0) continue
 
         timeStart = Math.min(timeStart, scan.s_time)
         timeEnd = Math.max(timeEnd, scan.s_time)
-        lastScansId = scan.scans_id
+        last_scan_id = scan.scan_id
 
         for (const report of reports) {
           const key = `${report.dport}-${report.proto}`
@@ -187,7 +187,7 @@ export function usePortTimeline(hostIp: string) {
           const existing = portMap.get(key)
           if (existing) {
             existing.lastSeen = scan.s_time
-            existing.lastScansId = scan.scans_id
+            existing.last_scan_id = scan.scan_id
             existing.observationCount++
           } else {
             portMap.set(key, {
@@ -195,8 +195,8 @@ export function usePortTimeline(hostIp: string) {
               protocol,
               firstSeen: scan.s_time,
               lastSeen: scan.s_time,
-              firstScansId: scan.scans_id,
-              lastScansId: scan.scans_id,
+              first_scan_id: scan.scan_id,
+              last_scan_id: scan.scan_id,
               observationCount: 1,
               isActive: false, // Will update below
             })
@@ -206,7 +206,7 @@ export function usePortTimeline(hostIp: string) {
 
       // Mark ports as active if seen in last scan
       for (const lifespan of portMap.values()) {
-        lifespan.isActive = lifespan.lastScansId === lastScansId
+        lifespan.isActive = lifespan.last_scan_id === last_scan_id
       }
 
       // Sort by first seen, then port number
@@ -251,7 +251,7 @@ export function useGlobalProtocolDistribution(timeRange: TimeRange = 'all') {
       const breakdowns: ProtocolBreakdown[] = []
 
       for (const scan of sortedScans) {
-        const reports = await db.getIpReports(scan.scans_id)
+        const reports = await db.getIpReports(scan.scan_id)
 
         let tcp = 0, udp = 0, icmp = 0, other = 0
 
@@ -266,7 +266,7 @@ export function useGlobalProtocolDistribution(timeRange: TimeRange = 'all') {
           breakdowns.push({
             timestamp: scan.s_time,
             date: new Date(scan.s_time * 1000).toISOString().split('T')[0],
-            scansId: scan.scans_id,
+            scan_id: scan.scan_id,
             tcp,
             udp,
             icmp,
@@ -307,7 +307,7 @@ export function useHostComparison(hostIps: string[], timeRange: TimeRange = 'all
         const points: PortTrendPoint[] = []
 
         for (const scan of sortedScans) {
-          const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+          const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
 
           if (reports.length === 0) continue
 
@@ -318,7 +318,7 @@ export function useHostComparison(hostIps: string[], timeRange: TimeRange = 'all
           points.push({
             timestamp: scan.s_time,
             date: new Date(scan.s_time * 1000).toISOString().split('T')[0],
-            scansId: scan.scans_id,
+            scan_id: scan.scan_id,
             totalPorts: uniquePorts.size,
             tcpPorts: tcpCount,
             udpPorts: udpCount,
@@ -385,7 +385,7 @@ export function useServiceDistribution(timeRange: TimeRange = 'all') {
       let totalResponses = 0
 
       for (const scan of filteredScans) {
-        const reports = await db.getIpReports(scan.scans_id)
+        const reports = await db.getIpReports(scan.scan_id)
 
         for (const report of reports) {
           const protocol = report.proto === IP_PROTOCOLS.TCP ? 'tcp' : 'udp'
@@ -468,7 +468,7 @@ export function useTTLDistribution(timeRange: TimeRange = 'all') {
       let totalResponses = 0
 
       for (const scan of filteredScans) {
-        const reports = await db.getIpReports(scan.scans_id)
+        const reports = await db.getIpReports(scan.scan_id)
 
         for (const report of reports) {
           if (report.ttl !== undefined && report.ttl > 0) {
@@ -552,7 +552,7 @@ export function useWindowSizeDistribution(timeRange: TimeRange = 'all') {
       let totalResponses = 0
 
       for (const scan of filteredScans) {
-        const reports = await db.getIpReports(scan.scans_id)
+        const reports = await db.getIpReports(scan.scan_id)
 
         for (const report of reports) {
           // Only TCP has window size
@@ -622,7 +622,7 @@ export function usePortActivityHeatmap(timeRange: TimeRange = 'all', maxPorts: n
         const date = new Date(scan.s_time * 1000).toISOString().split('T')[0]
         allDates.add(date)
 
-        const reports = await db.getIpReports(scan.scans_id)
+        const reports = await db.getIpReports(scan.scan_id)
 
         for (const report of reports) {
           const key = `${report.dport}-${date}`

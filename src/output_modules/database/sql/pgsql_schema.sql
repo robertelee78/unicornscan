@@ -78,8 +78,8 @@ drop table if exists "uni_ipreport";
 drop sequence if exists "uni_ipreport_id_seq";
 drop table if exists "uni_arpreport";
 drop sequence if exists "uni_arpreport_id_seq";
-drop table if exists "uni_scans";
-drop sequence if exists "uni_scans_id_seq";
+drop table if exists "uni_scan";
+drop sequence if exists "uni_scan_id_seq";
 drop table if exists "uni_schema_version";
 
 -- Schema version tracking
@@ -89,10 +89,10 @@ create table "uni_schema_version" (
 	primary key ("version")
 );
 
-create sequence "uni_scans_id_seq";
+create sequence "uni_scan_id_seq";
 -- MASTER INFORMATION
-create table "uni_scans" (
-	"scans_id"	int8 not null default nextval('uni_scans_id_seq'),
+create table "uni_scan" (
+	"scan_id"	int8 not null default nextval('uni_scan_id_seq'),
 	"s_time"	int8 not null,
 	"e_time"	int8 not null,
 	"est_e_time"	int8 not null,
@@ -129,13 +129,13 @@ create table "uni_scans" (
 	"target_str"	text,
 	-- v7: source address specification (-s option / phantom IP)
 	"src_addr"	inet,
-	primary key("scans_id")
+	primary key("scan_id")
 );
 
 --- WORKUNITS
 create table "uni_sworkunits" (
 	"magic"		int8 not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"repeats"	int2 not null,
 	"send_opts"	int4 not null,
 	"pps"		int8 not null,
@@ -165,16 +165,16 @@ create table "uni_sworkunits" (
 
 alter table "uni_sworkunits"
 	add constraint uni_sworkunit_uniq_comp_LK
-	unique ("scans_id", "wid");
+	unique ("scan_id", "wid");
 
 alter table "uni_sworkunits"
-	add constraint uni_sworkunit_uni_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_sworkunit_uni_scan_FK
+	foreign key("scan_id")
+	references "uni_scan"("scan_id");
 
 create table "uni_lworkunits" (
 	"magic"		int8 not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"recv_timeout"	int2 not null,
 	"ret_layers"	int2 not null,
 	"recv_opts"	int4 not null,
@@ -188,16 +188,16 @@ create table "uni_lworkunits" (
 
 alter table "uni_lworkunits"
 	add constraint uni_lworkunit_uniq_comp_LK
-	unique ("scans_id", "wid");
+	unique ("scan_id", "wid");
 
 alter table "uni_lworkunits"
-	add constraint uni_lworkunit_uni_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_lworkunit_uni_scan_FK
+	foreign key("scan_id")
+	references "uni_scan"("scan_id");
 
 -- v4: Per-phase configuration for compound mode scans
 create table "uni_scan_phases" (
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"phase_idx"	int2 not null,
 	"mode"		int2 not null,
 	"mode_char"	char(1) not null,
@@ -207,43 +207,43 @@ create table "uni_scan_phases" (
 	"pps"		int4 default 0,
 	"repeats"	int4 default 0,
 	"recv_timeout"	int2 default 0,
-	primary key ("scans_id", "phase_idx")
+	primary key ("scan_id", "phase_idx")
 );
 
 alter table "uni_scan_phases"
-	add constraint uni_scan_phases_uni_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_scan_phases_uni_scan_FK
+	foreign key("scan_id")
+	references "uni_scan"("scan_id");
 
-create index uni_scan_phases_scansid_idx on uni_scan_phases("scans_id");
+create index uni_scan_phases_scansid_idx on uni_scan_phases("scan_id");
 
 -- MISC INFO
 create table "uni_workunitstats" (
 	"wid"		int8 not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"msg"		text not null
 );
 
 alter table "uni_workunitstats"
-	add constraint uni_workunitstats_uni_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_workunitstats_uni_scan_FK
+	foreign key("scan_id")
+	references "uni_scan"("scan_id");
 
 create table "uni_output" (
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"msg"		text not null
 );
 
 alter table "uni_output"
-	add constraint uni_output_uni_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_output_uni_scan_FK
+	foreign key("scan_id")
+	references "uni_scan"("scan_id");
 
 create sequence "uni_ipreport_id_seq";
 
 create table "uni_ipreport" (
 	"ipreport_id"	int8 not null default nextval('uni_ipreport_id_seq'),
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"magic"		int8 not null,
 	"sport"		int4 not null,
 	"dport"		int4 not null,
@@ -268,17 +268,17 @@ create table "uni_ipreport" (
 );
 
 alter table "uni_ipreport"
-	add constraint uni_ipreport_uni_scans_FK
-	foreign key ("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_ipreport_uni_scan_FK
+	foreign key ("scan_id")
+	references "uni_scan"("scan_id");
 
-create index uni_ipreport_scansid_idx on uni_ipreport("scans_id");
+create index uni_ipreport_scansid_idx on uni_ipreport("scan_id");
 
 create sequence "uni_arpreport_id_seq";
 
 create table "uni_arpreport" (
 	"arpreport_id"	int8 not null default nextval('uni_arpreport_id_seq'),
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"magic"		int8 not null,
 	"host_addr"	inet not null,
 	"hwaddr"	macaddr not null,
@@ -289,11 +289,11 @@ create table "uni_arpreport" (
 );
 
 alter table "uni_arpreport"
-	add constraint uni_arpreport_uni_scans_FK
-	foreign key ("scans_id")
-	references "uni_scans"("scans_id");
+	add constraint uni_arpreport_uni_scan_FK
+	foreign key ("scan_id")
+	references "uni_scan"("scan_id");
 
-create index uni_arpreport_scansid_idx on uni_arpreport("scans_id");
+create index uni_arpreport_scansid_idx on uni_arpreport("scan_id");
 
 create table "uni_ipreportdata" (
 	"ipreport_id"	int8 not null,
@@ -331,14 +331,14 @@ alter table "uni_arppackets"
 create index uni_ipreport_host_addr_idx on uni_ipreport("host_addr");
 create index uni_ipreport_dport_idx on uni_ipreport("dport");
 create index uni_ipreport_sport_idx on uni_ipreport("sport");
-create index uni_scans_s_time_idx on uni_scans("s_time");
+create index uni_scan_s_time_idx on uni_scan("s_time");
 
 -- Composite indexes for common query patterns
-create index uni_ipreport_scan_host_idx on uni_ipreport("scans_id", "host_addr");
-create index uni_ipreport_scan_dport_idx on uni_ipreport("scans_id", "dport");
+create index uni_ipreport_scan_host_idx on uni_ipreport("scan_id", "host_addr");
+create index uni_ipreport_scan_dport_idx on uni_ipreport("scan_id", "dport");
 
 -- GIN indexes for JSONB columns (efficient for containment queries)
-create index uni_scans_metadata_gin on uni_scans using gin("scan_metadata");
+create index uni_scan_metadata_gin on uni_scan using gin("scan_metadata");
 create index uni_ipreport_extra_gin on uni_ipreport using gin("extra_data");
 create index uni_arpreport_extra_gin on uni_arpreport using gin("extra_data");
 
@@ -376,10 +376,10 @@ create index uni_hosts_last_seen_idx on uni_hosts("last_seen");
 -- ----------------------------------------
 create table "uni_host_scans" (
 	"host_id"	int8 not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"first_response"	timestamptz default now(),
 	"response_count"	int4 default 1,
-	primary key ("host_id", "scans_id")
+	primary key ("host_id", "scan_id")
 );
 
 alter table "uni_host_scans"
@@ -389,10 +389,10 @@ alter table "uni_host_scans"
 
 alter table "uni_host_scans"
 	add constraint uni_host_scans_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id") on delete cascade;
+	foreign key("scan_id")
+	references "uni_scan"("scan_id") on delete cascade;
 
-create index uni_host_scans_scansid_idx on uni_host_scans("scans_id");
+create index uni_host_scans_scansid_idx on uni_host_scans("scan_id");
 
 -- ----------------------------------------
 -- uni_mac_ip_history: Historical MAC<->IP associations (v8)
@@ -407,8 +407,8 @@ create table "uni_mac_ip_history" (
 	"mac_addr"	macaddr not null,
 	"first_seen"	timestamptz not null default now(),
 	"last_seen"	timestamptz not null default now(),
-	"first_scans_id"	int8 not null,      -- Scan where this association was first observed
-	"last_scans_id"	int8,                   -- Most recent scan with this association
+	"first_scan_id"	int8 not null,      -- Scan where this association was first observed
+	"last_scan_id"	int8,                   -- Most recent scan with this association
 	"observation_count"	int4 not null default 1,  -- How many times we've seen this pairing
 	"extra_data"	jsonb default '{}'::jsonb,
 	primary key ("history_id")
@@ -423,13 +423,13 @@ create index uni_mac_ip_history_last_seen_idx on uni_mac_ip_history("last_seen")
 
 alter table "uni_mac_ip_history"
 	add constraint uni_mac_ip_history_first_scans_FK
-	foreign key("first_scans_id")
-	references "uni_scans"("scans_id") on delete set null;
+	foreign key("first_scan_id")
+	references "uni_scan"("scan_id") on delete set null;
 
 alter table "uni_mac_ip_history"
 	add constraint uni_mac_ip_history_last_scans_FK
-	foreign key("last_scans_id")
-	references "uni_scans"("scans_id") on delete set null;
+	foreign key("last_scan_id")
+	references "uni_scan"("scan_id") on delete set null;
 
 -- ----------------------------------------
 -- uni_hops: Traceroute hop data
@@ -440,7 +440,7 @@ create sequence "uni_hops_id_seq";
 create table "uni_hops" (
 	"hop_id"	int8 not null default nextval('uni_hops_id_seq'),
 	"ipreport_id"	int8 not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"target_addr"	inet not null,
 	"hop_addr"	inet not null,
 	"hop_number"	int2,
@@ -457,10 +457,10 @@ alter table "uni_hops"
 
 alter table "uni_hops"
 	add constraint uni_hops_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id") on delete cascade;
+	foreign key("scan_id")
+	references "uni_scan"("scan_id") on delete cascade;
 
-create index uni_hops_scansid_idx on uni_hops("scans_id");
+create index uni_hops_scansid_idx on uni_hops("scan_id");
 create index uni_hops_target_idx on uni_hops("target_addr");
 create index uni_hops_hop_idx on uni_hops("hop_addr");
 
@@ -475,7 +475,7 @@ create table "uni_services" (
 	"host_addr"	inet not null,
 	"port"		int4 not null,
 	"proto"		int2 not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"ipreport_id"	int8,
 	"service_name"	varchar(64),
 	"product"	varchar(128),
@@ -491,8 +491,8 @@ create table "uni_services" (
 
 alter table "uni_services"
 	add constraint uni_services_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id") on delete cascade;
+	foreign key("scan_id")
+	references "uni_scan"("scan_id") on delete cascade;
 
 alter table "uni_services"
 	add constraint uni_services_ipreport_FK
@@ -500,10 +500,10 @@ alter table "uni_services"
 	references "uni_ipreport"("ipreport_id") on delete cascade;
 
 -- Unique per host/port/proto/scan (allow multiple detections across scans)
-create unique index uni_services_uniq on uni_services("host_addr", "port", "proto", "scans_id");
+create unique index uni_services_uniq on uni_services("host_addr", "port", "proto", "scan_id");
 create index uni_services_host_idx on uni_services("host_addr");
 create index uni_services_port_idx on uni_services("port");
-create index uni_services_scansid_idx on uni_services("scans_id");
+create index uni_services_scansid_idx on uni_services("scan_id");
 create index uni_services_name_idx on uni_services("service_name") where "service_name" is not null;
 
 -- ----------------------------------------
@@ -515,7 +515,7 @@ create sequence "uni_osfingerprints_id_seq";
 create table "uni_os_fingerprints" (
 	"osfingerprint_id"	int8 not null default nextval('uni_osfingerprints_id_seq'),
 	"host_addr"	inet not null,
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"ipreport_id"	int8,
 	"os_family"	varchar(64),
 	"os_name"	varchar(128),
@@ -533,8 +533,8 @@ create table "uni_os_fingerprints" (
 
 alter table "uni_os_fingerprints"
 	add constraint uni_osfingerprints_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id") on delete cascade;
+	foreign key("scan_id")
+	references "uni_scan"("scan_id") on delete cascade;
 
 alter table "uni_os_fingerprints"
 	add constraint uni_osfingerprints_ipreport_FK
@@ -542,7 +542,7 @@ alter table "uni_os_fingerprints"
 	references "uni_ipreport"("ipreport_id") on delete cascade;
 
 create index uni_osfingerprints_host_idx on uni_os_fingerprints("host_addr");
-create index uni_osfingerprints_scansid_idx on uni_os_fingerprints("scans_id");
+create index uni_osfingerprints_scansid_idx on uni_os_fingerprints("scan_id");
 create index uni_osfingerprints_family_idx on uni_os_fingerprints("os_family") where "os_family" is not null;
 
 -- ----------------------------------------
@@ -588,17 +588,17 @@ alter table "uni_host_networks"
 -- uni_scan_tags: Flexible tagging system
 -- ----------------------------------------
 create table "uni_scan_tags" (
-	"scans_id"	int8 not null,
+	"scan_id"	int8 not null,
 	"tag_name"	varchar(64) not null,
 	"tag_value"	varchar(256),
 	"created_at"	timestamptz default now(),
-	primary key ("scans_id", "tag_name")
+	primary key ("scan_id", "tag_name")
 );
 
 alter table "uni_scan_tags"
 	add constraint uni_scan_tags_scans_FK
-	foreign key("scans_id")
-	references "uni_scans"("scans_id") on delete cascade;
+	foreign key("scan_id")
+	references "uni_scan"("scan_id") on delete cascade;
 
 create index uni_scan_tags_name_idx on uni_scan_tags("tag_name");
 create index uni_scan_tags_value_idx on uni_scan_tags("tag_value") where "tag_value" is not null;
@@ -703,7 +703,7 @@ $$;
 create or replace function fn_record_mac_ip(
 	p_host_addr inet,
 	p_mac_addr macaddr,
-	p_scans_id int8
+	p_scan_id int8
 ) returns int8
 language plpgsql
 as $$
@@ -720,13 +720,13 @@ begin
 		-- Update existing association
 		update uni_mac_ip_history
 		set last_seen = now(),
-		    last_scans_id = p_scans_id,
+		    last_scan_id = p_scan_id,
 		    observation_count = observation_count + 1
 		where history_id = v_history_id;
 	else
 		-- Insert new association
-		insert into uni_mac_ip_history (host_addr, mac_addr, first_scans_id, last_scans_id)
-		values (p_host_addr, p_mac_addr, p_scans_id, p_scans_id)
+		insert into uni_mac_ip_history (host_addr, mac_addr, first_scan_id, last_scan_id)
+		values (p_host_addr, p_mac_addr, p_scan_id, p_scan_id)
 		returning history_id into v_history_id;
 	end if;
 
@@ -744,7 +744,7 @@ $$;
 
 -- Enable RLS on all tables
 alter table uni_schema_version enable row level security;
-alter table uni_scans enable row level security;
+alter table uni_scan enable row level security;
 alter table uni_sworkunits enable row level security;
 alter table uni_lworkunits enable row level security;
 alter table uni_workunitstats enable row level security;
@@ -766,9 +766,9 @@ create policy "Allow full access to schema_version"
   using (true)
   with check (true);
 
--- Policy for uni_scans
+-- Policy for uni_scan
 create policy "Allow full access to scans"
-  on uni_scans for all
+  on uni_scan for all
   using (true)
   with check (true);
 
@@ -925,7 +925,7 @@ create policy "Allow full access to saved_filters"
 create or replace view v_open_ports
 with (security_invoker = true) as
 select
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as scan_time,
     s.profile,
     i.host_addr,
@@ -939,15 +939,15 @@ select
     i.ttl,
     to_timestamp(i.tstamp) as response_time,
     i.extra_data
-from uni_scans s
-join uni_ipreport i on s.scans_id = i.scans_id
+from uni_scan s
+join uni_ipreport i on s.scan_id = i.scan_id
 order by s.s_time desc, i.host_addr, i.dport;
 
 -- v_scan_summary: Aggregate statistics per scan
 create or replace view v_scan_summary
 with (security_invoker = true) as
 select
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as started,
     to_timestamp(nullif(s.e_time, 0)) as completed,
     s.profile,
@@ -958,9 +958,9 @@ select
     count(i.ipreport_id) as total_responses,
     count(distinct i.dport) as unique_ports,
     s.scan_metadata
-from uni_scans s
-left join uni_ipreport i on s.scans_id = i.scans_id
-group by s.scans_id, s.s_time, s.e_time, s.profile, s."user",
+from uni_scan s
+left join uni_ipreport i on s.scan_id = i.scan_id
+group by s.scan_id, s.s_time, s.e_time, s.profile, s."user",
          s.num_hosts, s.num_packets, s.scan_metadata;
 
 -- v_recent_scans: Last 50 scans with key metrics
@@ -975,7 +975,7 @@ create or replace view v_host_history
 with (security_invoker = true) as
 select
     i.host_addr,
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as scan_time,
     s.profile,
     i.dport as port,
@@ -984,29 +984,29 @@ select
     i.sport as source_port,
     i.extra_data
 from uni_ipreport i
-join uni_scans s on i.scans_id = s.scans_id
+join uni_scan s on i.scan_id = s.scan_id
 order by i.host_addr, s.s_time desc, i.dport;
 
 -- v_arp_results: Human-readable ARP scan results
 create or replace view v_arp_results
 with (security_invoker = true) as
 select
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as scan_time,
     s.profile,
     a.host_addr as ip_address,
     a.hwaddr as mac_address,
     to_timestamp(a.tstamp) as response_time,
     a.extra_data
-from uni_scans s
-join uni_arpreport a on s.scans_id = a.scans_id
+from uni_scan s
+join uni_arpreport a on s.scan_id = a.scan_id
 order by s.s_time desc, a.host_addr;
 
 -- v_scan_full: Complete scan details including compound mode info
 create or replace view v_scan_full
 with (security_invoker = true) as
 select
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as started,
     to_timestamp(nullif(s.e_time, 0)) as completed,
     s.profile,
@@ -1029,9 +1029,9 @@ select
     count(distinct i.host_addr) as hosts_responded,
     count(i.ipreport_id) as total_responses,
     s.scan_metadata
-from uni_scans s
-left join uni_ipreport i on s.scans_id = i.scans_id
-group by s.scans_id, s.s_time, s.e_time, s.profile, s."user",
+from uni_scan s
+left join uni_ipreport i on s.scan_id = i.scan_id
+group by s.scan_id, s.s_time, s.e_time, s.profile, s."user",
          s.mode_str, s.mode_flags, s.num_phases, s.port_str, s.interface,
          s.tcpflags, s.send_opts, s.recv_opts, s.pps, s.recv_timeout,
          s.repeats, s.scan_notes, s.num_hosts, s.num_packets, s.scan_metadata;
@@ -1040,7 +1040,7 @@ group by s.scans_id, s.s_time, s.e_time, s.profile, s."user",
 create or replace view v_compound_phases
 with (security_invoker = true) as
 select
-    s.scans_id,
+    s.scan_id,
     s.mode_str,
     s.num_phases,
     p.phase_idx,
@@ -1057,10 +1057,10 @@ select
     p.pps as phase_pps,
     p.repeats as phase_repeats,
     p.recv_timeout as phase_timeout
-from uni_scans s
-join uni_scan_phases p on s.scans_id = p.scans_id
+from uni_scan s
+join uni_scan_phases p on s.scan_id = p.scan_id
 where s.num_phases > 1
-order by s.scans_id, p.phase_idx;
+order by s.scan_id, p.phase_idx;
 
 -- ============================================
 -- v5: VIEWS FOR FRONTEND SUPPORT TABLES
@@ -1088,7 +1088,7 @@ select
     -- scan_count: Number of unique scans this host appeared in (from uni_host_scans)
     -- NOT the raw uni_hosts.scan_count which is incremented per-report
     coalesce(
-        (select count(distinct hs.scans_id) from uni_host_scans hs where hs.host_id = h.host_id),
+        (select count(distinct hs.scan_id) from uni_host_scans hs where hs.host_id = h.host_id),
         0
     )::int4 as scan_count,
     -- Calculate port_count from uni_ipreport since C code doesn't update uni_hosts.port_count
@@ -1117,12 +1117,12 @@ select
     h.last_seen,
     h.scan_count,
     h.port_count,
-    array_agg(distinct s.scans_id order by s.scans_id desc) as scan_ids,
+    array_agg(distinct s.scan_id order by s.scan_id desc) as scan_ids,
     array_agg(distinct s.profile order by s.profile) as scan_profiles,
     h.extra_data
 from uni_hosts h
 left join uni_host_scans hs on h.host_id = hs.host_id
-left join uni_scans s on hs.scans_id = s.scans_id
+left join uni_scan s on hs.scan_id = s.scan_id
 group by h.host_id, h.host_addr, h.mac_addr, h.hostname,
          h.first_seen, h.last_seen, h.scan_count, h.port_count, h.extra_data;
 
@@ -1139,15 +1139,15 @@ select
     h.mac_addr,
     h.first_seen,
     h.last_seen,
-    h.first_scans_id,
-    h.last_scans_id,
+    h.first_scan_id,
+    h.last_scan_id,
     h.observation_count,
     -- Calculate age since last seen
     extract(epoch from (now() - h.last_seen))::int4 as age_seconds,
     -- Get the profile of the first scan
-    (select s.profile from uni_scans s where s.scans_id = h.first_scans_id) as first_scan_profile,
+    (select s.profile from uni_scan s where s.scan_id = h.first_scan_id) as first_scan_profile,
     -- Get the profile of the most recent scan
-    (select s.profile from uni_scans s where s.scans_id = h.last_scans_id) as last_scan_profile,
+    (select s.profile from uni_scan s where s.scan_id = h.last_scan_id) as last_scan_profile,
     h.extra_data
 from uni_mac_ip_history h
 order by h.last_seen desc;
@@ -1162,8 +1162,8 @@ select distinct on (host_addr)
     first_seen,
     last_seen,
     observation_count,
-    first_scans_id,
-    last_scans_id
+    first_scan_id,
+    last_scan_id
 from uni_mac_ip_history
 order by host_addr, last_seen desc;
 
@@ -1177,8 +1177,8 @@ select distinct on (mac_addr)
     first_seen,
     last_seen,
     observation_count,
-    first_scans_id,
-    last_scans_id
+    first_scan_id,
+    last_scan_id
 from uni_mac_ip_history
 order by mac_addr, last_seen desc;
 
@@ -1218,11 +1218,11 @@ select
     svc.confidence,
     svc.payload_module,
     svc.detected_at,
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as scan_time,
     svc.extra_data
 from uni_services svc
-join uni_scans s on svc.scans_id = s.scans_id
+join uni_scan s on svc.scan_id = s.scan_id
 order by svc.detected_at desc;
 
 -- v_services_by_host: Services grouped by host
@@ -1255,11 +1255,11 @@ select
     osf.confidence,
     osf.fingerprint_source,
     osf.detected_at,
-    s.scans_id,
+    s.scan_id,
     to_timestamp(s.s_time) as scan_time,
     osf.extra_data
 from uni_os_fingerprints osf
-join uni_scans s on osf.scans_id = s.scans_id
+join uni_scan s on osf.scan_id = s.scan_id
 order by osf.detected_at desc;
 
 -- v_hops: Network hops with target information
@@ -1273,11 +1273,11 @@ select
     hp.ttl_observed,
     hp.rtt_us,
     round(hp.rtt_us / 1000.0, 2) as rtt_ms,
-    hp.scans_id,
+    hp.scan_id,
     to_timestamp(s.s_time) as scan_time,
     hp.extra_data
 from uni_hops hp
-join uni_scans s on hp.scans_id = s.scans_id
+join uni_scan s on hp.scan_id = s.scan_id
 order by hp.target_addr, hp.hop_number;
 
 -- v_networks: Networks with host counts
@@ -1303,14 +1303,14 @@ order by n.network_cidr;
 create or replace view v_scan_tags
 with (security_invoker = true) as
 select
-    t.scans_id,
+    t.scan_id,
     t.tag_name,
     t.tag_value,
     t.created_at,
     to_timestamp(s.s_time) as scan_time,
     s.profile
 from uni_scan_tags t
-join uni_scans s on t.scans_id = s.scans_id
+join uni_scan s on t.scan_id = s.scan_id
 order by t.created_at desc;
 
 -- v_notes: Notes with entity context
@@ -1325,7 +1325,7 @@ select
     n.updated_at,
     n.created_by,
     case n.entity_type
-        when 'scan' then (select profile from uni_scans where scans_id = n.entity_id)
+        when 'scan' then (select profile from uni_scan where scan_id = n.entity_id)
         when 'host' then (select host(host_addr) from uni_hosts where host_id = n.entity_id)
         else null
     end as entity_name
@@ -1396,7 +1396,7 @@ create sequence "uni_geoip_id_seq";
 create table "uni_geoip" (
     "geoip_id"       int8 not null default nextval('uni_geoip_id_seq'),
     "host_ip"        inet not null,
-    "scans_id"       int8 not null,
+    "scan_id"       int8 not null,
 
     -- Geographic data
     "country_code"   char(2),
@@ -1424,12 +1424,12 @@ create table "uni_geoip" (
     "extra_data"     jsonb default '{}'::jsonb,
 
     primary key ("geoip_id"),
-    constraint "uni_geoip_unique" unique ("host_ip", "scans_id")
+    constraint "uni_geoip_unique" unique ("host_ip", "scan_id")
 );
 
 -- Indexes for common query patterns
 create index idx_geoip_host on uni_geoip("host_ip");
-create index idx_geoip_scan on uni_geoip("scans_id");
+create index idx_geoip_scan on uni_geoip("scan_id");
 create index idx_geoip_country on uni_geoip("country_code");
 create index idx_geoip_type on uni_geoip("ip_type") where "ip_type" is not null;
 create index idx_geoip_asn on uni_geoip("asn") where "asn" is not null;
@@ -1437,7 +1437,7 @@ create index idx_geoip_location on uni_geoip("latitude", "longitude") where "lat
 
 -- Foreign key constraint
 alter table "uni_geoip" add constraint "uni_geoip_scans_FK"
-    foreign key("scans_id") references "uni_scans"("scans_id") on delete cascade;
+    foreign key("scan_id") references "uni_scan"("scan_id") on delete cascade;
 
 -- RLS (Row Level Security)
 alter table "uni_geoip" enable row level security;
@@ -1450,7 +1450,7 @@ with (security_invoker = true) as
 select
     g.geoip_id,
     g.host_ip,
-    g.scans_id,
+    g.scan_id,
     g.country_code,
     g.country_name,
     g.region_code,
@@ -1477,7 +1477,7 @@ order by g.lookup_time desc;
 create or replace view v_geoip_stats
 with (security_invoker = true) as
 select
-    g.scans_id,
+    g.scan_id,
     g.country_code,
     g.country_name,
     count(*) as host_count,
@@ -1489,7 +1489,7 @@ select
     count(case when g.ip_type = 'tor' then 1 end) as tor_count,
     count(case when g.ip_type = 'mobile' then 1 end) as mobile_count
 from uni_geoip g
-group by g.scans_id, g.country_code, g.country_name
+group by g.scan_id, g.country_code, g.country_name
 order by host_count desc;
 
 -- Record schema version
