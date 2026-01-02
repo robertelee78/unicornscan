@@ -58,9 +58,9 @@ export function HostDetailHeader({
         <div>
           <h1 className="text-2xl font-bold font-mono flex items-center gap-3">
             {host.ip_addr ?? host.host_addr}
-            {host.os_guess && (
+            {(host.os_name || host.os_family || host.os_guess) && (
               <Badge variant="outline" className="text-sm font-normal">
-                {host.os_guess}
+                {host.os_name || host.os_family || host.os_guess}
               </Badge>
             )}
           </h1>

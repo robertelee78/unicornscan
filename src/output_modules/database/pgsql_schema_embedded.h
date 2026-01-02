@@ -1096,17 +1096,23 @@ static const char *pgsql_schema_v5_functions_ddl =
  * Schema v5 views - views for frontend support tables
  */
 static const char *pgsql_schema_v5_views_ddl =
-	/* v_hosts: Aggregate host information with calculated port count */
+	/* v_hosts: Aggregate host information with calculated port count and OS fingerprint */
 	"CREATE OR REPLACE VIEW v_hosts WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    h.host_id,\n"
 	"    h.host_addr,\n"
 	"    h.mac_addr,\n"
+	"    COALESCE(h.mac_addr, (SELECT mh.mac_addr FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr ORDER BY mh.last_seen DESC LIMIT 1)) AS current_mac,\n"
 	"    h.hostname,\n"
 	"    h.first_seen,\n"
 	"    h.last_seen,\n"
 	"    COALESCE((SELECT COUNT(DISTINCT hs.scans_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id), 0)::int4 AS scan_count,\n"
 	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    COALESCE((SELECT COUNT(*) FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr), 0)::int4 AS mac_count,\n"
+	"    (SELECT os.os_family FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_family,\n"
+	"    (SELECT os.os_name FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_name,\n"
+	"    (SELECT os.os_version FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_version,\n"
+	"    (SELECT os.device_type FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS device_type,\n"
 	"    h.extra_data\n"
 	"FROM uni_hosts h\n"
 	"ORDER BY h.last_seen DESC;\n"
@@ -1454,7 +1460,7 @@ static const char *pgsql_schema_v8_views_ddl =
 	"ORDER BY COUNT(*) DESC, MAX(last_seen) DESC;\n";
 
 /*
- * Schema v8 update v_hosts view - add current_mac and mac_count
+ * Schema v8 update v_hosts view - add current_mac, mac_count, and OS fingerprint data
  */
 static const char *pgsql_schema_v8_update_v_hosts_ddl =
 	"CREATE OR REPLACE VIEW v_hosts WITH (security_invoker = true) AS\n"
@@ -1473,6 +1479,10 @@ static const char *pgsql_schema_v8_update_v_hosts_ddl =
 	"    COALESCE((SELECT COUNT(DISTINCT hs.scans_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id), 0)::int4 AS scan_count,\n"
 	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
 	"    COALESCE((SELECT COUNT(*) FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr), 0)::int4 AS mac_count,\n"
+	"    (SELECT os.os_family FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_family,\n"
+	"    (SELECT os.os_name FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_name,\n"
+	"    (SELECT os.os_version FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_version,\n"
+	"    (SELECT os.device_type FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS device_type,\n"
 	"    h.extra_data\n"
 	"FROM uni_hosts h\n"
 	"ORDER BY h.last_seen DESC;\n";

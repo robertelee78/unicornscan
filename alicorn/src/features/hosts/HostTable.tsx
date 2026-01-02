@@ -153,9 +153,9 @@ function HostRow({ host }: HostRowProps) {
         )}
       </td>
       <td className="py-3 pr-4">
-        {host.os_guess ? (
+        {(host.os_name || host.os_family || host.os_guess) ? (
           <Badge variant="outline" className="text-xs">
-            {host.os_guess}
+            {host.os_name || host.os_family || host.os_guess}
           </Badge>
         ) : (
           <span className="text-muted">—</span>
