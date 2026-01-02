@@ -45,8 +45,7 @@ static char *eptr=NULL;
 	buf_t buf;
 }
 
-%token NUMBER UNUMBER STR BSTR WORD
-%token PAYLOADS GLOBAL MODULE BOOL
+%token PAYLOADS GLOBAL MODULE
 
 %token <inum> NUMBER
 %token <uinum> UNUMBER BOOL
