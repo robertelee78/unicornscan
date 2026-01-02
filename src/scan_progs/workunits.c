@@ -81,8 +81,13 @@ void workunit_reinit(void) {
 	s->swu=fifo_init();
 	s->lwu=fifo_init();
 
-	/* Reset workunit sequence for new phase */
-	s->wk_seq=0;
+	/*
+	 * DO NOT reset wk_seq here! The workunit ID (wid) must remain unique
+	 * across ALL phases within a scan. The database has a unique constraint
+	 * on (scan_id, wid), and scan_id stays constant across phases.
+	 * Resetting wk_seq causes duplicate key violations in uni_sworkunits
+	 * and uni_lworkunits tables during compound mode scans (e.g., -mA+T).
+	 */
 
 	/*
 	 * Reset scan_iter so that workunits created by do_targets() will have
