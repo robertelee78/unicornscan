@@ -1,8 +1,8 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.25
-Release:        3%{?dist}
+Version:        0.4.26
+Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
 License:        GPL-2.0-or-later

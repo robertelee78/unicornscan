@@ -1,15 +1,30 @@
-unicornscan (0.4.25-3) unstable; urgency=medium
+unicornscan (0.4.26-1) unstable; urgency=medium
+
+  * Fix pgsql_escstr static buffer bugs (critical)
+    - Fixed 3 functions with consecutive pgsql_escstr calls that clobbered
+      the static buffer, causing data corruption in database inserts:
+      - pgsql_insert_service() - 5 fields now use local buffers
+      - pgsql_insert_os_fingerprint() - 6 fields now use local buffers
+      - pgsql_insert_geoip() - 14 fields now use local buffers
+    - Root cause of uni_hosts table not being populated
+
+  * Add CODING_STANDARDS.md
+    - Documents Jack Louis's 2004-2006 static buffer patterns
+    - Prevents future developers from repeating this class of bug
 
   * Fix MAC capture for IP reports
     - Remove broken subnet check that prevented MAC capture
     - MAC now correctly captured from Ethernet header for all responses
-    - Verified: eth_hwaddr populated in uni_ipreport table
 
   * Fix TCP flags display in Alicorn frontend
     - Use report.type field (TCP header flags) not report.flags (CRC errors)
     - Fixed in ResultsTab, HostsTab, hooks, and all export utilities
 
- -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 18:10:00 -0800
+  * Build system fixes
+    - Fix parse.y bison warnings (duplicate token declarations)
+    - Fix parse Makefile race condition in parallel builds
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 01 Jan 2026 20:00:00 -0800
 
 unicornscan (0.4.25-2) unstable; urgency=medium
 
