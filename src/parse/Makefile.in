@@ -16,8 +16,8 @@ prepare: $(BOB)
 $(LIBNAME): $(OBJS) $(HDRS)
 	$(LIBTOOL) --mode=link $(CC) $(CFLAGS) -o $(LIBNAME) $(OBJS)
 
-parse.tab.c: parse.y
-	$(BISON) -puu parse.y
+parse.tab.c parse.tab.h: parse.y
+	$(BISON) -d -puu parse.y
 
 lex.uu.c: parse.l parse.tab.h
 	$(FLEX) -Puu parse.l
