@@ -175,6 +175,9 @@ function HostRow({ host, isExpanded, onToggleExpand }: HostRowProps) {
   const portCount = host.port_count ?? 0
   const ipAddr = host.host_addr ?? host.ip_addr
   const macAddr = host.current_mac || host.mac_addr
+  // v11: Get all MACs observed for this IP
+  const allMacs = host.mac_addrs?.filter(Boolean) || (macAddr ? [macAddr] : [])
+  const hasMultipleMacs = allMacs.length > 1
   const vendor = getVendorSync(macAddr)
 
   return (
@@ -209,7 +212,31 @@ function HostRow({ host, isExpanded, onToggleExpand }: HostRowProps) {
         </td>
         <td className="py-3 pr-4 text-xs">
           {macAddr ? (
-            <span className="uppercase">{formatMac(macAddr)}</span>
+            hasMultipleMacs ? (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="uppercase cursor-default inline-flex items-center gap-1">
+                      {formatMac(macAddr)}
+                      <span className="text-yellow-500 text-[10px]">+{allMacs.length - 1}</span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="text-yellow-400 mb-1">{allMacs.length} MAC addresses observed:</p>
+                    <ul className="space-y-0.5">
+                      {allMacs.map((mac, idx) => (
+                        <li key={mac} className="uppercase font-mono text-xs">
+                          {formatMac(mac)}
+                          {idx === 0 && <span className="text-muted ml-1">(most recent)</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <span className="uppercase">{formatMac(macAddr)}</span>
+            )
           ) : (
             <span className="text-muted">—</span>
           )}
@@ -349,7 +376,8 @@ function ExpandedHostPorts({ hostIp }: ExpandedHostPortsProps) {
             {entries.map((entry) => {
               const portKey = `${entry.port}-${entry.protocol}`
               const isPortExpanded = expandedPorts.has(portKey)
-              const hasHistory = entry.history.length > 1
+              // Show expand if multiple observations OR any expandable banner
+              const canExpand = entry.history.length > 1 || !!entry.latestBanner
 
               return (
                 <Fragment key={portKey}>
@@ -357,11 +385,11 @@ function ExpandedHostPorts({ hostIp }: ExpandedHostPortsProps) {
                   <AggregatedPortRow
                     entry={entry}
                     isExpanded={isPortExpanded}
-                    hasHistory={hasHistory}
+                    canExpand={canExpand}
                     onToggleExpand={() => togglePortExpanded(portKey)}
                   />
-                  {/* Expanded history rows */}
-                  {isPortExpanded && hasHistory && (
+                  {/* Expanded history/banner rows */}
+                  {isPortExpanded && canExpand && (
                     <tr className="bg-muted/10">
                       <td colSpan={9} className="p-0">
                         <PortHistorySubTable
@@ -386,22 +414,22 @@ function ExpandedHostPorts({ hostIp }: ExpandedHostPortsProps) {
 interface AggregatedPortRowProps {
   entry: AggregatedPortEntry
   isExpanded: boolean
-  hasHistory: boolean
+  canExpand: boolean
   onToggleExpand: () => void
 }
 
-function AggregatedPortRow({ entry, isExpanded, hasHistory, onToggleExpand }: AggregatedPortRowProps) {
+function AggregatedPortRow({ entry, isExpanded, canExpand, onToggleExpand }: AggregatedPortRowProps) {
   const { latest, latestBanner, bannerFromOlderScan, latestBannerScanId, latestBannerTimestamp } = entry
 
   return (
     <tr className="border-b border-border/30 hover:bg-muted/20">
-      {/* Expand toggle for history */}
+      {/* Expand toggle for history/banner */}
       <td className="py-1.5 pr-2 w-6">
-        {hasHistory ? (
+        {canExpand ? (
           <button
             onClick={onToggleExpand}
             className="text-muted hover:text-foreground transition-colors"
-            aria-label={isExpanded ? 'Collapse history' : 'Expand history'}
+            aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
           >
             {isExpanded ? (
               <ChevronDown className="h-3 w-3" />
