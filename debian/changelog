@@ -1,3 +1,12 @@
+unicornscan (0.4.27-1) unstable; urgency=medium
+
+  * Add OS fingerprint data to v_hosts view
+    - OS family, name, version, and device type now included in hosts view
+    - Alicorn frontend now displays OS info on hosts page
+    - Fixed: OS detection results were being stored but not displayed
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 01 Jan 2026 21:00:00 -0800
+
 unicornscan (0.4.26-1) unstable; urgency=medium
 
   * Fix pgsql_escstr static buffer bugs (critical)

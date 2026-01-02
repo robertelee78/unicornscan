@@ -179,7 +179,11 @@ export interface Host {
   mac_addr: string | null
   current_mac?: string | null  // v8: Most recent MAC from history (or mac_addr if set)
   hostname: string | null
-  os_guess?: string | null // From OS fingerprinting (optional)
+  os_guess?: string | null // From OS fingerprinting (optional, deprecated - use os_name)
+  os_family?: string | null    // v10: OS family (e.g., "Linux", "Windows", "BSD")
+  os_name?: string | null      // v10: OS name (e.g., "Linux", "Windows 10")
+  os_version?: string | null   // v10: OS version (e.g., "2.6", "10.0")
+  device_type?: string | null  // v10: Device type (e.g., "general purpose", "router")
   first_seen: string | number  // ISO 8601 string from timestamptz, or Unix timestamp
   last_seen: string | number   // ISO 8601 string from timestamptz, or Unix timestamp
   scan_count: number       // Number of unique scans this host appeared in
