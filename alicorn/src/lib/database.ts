@@ -677,30 +677,30 @@ class RestDatabase implements DatabaseClient {
 
     // Build queries with optional time filter
     const scansQuery = this.client.from('uni_scan').select('*', { count: 'exact', head: true })
-    const hostsQuery = this.client.from('uni_hosts').select('*', { count: 'exact', head: true })
     const responsesQuery = this.client.from('uni_ipreport').select('*', { count: 'exact', head: true })
-    const portsQuery = this.client.from('uni_ipreport').select('sport')
+    // Get host_addr, sport, and type from responses to count unique hosts and port:protocol pairs
+    const detailsQuery = this.client.from('uni_ipreport').select('host_addr, sport, type')
 
     if (since !== null) {
       scansQuery.gte('s_time', since)
-      hostsQuery.gte('last_seen', since)
       responsesQuery.gte('tstamp', since)
-      portsQuery.gte('tstamp', since)
+      detailsQuery.gte('tstamp', since)
     }
 
-    const [scansResult, hostsResult, responsesResult, portsResult] = await Promise.all([
+    const [scansResult, responsesResult, detailsResult] = await Promise.all([
       scansQuery,
-      hostsQuery,
       responsesQuery,
-      portsQuery,
+      detailsQuery,
     ])
 
-    // Count unique ports
-    const uniquePorts = new Set(portsResult.data?.map((r) => r.sport) || [])
+    // Count unique hosts and port:protocol pairs from the responses in the time window
+    const uniqueHosts = new Set(detailsResult.data?.map((r) => r.host_addr) || [])
+    // Count unique (port, protocol) pairs - 53/TCP is different from 53/UDP
+    const uniquePorts = new Set(detailsResult.data?.map((r) => `${r.sport}:${r.type}`) || [])
 
     return {
       totalScans: scansResult.count || 0,
-      totalHosts: hostsResult.count || 0,
+      totalHosts: uniqueHosts.size,
       totalResponses: responsesResult.count || 0,
       uniquePorts: uniquePorts.size,
     }

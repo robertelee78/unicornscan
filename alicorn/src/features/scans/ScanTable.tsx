@@ -144,7 +144,7 @@ export function ScanTable({
               </td>
               <td className="py-3 px-2">{scan.host_count}</td>
               <td className="py-3 px-2">{scan.port_count}</td>
-              <td className="py-3 px-2">{formatDuration(scan.e_time - scan.s_time)}</td>
+              <td className="py-3 px-2">{formatDuration(scan.s_time, scan.e_time)}</td>
               <td className="py-3 px-2" title={formatTimestamp(scan.s_time)}>
                 {formatRelativeTime(scan.s_time)}
               </td>
@@ -202,7 +202,12 @@ function SortableHeader({ field, label, sort, onSort }: SortableHeaderProps) {
   )
 }
 
-function formatDuration(seconds: number): string {
+function formatDuration(start: number, end: number): string {
+  // Handle incomplete scans (e_time = 0 means scan didn't finish cleanly)
+  if (end === 0 || end < start) {
+    return 'In progress'
+  }
+  const seconds = end - start
   if (seconds < 60) return `${seconds}s`
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
   const hours = Math.floor(seconds / 3600)
