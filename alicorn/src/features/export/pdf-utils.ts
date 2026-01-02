@@ -8,7 +8,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Scan, IpReport, Host } from '@/types/database'
 import { decodeTcpFlags, getProtocolName } from '@/types/database'
-import { parseTimestamp } from '@/lib/utils'
+import { parseTimestamp, getHostIpAddr } from '@/lib/utils'
 import type {
   ScanExportData,
   HostExportData,
@@ -383,7 +383,8 @@ export function exportHostToPDF(
   let currentPage = 1
   let yPosition = HEADER_HEIGHT
 
-  addPageHeader(doc, `Host Report: ${data.host.ip_addr}`, currentPage)
+  const hostIp = getHostIpAddr(data.host)
+  addPageHeader(doc, `Host Report: ${hostIp}`, currentPage)
 
   // Host metadata section
   yPosition = addHostMetadataSection(doc, data.host, yPosition)
@@ -393,7 +394,7 @@ export function exportHostToPDF(
     if (yPosition > doc.internal.pageSize.getHeight() - 60) {
       doc.addPage()
       currentPage++
-      addPageHeader(doc, `Host Report: ${data.host.ip_addr}`, currentPage)
+      addPageHeader(doc, `Host Report: ${hostIp}`, currentPage)
       yPosition = HEADER_HEIGHT
     }
 
