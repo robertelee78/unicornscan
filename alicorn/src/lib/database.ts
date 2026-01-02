@@ -92,6 +92,16 @@ export interface DatabaseClient {
   getHostByIp(ip: string): Promise<Host | null>
   getHostSummaries(scansId?: number): Promise<HostSummary[]>
 
+  // Host-centric queries (optimized - avoids N+1)
+  getReportsForHost(hostAddr: string): Promise<IpReport[]>
+  getScansForHost(hostAddr: string): Promise<Array<{
+    scansId: number
+    scanTime: number
+    profile: string
+    targetStr: string | null
+    portsFound: number
+  }>>
+
   // Dashboard (time-filtered)
   getDashboardStats(options: { since: number | null }): Promise<DashboardStats>
   getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]>
@@ -520,6 +530,75 @@ class RestDatabase implements DatabaseClient {
       open_ports: [],
       last_seen: host.last_seen,
       scan_count: host.scan_count,
+    }))
+  }
+
+  // ===========================================================================
+  // Host-Centric Queries (optimized to avoid N+1 problem)
+  // ===========================================================================
+
+  /**
+   * Get all IP reports for a specific host across all scans.
+   * Single query - O(1) database round trips.
+   */
+  async getReportsForHost(hostAddr: string): Promise<IpReport[]> {
+    const { data, error } = await this.client
+      .from('uni_ipreport')
+      .select('*')
+      .eq('host_addr', hostAddr)
+      .order('scans_id', { ascending: false })
+      .order('dport', { ascending: true })
+
+    if (error) throw error
+    return data as IpReport[]
+  }
+
+  /**
+   * Get all scans that contain reports for a specific host.
+   * Uses 2 queries instead of N+1:
+   *   1. Fetch all reports for host (get unique scans_ids)
+   *   2. Fetch scan details for those IDs
+   */
+  async getScansForHost(hostAddr: string): Promise<Array<{
+    scansId: number
+    scanTime: number
+    profile: string
+    targetStr: string | null
+    portsFound: number
+  }>> {
+    // Query 1: Get all reports for this host (includes scans_id)
+    const { data: reports, error: reportsError } = await this.client
+      .from('uni_ipreport')
+      .select('scans_id')
+      .eq('host_addr', hostAddr)
+
+    if (reportsError) throw reportsError
+    if (!reports || reports.length === 0) return []
+
+    // Aggregate: count ports per scan
+    const scanPortCounts = new Map<number, number>()
+    for (const r of reports) {
+      scanPortCounts.set(r.scans_id, (scanPortCounts.get(r.scans_id) || 0) + 1)
+    }
+
+    const uniqueScanIds = Array.from(scanPortCounts.keys())
+
+    // Query 2: Get scan details for those IDs
+    const { data: scans, error: scansError } = await this.client
+      .from('uni_scans')
+      .select('scans_id, s_time, profile, target_str')
+      .in('scans_id', uniqueScanIds)
+      .order('s_time', { ascending: false })
+
+    if (scansError) throw scansError
+
+    // Combine scan details with port counts
+    return (scans || []).map(scan => ({
+      scansId: scan.scans_id,
+      scanTime: scan.s_time,
+      profile: scan.profile,
+      targetStr: scan.target_str,
+      portsFound: scanPortCounts.get(scan.scans_id) || 0,
     }))
   }
 

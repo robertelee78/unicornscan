@@ -496,8 +496,8 @@ export function exportHostsListToPDF(
 
   addPageHeader(doc, 'Host Inventory Report', 1)
 
-  // Summary
-  const getPortCount = (h: Host) => h.open_port_count ?? h.port_count
+  // Summary (port_count = responding ports, not "open" in nmap sense)
+  const getPortCount = (h: Host) => h.port_count ?? 0
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text(`Total Hosts: ${hosts.length}`, PAGE_MARGIN, yPosition)
@@ -579,7 +579,7 @@ function addHostMetadataSection(doc: jsPDF, host: Host, startY: number): number 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
 
-  const portCount = host.open_port_count ?? host.port_count
+  const portCount = host.port_count ?? 0
   const metadata = [
     ['IP Address:', host.ip_addr ?? host.host_addr],
     ['Hostname:', host.hostname ?? '-'],

@@ -284,7 +284,7 @@ function NodeDetails({ node }: NodeDetailsProps) {
       {node.type === 'host' && (
         <div className="pt-2">
           <Button variant="outline" size="sm" className="w-full" asChild>
-            <Link to={`/hosts?ip=${node.id}`}>
+            <Link to={`/hosts/${encodeURIComponent(node.id)}`}>
               View Host Details
             </Link>
           </Button>

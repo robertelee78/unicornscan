@@ -57,7 +57,7 @@ function buildTopologyData(
   // Add hosts as nodes
   for (const host of hosts) {
     const hostIp = host.ip_addr ?? host.host_addr
-    const portCount = host.open_port_count ?? host.port_count
+    const portCount = host.port_count ?? 0
     // Try to infer OS from reports for this host
     const hostReports = reports.filter(r => r.host_addr === hostIp)
     const avgTtl = hostReports.length > 0
@@ -246,7 +246,7 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
 
     // Apply filters
     if (filters.minPorts !== undefined) {
-      hosts = hosts.filter(h => (h.open_port_count ?? h.port_count) >= filters.minPorts!)
+      hosts = hosts.filter(h => (h.port_count ?? 0) >= filters.minPorts!)
     }
     if (filters.since !== undefined) {
       hosts = hosts.filter(h => parseTimestamp(h.last_seen) >= filters.since!)

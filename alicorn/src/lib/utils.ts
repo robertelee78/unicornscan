@@ -93,3 +93,63 @@ export function formatPort(port: number): string {
   const name = getPortName(port)
   return name ? `${port}/${name}` : `${port}`
 }
+
+// =============================================================================
+// Host Utilities
+// =============================================================================
+
+import type { Host } from '@/types/database'
+
+/**
+ * Get responding port count for a host.
+ *
+ * Note: unicornscan reports "responding ports" (got a packet back), not
+ * "open ports" in the nmap sense. The `port_count` field is canonical;
+ * `open_port_count` is a deprecated legacy field.
+ */
+export function getHostPortCount(host: Host): number {
+  return host.port_count ?? 0
+}
+
+/**
+ * Get the canonical IP address for a host.
+ * Falls back to host_addr (guaranteed in DB) if ip_addr is not set.
+ */
+export function getHostIpAddr(host: Host): string {
+  return host.ip_addr ?? host.host_addr
+}
+
+/**
+ * Get the MAC address for a host, preferring current_mac from v8 schema.
+ */
+export function getHostMacAddr(host: Host): string | null {
+  return host.current_mac || host.mac_addr || null
+}
+
+// =============================================================================
+// Scan Utilities
+// =============================================================================
+
+/**
+ * Format scan mode string consistently.
+ * Returns 'Unknown' for null/undefined modes.
+ */
+export function formatScanMode(mode: string | null | undefined): string {
+  return mode || 'Unknown'
+}
+
+/**
+ * Format MAC address to canonical uppercase colon-separated format.
+ * Handles various input formats:
+ * - Colon-separated: 00:11:22:33:44:55
+ * - Dash-separated: 00-11-22-33-44-55
+ * - Raw hex: 001122334455
+ */
+export function formatMac(mac: string): string {
+  if (mac.includes(':')) return mac.toUpperCase()
+  if (mac.includes('-')) return mac.replace(/-/g, ':').toUpperCase()
+  if (mac.length === 12) {
+    return mac.match(/.{2}/g)?.join(':').toUpperCase() || mac.toUpperCase()
+  }
+  return mac.toUpperCase()
+}

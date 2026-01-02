@@ -191,7 +191,7 @@ function hostToJSON(host: Host, depth: MetadataDepth): HostJSONBasic | HostJSONS
   const basic: HostJSONBasic = {
     id: host.host_id,
     ipAddr: host.ip_addr ?? host.host_addr,
-    portCount: host.open_port_count ?? host.port_count,
+    portCount: host.port_count ?? 0,
   }
 
   if (depth === 'basic') return basic
@@ -290,7 +290,7 @@ export function exportHostsListToJSON(
   hosts: Host[],
   depth: MetadataDepth
 ): string {
-  const getPortCount = (h: Host) => h.open_port_count ?? h.port_count
+  const getPortCount = (h: Host) => h.port_count ?? 0
   const output = {
     _metadata: createMetadata(depth),
     hosts: hosts.map((h) => hostToJSON(h, depth)),
