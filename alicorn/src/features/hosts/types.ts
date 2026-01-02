@@ -56,6 +56,28 @@ export interface PortHistoryEntry {
   banner?: string
 }
 
+// Aggregated port entry: shows latest observation with latest banner
+// Groups by port+protocol, limits history to 10 entries
+export interface AggregatedPortEntry {
+  // Key fields
+  port: number
+  protocol: string
+
+  // Latest observation data
+  latest: PortHistoryEntry
+
+  // Latest non-null banner (may be from older scan)
+  latestBanner?: string
+  latestBannerScanId?: number
+  latestBannerTimestamp?: number
+
+  // Whether banner is from a different (older) scan than latest observation
+  bannerFromOlderScan: boolean
+
+  // Historical entries (max 10, sorted by timestamp desc)
+  history: PortHistoryEntry[]
+}
+
 // Associated scan for a host
 export interface HostScanEntry {
   scan_id: number
