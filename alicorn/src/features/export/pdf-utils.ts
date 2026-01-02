@@ -647,7 +647,7 @@ function addReportsTable(
 
     base.push(
       r.ttl,
-      decodeTcpFlags(r.flags).join(','),
+      decodeTcpFlags(r.type).join(','),  // TCP flags are in type field
       new Date(r.tstamp * 1000).toLocaleTimeString()
     )
 

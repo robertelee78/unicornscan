@@ -109,8 +109,8 @@ export function reportToCSVRow(report: IpReport, service?: string): ReportCSVRow
     port: report.dport,
     protocol: getProtocolName(report.proto),
     ttl: report.ttl,
-    flags: report.flags,
-    flags_decoded: decodeTcpFlags(report.flags).join(','),
+    flags: report.type,  // TCP flags are in type field, flags is for CRC errors
+    flags_decoded: decodeTcpFlags(report.type).join(','),
     timestamp: new Date(report.tstamp * 1000).toISOString(),
     window_size: report.window_size,
     service,

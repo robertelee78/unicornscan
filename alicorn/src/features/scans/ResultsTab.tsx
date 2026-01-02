@@ -53,8 +53,10 @@ interface ResultRowProps {
 }
 
 function ResultRow({ report }: ResultRowProps) {
-  // TCP flags from report.flags (NOT report.type which is ICMP type code)
-  const flags = decodeTcpFlags(report.flags)
+  // For TCP (proto=6): type contains TCP header flags (SYN, ACK, etc.)
+  // For ICMP: type is ICMP type code, subtype is ICMP code
+  // flags field is for CRC/checksum errors, not TCP flags
+  const flags = decodeTcpFlags(report.type)
   const protocol = getProtocolName(report.proto)
 
   return (
