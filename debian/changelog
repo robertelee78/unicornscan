@@ -1,3 +1,31 @@
+unicornscan (0.4.29-1) unstable; urgency=medium
+
+  * Fix Dashboard "Hosts Discovered = 0" bug
+    - Now correctly counts unique hosts from uni_ipreport responses
+    - Removed stale time filter on uni_hosts table
+
+  * Improve Dashboard chart usability
+    - Add dual Y-axes to Scan Activity chart (Scans left, Responses right)
+    - Protocol Distribution: show scan IDs on X-axis, clickable navigation
+    - Unique Ports now counts (port, protocol) pairs for accuracy
+    - Protocol Breakdown based on unique (host, port) pairs per protocol
+
+  * Fix Host Detail page
+    - Remove redundant "Port Observations" stat
+    - Fix "Responding Ports" to show unique port:protocol pairs
+
+  * Add banner display to Hosts pages
+    - Expandable rows show service banners
+    - Aggregated port history with smart banner handling
+
+  * Fix duplicate key constraint violations in compound mode scans
+
+  * Fix port expand/collapse and duplicate IP display issues
+
+  * Fix ScanTable duration display for in-progress scans (e_time=0)
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 15:30:00 -0800
+
 unicornscan (0.4.28-1) unstable; urgency=medium
 
   * Rename uni_scans table to uni_scan (singular, Jack Louis naming convention)
