@@ -2,7 +2,7 @@
 
 Name:           unicornscan
 Version:        0.4.25
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
 License:        GPL-2.0-or-later
@@ -84,7 +84,35 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %dir %{_localstatedir}/unicornscan
 
 %changelog
-* Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.24-1
+* Thu Jan 02 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.25-2
+- Alicorn frontend fixes (16 broken windows resolved)
+- Fix TCP flags using wrong IpReport field in 3 components
+- Fix port history flags using wrong field (subtype->flags)
+- Standardize on port_count field (deprecate open_port_count)
+- Add IP-based host routing for consistency across views
+- Fix N+1 query issues with optimized database methods
+- Add accessible Radix tooltips replacing HTML title attributes
+- Consolidate duplicate formatMac utility functions
+- Fix MAC display in host tables and detail views
+- Add proper null handling for optional host.ip_addr field
+
+* Wed Jan 01 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.25-1
+- MAC address capture for local network targets (schema v9)
+- Captures Ethernet source MAC from response packets for L2-local hosts
+- New is_local_target() function detects hosts reachable without gateway
+- MAC stored in uni_ipreport.eth_hwaddr column (MACADDR type)
+- MAC<->IP history tracking for IP reports (like ARP scans)
+- Alicorn UI displays MAC column in IP reports table
+- Automatic v8->v9 migration adds eth_hwaddr column
+
+* Wed Jan 01 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.24-1
+- Store target specification in database (schema v7)
+- Add target_str column to uni_scans table for original command line targets
+- Shows "192.168.1.0/24" or "scanme.nmap.org" in web UI
+- Automatic migration from v6 schema adds column to existing databases
+- Alicorn UI displays target in scan list and detail views
+
+* Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.22-1
 - unicornscan-web generates random password on first start
 - Auto-configure modules.conf so -epgsqldb just works
 - Add 'unicornscan-web password' command to show password

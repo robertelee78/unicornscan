@@ -21,6 +21,20 @@ src/tools/fantaip
 src/tools/unibrow
 src/tools/unicfgtst
 
+
+# Removed Windows wrapper files per user request
+hive-mind-prompt-*.txt
+
+# Build artifacts
+*.loT
+src/scan_progs/unilisten
+src/scan_progs/unisend
+p0f_*.deb
+configure~
+
+# Release packages (built locally)
+releases/
+
 # Claude Flow generated files
 .claude/settings.local.json
 .mcp.json
@@ -47,10 +61,3 @@ coordination/orchestration/*
 claude-flow
 # Removed Windows wrapper files per user request
 hive-mind-prompt-*.txt
-
-# Build artifacts
-*.loT
-src/scan_progs/unilisten
-src/scan_progs/unisend
-p0f_*.deb
-configure~
