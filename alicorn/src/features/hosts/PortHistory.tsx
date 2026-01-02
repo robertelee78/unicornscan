@@ -131,7 +131,8 @@ export function PortHistory({ entries, isLoading }: PortHistoryProps) {
               {entries.map((entry) => {
                 const portKey = `${entry.port}-${entry.protocol}`
                 const isExpanded = expandedPorts.has(portKey)
-                const hasHistory = entry.history.length > 1
+                // Show expand if multiple observations OR any expandable banner
+                const canExpand = entry.history.length > 1 || !!entry.latestBanner
 
                 return (
                   <Fragment key={portKey}>
@@ -139,11 +140,11 @@ export function PortHistory({ entries, isLoading }: PortHistoryProps) {
                     <AggregatedPortRow
                       entry={entry}
                       isExpanded={isExpanded}
-                      hasHistory={hasHistory}
+                      canExpand={canExpand}
                       onToggleExpand={() => togglePortExpanded(portKey)}
                     />
-                    {/* Expanded history rows */}
-                    {isExpanded && hasHistory && (
+                    {/* Expanded history/banner rows */}
+                    {isExpanded && canExpand && (
                       <tr className="bg-muted/10">
                         <td colSpan={9} className="p-0">
                           <PortHistoryTable
@@ -169,22 +170,22 @@ export function PortHistory({ entries, isLoading }: PortHistoryProps) {
 interface AggregatedPortRowProps {
   entry: AggregatedPortEntry
   isExpanded: boolean
-  hasHistory: boolean
+  canExpand: boolean
   onToggleExpand: () => void
 }
 
-function AggregatedPortRow({ entry, isExpanded, hasHistory, onToggleExpand }: AggregatedPortRowProps) {
+function AggregatedPortRow({ entry, isExpanded, canExpand, onToggleExpand }: AggregatedPortRowProps) {
   const { latest, latestBanner, bannerFromOlderScan, latestBannerScanId, latestBannerTimestamp } = entry
 
   return (
     <tr className="border-b border-border/50 hover:bg-muted/30">
-      {/* Expand toggle */}
+      {/* Expand toggle for history/banner */}
       <td className="py-2 pr-2 w-6">
-        {hasHistory ? (
+        {canExpand ? (
           <button
             onClick={onToggleExpand}
             className="text-muted hover:text-foreground transition-colors"
-            aria-label={isExpanded ? 'Collapse history' : 'Expand history'}
+            aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
           >
             {isExpanded ? (
               <ChevronDown className="h-4 w-4" />

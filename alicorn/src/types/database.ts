@@ -178,6 +178,7 @@ export interface Host {
   ip_addr?: string         // Alias for compatibility
   mac_addr: string | null
   current_mac?: string | null  // v8: Most recent MAC from history (or mac_addr if set)
+  mac_addrs?: string[] | null  // v11: All MACs observed for this IP (aggregated from uni_hosts)
   hostname: string | null
   os_guess?: string | null // From OS fingerprinting (optional, deprecated - use os_name)
   os_family?: string | null    // v10: OS family (e.g., "Linux", "Windows", "BSD")
