@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
+import { searchVendors, macMatchesOuis, isOuiLoaded } from '@/lib/oui'
 import type { Host, IpReport } from '@/types/database'
 import type { HostFilters, SortState, PaginationState, PortHistoryEntry, HostScanEntry } from './types'
 
@@ -71,6 +72,17 @@ export function useHostList(
       filtered = filtered.filter((h) =>
         filters.hasOpenPorts ? getPortCount(h) > 0 : getPortCount(h) === 0
       )
+    }
+
+    // Apply vendor filter (requires OUI data to be loaded)
+    if (filters.vendorFilter && isOuiLoaded()) {
+      // Get all matching OUI prefixes for the vendor query
+      const matches = searchVendors(filters.vendorFilter, 1000)
+      const ouiPrefixes = matches.map((m) => m.oui)
+      filtered = filtered.filter((h) => {
+        const mac = h.current_mac || h.mac_addr
+        return macMatchesOuis(mac, ouiPrefixes)
+      })
     }
 
     const total = filtered.length
@@ -145,15 +157,21 @@ export function useHostPortHistory(hostIp: string) {
 
       for (const scan of scans) {
         const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
+        const banners = await db.getBannersForScan(scan.scan_id)
         for (const report of reports) {
           entries.push({
             scan_id: scan.scan_id,
             scan_time: scan.s_time,
-            port: report.dport,
+            port: report.sport,  // sport = target's port (from response packet)
             protocol: report.proto === 6 ? 'tcp' : report.proto === 17 ? 'udp' : 'other',
             ttl: report.ttl,
             // For TCP: type contains TCP header flags; flags is for CRC errors
             flags: report.type,
+            window_size: report.window_size,
+            eth_hwaddr: report.eth_hwaddr,
+            tstamp: report.tstamp,
+            ipreport_id: report.ipreport_id,
+            banner: banners.get(report.ipreport_id),
           })
         }
       }
