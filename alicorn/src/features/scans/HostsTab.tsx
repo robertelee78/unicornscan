@@ -118,8 +118,8 @@ function HostCard({ group }: HostCardProps) {
             </thead>
             <tbody className="font-mono">
               {reports.map((report) => {
-                // TCP flags from report.flags (NOT report.type which is ICMP type code)
-                const flags = decodeTcpFlags(report.flags)
+                // For TCP: type contains TCP header flags; flags is for CRC errors
+                const flags = decodeTcpFlags(report.type)
                 return (
                   <tr key={report.ipreport_id} className="border-b border-border/50">
                     <td className="py-1.5 pr-4">

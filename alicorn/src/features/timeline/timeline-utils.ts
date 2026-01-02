@@ -36,7 +36,7 @@ export function reportToObservation(report: IpReport, scan: Scan): PortObservati
     port: report.dport,
     protocol,
     ttl: report.ttl,
-    flags: report.flags ?? report.subtype,
+    flags: report.type,  // TCP flags are in type field (not flags which is CRC errors)
     windowSize: report.proto === IP_PROTOCOLS.TCP ? report.window_size : undefined,
   }
 }

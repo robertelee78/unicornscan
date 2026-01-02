@@ -162,7 +162,7 @@ function reportToJSON(report: IpReport, depth: MetadataDepth, service?: string):
     id: report.ipreport_id,
     scanId: report.scans_id,
     ttl: report.ttl,
-    flags: decodeTcpFlags(report.flags),
+    flags: decodeTcpFlags(report.type),  // TCP flags are in type field
     timestamp: new Date(report.tstamp * 1000).toISOString(),
     service,
   }
@@ -171,7 +171,7 @@ function reportToJSON(report: IpReport, depth: MetadataDepth, service?: string):
 
   return {
     ...standard,
-    rawFlags: report.flags,
+    rawFlags: report.type,  // TCP flags are in type field
     windowSize: report.window_size,
     sport: report.sport,
     sendAddr: report.send_addr,
