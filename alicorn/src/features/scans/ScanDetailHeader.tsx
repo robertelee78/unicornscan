@@ -22,6 +22,10 @@ interface ScanDetailHeaderProps {
 }
 
 function formatDuration(start: number, end: number): string {
+  // Handle incomplete scans (e_time = 0 means still running)
+  if (end === 0 || end < start) {
+    return 'In progress'
+  }
   const seconds = end - start
   if (seconds < 60) return `${seconds}s`
   if (seconds < 3600) {
@@ -85,11 +89,9 @@ export function ScanDetailHeader({
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3">
             Scan #{scan.scans_id}
-            {scan.mode_str && (
-              <Badge variant="outline" className="text-sm font-normal">
-                {scan.mode_str}
-              </Badge>
-            )}
+            <Badge variant="outline" className="text-sm font-normal">
+              {scan.mode_str || 'Unknown'}
+            </Badge>
           </h1>
           {scan.target_str && (
             <p className="text-muted mt-1 font-mono">{scan.target_str}</p>

@@ -4,18 +4,26 @@
  */
 
 import { Link } from 'react-router-dom'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, AlertCircle, Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatTimestamp, formatRelativeTime } from '@/lib/utils'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { HostScanEntry } from './types'
 
 interface AssociatedScansProps {
   scans: HostScanEntry[]
   isLoading: boolean
+  error?: Error | null
+  hostIp?: string
 }
 
-export function AssociatedScans({ scans, isLoading }: AssociatedScansProps) {
+export function AssociatedScans({ scans, isLoading, error, hostIp }: AssociatedScansProps) {
   if (isLoading) {
     return (
       <Card>
@@ -33,6 +41,40 @@ export function AssociatedScans({ scans, isLoading }: AssociatedScansProps) {
     )
   }
 
+  // Error state
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Associated Scans</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-sm">Failed to load scans: {error.message}</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // No host IP provided - query couldn't run
+  if (!hostIp) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Associated Scans</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-muted">
+            <Info className="h-4 w-4" />
+            <p className="text-sm">Host IP address not available.</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (scans.length === 0) {
     return (
       <Card>
@@ -40,7 +82,9 @@ export function AssociatedScans({ scans, isLoading }: AssociatedScansProps) {
           <CardTitle className="text-base">Associated Scans</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted text-sm">No scans found for this host.</p>
+          <p className="text-muted text-sm">
+            No scans found for this host ({hostIp}).
+          </p>
         </CardContent>
       </Card>
     )
@@ -81,9 +125,18 @@ export function AssociatedScans({ scans, isLoading }: AssociatedScansProps) {
                     </Link>
                   </td>
                   <td className="py-2 pr-4">
-                    <span className="text-xs text-muted" title={formatTimestamp(scan.scanTime)}>
-                      {formatRelativeTime(scan.scanTime)}
-                    </span>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs text-muted cursor-help">
+                            {formatRelativeTime(scan.scanTime)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <span>{formatTimestamp(scan.scanTime)}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </td>
                   <td className="py-2 pr-4">{scan.targetStr}</td>
                   <td className="py-2 pr-4">

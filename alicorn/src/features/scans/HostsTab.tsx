@@ -73,21 +73,31 @@ interface HostCardProps {
 
 function HostCard({ group }: HostCardProps) {
   const { hostAddr, reports } = group
+  // Extract MAC from the first report that has one
+  const hostMac = reports.find(r => r.eth_hwaddr)?.eth_hwaddr
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-mono text-primary">
-            {hostAddr}
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-base font-mono text-primary">
+              {hostAddr}
+            </CardTitle>
+            {hostMac && (
+              <span className="text-xs text-muted font-mono uppercase">
+                {hostMac}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary">
               {reports.length} port{reports.length !== 1 ? 's' : ''}
             </Badge>
             <Link
-              to={`/hosts?ip=${encodeURIComponent(hostAddr)}`}
+              to={`/hosts/${encodeURIComponent(hostAddr)}`}
               className="text-muted hover:text-primary transition-colors"
+              title="View host details"
             >
               <ExternalLink className="h-4 w-4" />
             </Link>

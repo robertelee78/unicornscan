@@ -65,9 +65,9 @@ export function useHostList(
       )
     }
 
-    // Apply hasOpenPorts filter
+    // Apply hasOpenPorts filter (actually "responding ports" - got a packet back)
     if (filters.hasOpenPorts !== null) {
-      const getPortCount = (h: Host) => h.open_port_count ?? h.port_count
+      const getPortCount = (h: Host) => h.port_count ?? 0
       filtered = filtered.filter((h) =>
         filters.hasOpenPorts ? getPortCount(h) > 0 : getPortCount(h) === 0
       )
@@ -91,8 +91,8 @@ export function useHostList(
           bVal = b.hostname?.toLowerCase() ?? ''
           break
         case 'port_count':
-          aVal = a.open_port_count ?? a.port_count
-          bVal = b.open_port_count ?? b.port_count
+          aVal = a.port_count ?? 0
+          bVal = b.port_count ?? 0
           break
         case 'scan_count':
           aVal = a.scan_count
@@ -176,25 +176,10 @@ export function useHostScans(hostIp: string) {
   return useQuery({
     queryKey: hostListKeys.hostScans(hostIp),
     queryFn: async (): Promise<HostScanEntry[]> => {
-      // Get all scans and check which ones found this host
-      const scans = await db.getScans({ limit: 100 })
-      const entries: HostScanEntry[] = []
-
-      for (const scan of scans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
-        if (reports.length > 0) {
-          entries.push({
-            scansId: scan.scans_id,
-            scanTime: scan.s_time,
-            profile: scan.profile,
-            targetStr: scan.target_str,
-            portsFound: reports.length,
-          })
-        }
-      }
-
-      // Sort by scan time descending
-      return entries.sort((a, b) => b.scanTime - a.scanTime)
+      // Optimized: Uses 2 queries instead of N+1
+      // 1. Get all reports for this host (with scans_id)
+      // 2. Get scan details for those scan IDs
+      return db.getScansForHost(hostIp)
     },
     enabled: !!hostIp,
     staleTime: 30000,
@@ -209,20 +194,9 @@ export function useHostReports(hostIp: string) {
   return useQuery({
     queryKey: hostListKeys.hostReports(hostIp),
     queryFn: async (): Promise<IpReport[]> => {
-      // Get all scans and collect reports for this host
-      const scans = await db.getScans({ limit: 100 })
-      const allReports: IpReport[] = []
-
-      for (const scan of scans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
-        allReports.push(...reports)
-      }
-
-      // Sort by scan ID (most recent first), then by port
-      return allReports.sort((a, b) => {
-        if (a.scans_id !== b.scans_id) return b.scans_id - a.scans_id
-        return a.dport - b.dport
-      })
+      // Optimized: Single query instead of N+1
+      // Gets all reports for this host across all scans
+      return db.getReportsForHost(hostIp)
     },
     enabled: !!hostIp,
     staleTime: 30000,

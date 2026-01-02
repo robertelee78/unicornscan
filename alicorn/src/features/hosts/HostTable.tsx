@@ -6,7 +6,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { formatRelativeTime } from '@/lib/utils'
+import { formatRelativeTime, formatMac } from '@/lib/utils'
 import type { Host } from '@/types/database'
 import type { SortState, SortField } from './types'
 
@@ -129,6 +129,7 @@ interface HostRowProps {
 function HostRow({ host }: HostRowProps) {
   const portCount = host.port_count ?? host.open_port_count ?? 0
   const ipAddr = host.host_addr ?? host.ip_addr
+  const macAddr = host.current_mac || host.mac_addr
 
   return (
     <tr className="border-b border-border/50 hover:bg-muted/30">
@@ -144,8 +145,8 @@ function HostRow({ host }: HostRowProps) {
         {host.hostname || '—'}
       </td>
       <td className="py-3 pr-4 text-xs">
-        {host.mac_addr ? (
-          <span className="uppercase">{formatMac(host.mac_addr)}</span>
+        {macAddr ? (
+          <span className="uppercase">{formatMac(macAddr)}</span>
         ) : (
           <span className="text-muted">—</span>
         )}
@@ -177,11 +178,3 @@ function HostRow({ host }: HostRowProps) {
   )
 }
 
-function formatMac(mac: string): string {
-  if (mac.includes(':')) return mac
-  if (mac.includes('-')) return mac.replace(/-/g, ':')
-  if (mac.length === 12) {
-    return mac.match(/.{2}/g)?.join(':') || mac
-  }
-  return mac
-}

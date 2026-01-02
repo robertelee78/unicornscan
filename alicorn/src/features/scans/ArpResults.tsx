@@ -5,7 +5,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatTimestamp } from '@/lib/utils'
+import { formatTimestamp, formatMac } from '@/lib/utils'
 import type { ArpReport } from '@/types/database'
 
 interface ArpResultsProps {
@@ -58,13 +58,3 @@ export function ArpResults({ arpReports, isLoading }: ArpResultsProps) {
   )
 }
 
-function formatMac(mac: string): string {
-  // Ensure consistent MAC format (xx:xx:xx:xx:xx:xx)
-  if (mac.includes(':')) return mac.toUpperCase()
-  if (mac.includes('-')) return mac.replace(/-/g, ':').toUpperCase()
-  // Handle raw hex format
-  if (mac.length === 12) {
-    return mac.match(/.{2}/g)?.join(':').toUpperCase() || mac
-  }
-  return mac.toUpperCase()
-}

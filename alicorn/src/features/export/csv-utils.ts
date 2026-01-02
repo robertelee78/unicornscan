@@ -130,7 +130,7 @@ export function hostToCSVRow(host: Host): HostCSVRow {
     first_seen: new Date(parseTimestamp(host.first_seen) * 1000).toISOString(),
     last_seen: new Date(parseTimestamp(host.last_seen) * 1000).toISOString(),
     scan_count: host.scan_count,
-    open_port_count: host.open_port_count ?? host.port_count,
+    port_count: host.port_count ?? 0,
   }
 }
 

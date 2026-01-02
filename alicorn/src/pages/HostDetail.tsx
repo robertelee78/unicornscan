@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { useHost } from '@/hooks'
+import { useHost, useHostByIp } from '@/hooks'
 import {
   HostDetailHeader,
   PortHistory,
@@ -37,35 +37,40 @@ import type { TimeRange } from '@/features/dashboard/types'
 
 export function HostDetail() {
   const { id } = useParams<{ id: string }>()
-  const hostId = parseInt(id || '0', 10)
   const [timeRange, setTimeRange] = useState<TimeRange>('all')
   const [notesExpanded, setNotesExpanded] = useState(false)
 
-  // Fetch host data
-  const { data: host, isLoading: hostLoading, error: hostError } = useHost(hostId)
+  // Detect if id is an IP address (contains dots) or numeric ID
+  const isIpAddress = id?.includes('.') ?? false
+  const hostId = isIpAddress ? 0 : parseInt(id || '0', 10)
+  const ipParam = isIpAddress ? decodeURIComponent(id || '') : ''
+
+  // Fetch host data - use appropriate hook based on ID type
+  const hostByIdQuery = useHost(hostId, { enabled: !isIpAddress && hostId > 0 })
+  const hostByIpQuery = useHostByIp(ipParam, { enabled: isIpAddress })
+
+  // Use whichever query is active
+  const host = isIpAddress ? hostByIpQuery.data : hostByIdQuery.data
+  const hostLoading = isIpAddress ? hostByIpQuery.isLoading : hostByIdQuery.isLoading
+  const hostError = isIpAddress ? hostByIpQuery.error : hostByIdQuery.error
+
+  // Resolve host IP address - prefer ip_addr but fall back to host_addr (guaranteed)
+  const hostIp = host?.ip_addr ?? host?.host_addr ?? ''
 
   // Fetch port history and associated scans using the host's IP
-  const { data: portHistory = [], isLoading: portHistoryLoading } = useHostPortHistory(
-    host?.ip_addr || ''
-  )
-  const { data: hostScans = [], isLoading: scansLoading } = useHostScans(
-    host?.ip_addr || ''
-  )
+  const { data: portHistory = [], isLoading: portHistoryLoading } = useHostPortHistory(hostIp)
+  const { data: hostScans = [], isLoading: scansLoading, error: scansError } = useHostScans(hostIp)
 
   // Fetch reports for export
-  const { data: hostReports = [] } = useHostReports(host?.ip_addr || '')
+  const { data: hostReports = [] } = useHostReports(hostIp)
 
-  // Fetch notes for the host
-  const { data: notes = [], isLoading: notesLoading } = useEntityNotes('host', hostId)
+  // Fetch notes for the host (use resolved host_id from host data)
+  const resolvedHostId = host?.host_id ?? hostId
+  const { data: notes = [], isLoading: notesLoading } = useEntityNotes('host', resolvedHostId)
 
   // Fetch chart data
-  const { data: portTrend, isLoading: trendLoading } = useHostPortTrend(
-    host?.ip_addr || '',
-    timeRange
-  )
-  const { data: portTimeline, isLoading: timelineLoading } = usePortTimeline(
-    host?.ip_addr || ''
-  )
+  const { data: portTrend, isLoading: trendLoading } = useHostPortTrend(hostIp, timeRange)
+  const { data: portTimeline, isLoading: timelineLoading } = usePortTimeline(hostIp)
 
   // Export functionality
   const exportDialog = useExportDialog()
@@ -102,7 +107,9 @@ export function HostDetail() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Host Details</h1>
-          <p className="text-muted mt-1">Host #{hostId}</p>
+          <p className="text-muted mt-1">
+            {isIpAddress ? `Host ${ipParam}` : `Host #${hostId}`}
+          </p>
         </div>
         <ErrorFallback
           error={hostError}
@@ -169,7 +176,7 @@ export function HostDetail() {
       <PortTrendChart
         data={portTrend}
         isLoading={trendLoading}
-        title={`Port Trend for ${host.hostname || host.ip_addr}`}
+        title={`Port Trend for ${host.hostname || hostIp}`}
         config={{
           showTotal: true,
           showTcp: true,
@@ -204,6 +211,8 @@ export function HostDetail() {
       <AssociatedScans
         scans={hostScans}
         isLoading={scansLoading}
+        error={scansError as Error | null}
+        hostIp={hostIp}
       />
 
       {/* Notes Section */}
@@ -237,7 +246,7 @@ export function HostDetail() {
           <CardContent>
             <NotesTab
               entityType="host"
-              entityId={hostId}
+              entityId={resolvedHostId}
               scanNotes={null}
               notes={notes}
               isLoading={notesLoading}

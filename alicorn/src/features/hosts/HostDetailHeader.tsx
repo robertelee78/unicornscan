@@ -8,7 +8,13 @@ import { ArrowLeft, Network, Clock, Server, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { formatTimestamp, formatRelativeTime } from '@/lib/utils'
+import { formatTimestamp, formatRelativeTime, formatMac } from '@/lib/utils'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ExportDropdown, type ExportFormat } from '@/features/export'
 import type { Host } from '@/types/database'
 
@@ -51,7 +57,7 @@ export function HostDetailHeader({
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold font-mono flex items-center gap-3">
-            {host.ip_addr}
+            {host.ip_addr ?? host.host_addr}
             {host.os_guess && (
               <Badge variant="outline" className="text-sm font-normal">
                 {host.os_guess}
@@ -71,12 +77,14 @@ export function HostDetailHeader({
             <MetadataItem
               icon={<Network className="h-4 w-4" />}
               label="MAC Address"
-              value={host.mac_addr ? formatMac(host.mac_addr) : '—'}
+              value={(host.current_mac || host.mac_addr)
+                ? formatMac(host.current_mac || host.mac_addr || '')
+                : '—'}
             />
             <MetadataItem
               icon={<Server className="h-4 w-4" />}
               label="Responding Ports"
-              value={(host.open_port_count ?? host.port_count).toString()}
+              value={(host.port_count ?? 0).toString()}
             />
             <MetadataItem
               icon={<Activity className="h-4 w-4" />}
@@ -115,22 +123,34 @@ interface MetadataItemProps {
 }
 
 function MetadataItem({ icon, label, value, title }: MetadataItemProps) {
-  return (
+  const content = (
     <div className="flex items-start gap-2">
       <div className="text-muted mt-0.5">{icon}</div>
       <div>
         <p className="text-xs text-muted">{label}</p>
-        <p className="font-mono text-sm" title={title}>{value}</p>
+        <p className="font-mono text-sm">{value}</p>
       </div>
     </div>
   )
+
+  // Use accessible tooltip if title is provided
+  if (title) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" className="text-left cursor-help focus:outline-none focus:ring-2 focus:ring-primary/50 rounded">
+              {content}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <span>{title}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  return content
 }
 
-function formatMac(mac: string): string {
-  if (mac.includes(':')) return mac.toUpperCase()
-  if (mac.includes('-')) return mac.replace(/-/g, ':').toUpperCase()
-  if (mac.length === 12) {
-    return mac.match(/.{2}/g)?.join(':').toUpperCase() || mac
-  }
-  return mac.toUpperCase()
-}
