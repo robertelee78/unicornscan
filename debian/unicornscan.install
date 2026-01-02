@@ -1,30 +1,9 @@
 # Core scanner binaries and libraries (installed by make install)
 # These are handled by dh_auto_install
 
-# Alicorn Web UI - Docker Compose configuration
-alicorn/docker-compose.standalone.yml  opt/unicornscan-web/docker-compose.yml
-alicorn/Dockerfile                     opt/unicornscan-web/
-alicorn/nginx.conf                     opt/unicornscan-web/
+# Alicorn Web UI - Docker Compose and config (handled by rules override)
+# Note: docker-compose.yml, Dockerfile, nginx.conf, package.json, etc.
+# are installed by the override_dh_auto_install target in debian/rules
+
+# PostgREST configuration
 alicorn/postgrest                      opt/unicornscan-web/
-
-# Alicorn Web UI - Build configuration
-alicorn/package.json             opt/unicornscan-web/
-alicorn/package-lock.json        opt/unicornscan-web/
-alicorn/vite.config.ts           opt/unicornscan-web/
-alicorn/vitest.config.ts         opt/unicornscan-web/
-alicorn/eslint.config.js         opt/unicornscan-web/
-alicorn/tsconfig.json            opt/unicornscan-web/
-alicorn/tsconfig.app.json        opt/unicornscan-web/
-alicorn/tsconfig.node.json       opt/unicornscan-web/
-alicorn/index.html               opt/unicornscan-web/
-
-# Alicorn Web UI - Source code
-alicorn/src                      opt/unicornscan-web/
-alicorn/public                   opt/unicornscan-web/
-alicorn/cli                      opt/unicornscan-web/
-
-# SQL schema for Docker initialization
-src/output_modules/database/sql/pgsql_schema.sql  opt/unicornscan-web/sql/
-
-# Web management script
-debian/unicornscan-web           usr/bin/
