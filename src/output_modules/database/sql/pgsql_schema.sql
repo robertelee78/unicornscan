@@ -1068,27 +1068,34 @@ order by s.scan_id, p.phase_idx;
 
 -- v_hosts: Aggregate host information with scan counts and calculated port count
 -- v8: Added current_mac from MAC-IP history (most recent MAC for this IP)
+-- v10: Added OS fingerprint data (os_family, os_name, os_version, device_type)
+-- v11: Aggregate by IP address to avoid duplicate rows for same IP with different MACs
+--      All MACs for an IP are now shown in mac_addrs array, mac_addr shows most recent
 create or replace view v_hosts
 with (security_invoker = true) as
 select
-    h.host_id,
+    -- Use the host_id from the most recently seen row for this IP
+    (select h2.host_id from uni_hosts h2 where h2.host_addr = h.host_addr order by h2.last_seen desc limit 1) as host_id,
     h.host_addr,
-    h.mac_addr,
-    -- v8: Get most recent MAC from history if host doesn't have one directly
-    coalesce(h.mac_addr, (
-        select mh.mac_addr
-        from uni_mac_ip_history mh
-        where mh.host_addr = h.host_addr
-        order by mh.last_seen desc
-        limit 1
-    )) as current_mac,
-    h.hostname,
-    h.first_seen,
-    h.last_seen,
-    -- scan_count: Number of unique scans this host appeared in (from uni_host_scans)
-    -- NOT the raw uni_hosts.scan_count which is incremented per-report
+    -- Original mac_addr column: show the most recently observed MAC
+    (select h2.mac_addr from uni_hosts h2 where h2.host_addr = h.host_addr order by h2.last_seen desc limit 1) as mac_addr,
+    -- v8: Get most recent MAC from history if not available directly
     coalesce(
-        (select count(distinct hs.scan_id) from uni_host_scans hs where hs.host_id = h.host_id),
+        (select h2.mac_addr from uni_hosts h2 where h2.host_addr = h.host_addr order by h2.last_seen desc limit 1),
+        (select mh.mac_addr from uni_mac_ip_history mh where mh.host_addr = h.host_addr order by mh.last_seen desc limit 1)
+    ) as current_mac,
+    -- v11: All MAC addresses observed for this IP (for display in frontend)
+    (select array_agg(distinct h2.mac_addr) filter (where h2.mac_addr is not null)
+     from uni_hosts h2 where h2.host_addr = h.host_addr) as mac_addrs,
+    -- Hostname from most recently seen row
+    (select h2.hostname from uni_hosts h2 where h2.host_addr = h.host_addr and h2.hostname is not null order by h2.last_seen desc limit 1) as hostname,
+    min(h.first_seen) as first_seen,
+    max(h.last_seen) as last_seen,
+    -- scan_count: Number of unique scans this host appeared in (across all host_ids for this IP)
+    coalesce(
+        (select count(distinct hs.scan_id) from uni_host_scans hs
+         join uni_hosts h2 on hs.host_id = h2.host_id
+         where h2.host_addr = h.host_addr),
         0
     )::int4 as scan_count,
     -- Calculate port_count from uni_ipreport since C code doesn't update uni_hosts.port_count
@@ -1096,14 +1103,49 @@ select
         (select count(distinct i.dport) from uni_ipreport i where i.host_addr = h.host_addr),
         0
     )::int4 as port_count,
-    -- v8: Count of MAC addresses associated with this IP over time
+    -- v8: Count of MAC addresses associated with this IP over time (from history + uni_hosts)
     coalesce(
-        (select count(*) from uni_mac_ip_history mh where mh.host_addr = h.host_addr),
+        (select count(distinct mac) from (
+            select mac_addr as mac from uni_hosts where host_addr = h.host_addr and mac_addr is not null
+            union
+            select mac_addr as mac from uni_mac_ip_history where host_addr = h.host_addr
+        ) macs),
         0
     )::int4 as mac_count,
-    h.extra_data
+    -- v10: OS fingerprint data (most recent)
+    (
+        select osf.os_family
+        from uni_os_fingerprints osf
+        where osf.host_addr = h.host_addr
+        order by osf.detected_at desc
+        limit 1
+    ) as os_family,
+    (
+        select osf.os_name
+        from uni_os_fingerprints osf
+        where osf.host_addr = h.host_addr
+        order by osf.detected_at desc
+        limit 1
+    ) as os_name,
+    (
+        select osf.os_version
+        from uni_os_fingerprints osf
+        where osf.host_addr = h.host_addr
+        order by osf.detected_at desc
+        limit 1
+    ) as os_version,
+    (
+        select osf.device_type
+        from uni_os_fingerprints osf
+        where osf.host_addr = h.host_addr
+        order by osf.detected_at desc
+        limit 1
+    ) as device_type,
+    -- extra_data from most recently seen row
+    (select h2.extra_data from uni_hosts h2 where h2.host_addr = h.host_addr order by h2.last_seen desc limit 1) as extra_data
 from uni_hosts h
-order by h.last_seen desc;
+group by h.host_addr
+order by max(h.last_seen) desc;
 
 -- v_host_details: Full host details with associated scans
 create or replace view v_host_details
@@ -1493,4 +1535,4 @@ group by g.scan_id, g.country_code, g.country_name
 order by host_count desc;
 
 -- Record schema version
-insert into uni_schema_version (version) values (8);
+insert into uni_schema_version (version) values (10);
