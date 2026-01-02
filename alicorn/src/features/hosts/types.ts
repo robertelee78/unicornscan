@@ -6,6 +6,7 @@
 export interface HostFilters {
   search: string
   hasOpenPorts: boolean | null
+  vendorFilter: string
 }
 
 export type SortField = 'host_addr' | 'hostname' | 'port_count' | 'scan_count' | 'last_seen' | 'first_seen'
@@ -24,6 +25,7 @@ export interface PaginationState {
 export const DEFAULT_FILTERS: HostFilters = {
   search: '',
   hasOpenPorts: null,
+  vendorFilter: '',
 }
 
 export const DEFAULT_SORT: SortState = {
@@ -39,6 +41,7 @@ export const DEFAULT_PAGINATION: PaginationState = {
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 
 // Port history entry for timeline display
+// Matches IpReport fields so Hosts view has same data as Scans view
 export interface PortHistoryEntry {
   scan_id: number
   scan_time: number
@@ -46,6 +49,11 @@ export interface PortHistoryEntry {
   protocol: string
   ttl: number
   flags: number
+  window_size: number
+  eth_hwaddr: string | null
+  tstamp: number
+  ipreport_id: number
+  banner?: string
 }
 
 // Associated scan for a host

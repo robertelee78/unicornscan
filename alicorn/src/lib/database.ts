@@ -37,6 +37,26 @@ function getConfig(): DatabaseConfig {
 export const config = getConfig()
 
 // =============================================================================
+// Banner Processing Helper
+// =============================================================================
+
+/**
+ * Process banner data from PostgREST.
+ * PostgREST returns bytea as text (not base64).
+ * This function normalizes the text for display.
+ */
+function processBannerData(data: string): string | null {
+  if (!data || typeof data !== 'string') {
+    return null
+  }
+
+  // PostgREST returns bytea directly as text
+  // Just trim and return, the data is already decoded
+  const result = data.trim()
+  return result || null
+}
+
+// =============================================================================
 // Filtered Scans Types
 // =============================================================================
 
@@ -75,6 +95,9 @@ export interface DatabaseClient {
   // IP Reports (ports/responses)
   getIpReports(scan_id: number): Promise<IpReport[]>
   getIpReportsByHost(scan_id: number, hostAddr: string): Promise<IpReport[]>
+
+  // Banner data (from uni_ipreportdata type=1)
+  getBannersForScan(scan_id: number): Promise<Map<number, string>>
 
   // ARP Reports
   getArpReports(scan_id: number): Promise<ArpReport[]>
@@ -369,6 +392,53 @@ class RestDatabase implements DatabaseClient {
     return data as IpReport[]
   }
 
+  /**
+   * Get banner data for all IP reports in a scan.
+   * Returns a Map of ipreport_id -> banner string (decoded from binary).
+   * Type=1 in uni_ipreportdata indicates banner/payload data.
+   */
+  async getBannersForScan(scan_id: number): Promise<Map<number, string>> {
+    // First get all ipreport_ids for this scan
+    const { data: reports, error: reportsError } = await this.client
+      .from('uni_ipreport')
+      .select('ipreport_id')
+      .eq('scan_id', scan_id)
+
+    if (reportsError) throw reportsError
+    if (!reports || reports.length === 0) return new Map()
+
+    const reportIds = reports.map(r => r.ipreport_id)
+
+    // Fetch banner data (type=1) for these report IDs
+    const { data: bannerData, error: bannerError } = await this.client
+      .from('uni_ipreportdata')
+      .select('ipreport_id, data')
+      .in('ipreport_id', reportIds)
+      .eq('type', 1)
+
+    if (bannerError) {
+      // Table might not exist or be empty
+      if (bannerError.code === 'PGRST116' || bannerError.code === '42P01') {
+        return new Map()
+      }
+      throw bannerError
+    }
+
+    // Convert binary data to strings and build map
+    const bannerMap = new Map<number, string>()
+    for (const row of bannerData || []) {
+      if (row.data) {
+        // PostgREST returns bytea as text
+        const processed = processBannerData(row.data)
+        if (processed) {
+          bannerMap.set(row.ipreport_id, processed)
+        }
+      }
+    }
+
+    return bannerMap
+  }
+
   async getArpReports(scan_id: number): Promise<ArpReport[]> {
     const { data, error } = await this.client
       .from('uni_arpreport')
@@ -609,7 +679,7 @@ class RestDatabase implements DatabaseClient {
     const scansQuery = this.client.from('uni_scan').select('*', { count: 'exact', head: true })
     const hostsQuery = this.client.from('uni_hosts').select('*', { count: 'exact', head: true })
     const responsesQuery = this.client.from('uni_ipreport').select('*', { count: 'exact', head: true })
-    const portsQuery = this.client.from('uni_ipreport').select('dport')
+    const portsQuery = this.client.from('uni_ipreport').select('sport')
 
     if (since !== null) {
       scansQuery.gte('s_time', since)
@@ -626,7 +696,7 @@ class RestDatabase implements DatabaseClient {
     ])
 
     // Count unique ports
-    const uniquePorts = new Set(portsResult.data?.map((r) => r.dport) || [])
+    const uniquePorts = new Set(portsResult.data?.map((r) => r.sport) || [])
 
     return {
       totalScans: scansResult.count || 0,
@@ -640,7 +710,7 @@ class RestDatabase implements DatabaseClient {
     const { limit, since } = options
 
     // Get all port reports, then aggregate in JS (PostgREST doesn't support GROUP BY)
-    const query = this.client.from('uni_ipreport').select('dport, proto')
+    const query = this.client.from('uni_ipreport').select('sport, proto')
 
     if (since !== null) {
       query.gte('tstamp', since)
@@ -653,12 +723,12 @@ class RestDatabase implements DatabaseClient {
     const portCounts = new Map<string, { port: number; protocol: 'tcp' | 'udp'; count: number }>()
     for (const row of data || []) {
       const proto = row.proto === 6 ? 'tcp' : row.proto === 17 ? 'udp' : 'tcp'
-      const key = `${proto}-${row.dport}`
+      const key = `${proto}-${row.sport}`
       const existing = portCounts.get(key)
       if (existing) {
         existing.count++
       } else {
-        portCounts.set(key, { port: row.dport, protocol: proto, count: 1 })
+        portCounts.set(key, { port: row.sport, protocol: proto, count: 1 })
       }
     }
 

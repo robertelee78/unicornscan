@@ -90,25 +90,36 @@ export const DETAILED_COLUMNS: PortTableColumn[] = [
 
 /**
  * Convert IpReport to PortTableRow
+ * @param report - The IP report from database
+ * @param bannerMap - Optional map of ipreport_id -> banner string
  */
-export function ipReportToPortTableRow(report: IpReport): PortTableRow {
+export function ipReportToPortTableRow(
+  report: IpReport,
+  bannerMap?: Map<number, string>
+): PortTableRow {
   return {
     id: report.ipreport_id,
     hostAddr: report.host_addr,
-    port: report.dport,
+    port: report.sport,
     protocol: report.proto,
     responseFlags: report.subtype,  // TCP flags or ICMP type stored in subtype
     ttl: report.ttl,
     windowSize: report.window_size,
     timestamp: report.tstamp,
+    banner: bannerMap?.get(report.ipreport_id),
   }
 }
 
 /**
  * Convert array of IpReports to PortTableRows
+ * @param reports - Array of IP reports from database
+ * @param bannerMap - Optional map of ipreport_id -> banner string
  */
-export function ipReportsToPortTableRows(reports: IpReport[]): PortTableRow[] {
-  return reports.map(ipReportToPortTableRow)
+export function ipReportsToPortTableRows(
+  reports: IpReport[],
+  bannerMap?: Map<number, string>
+): PortTableRow[] {
+  return reports.map(r => ipReportToPortTableRow(r, bannerMap))
 }
 
 /**
@@ -120,4 +131,32 @@ export function getTtlColorClass(ttl: number): string {
   if (ttl <= 64) return 'text-amber-400'    // Linux/Unix nearby
   if (ttl <= 128) return 'text-blue-400'    // Windows nearby
   return 'text-green-400'                    // Router/high TTL
+}
+
+// =============================================================================
+// Banner Display Utilities
+// =============================================================================
+
+/** Default truncation length for inline banner preview */
+export const BANNER_PREVIEW_LENGTH = 40
+
+/**
+ * Truncate banner for inline preview display.
+ * Returns first line only, truncated to maxLength chars.
+ * Handles both LF and CRLF line endings.
+ */
+export function truncateBanner(banner: string, maxLength = BANNER_PREVIEW_LENGTH): string {
+  // Get first line only, handling both LF and CRLF
+  const firstLine = banner.split('\n')[0].replace(/\r$/, '')
+  if (firstLine.length <= maxLength) {
+    return firstLine
+  }
+  return firstLine.slice(0, maxLength) + '…'
+}
+
+/**
+ * Check if a banner needs expansion (has multiple lines or is long)
+ */
+export function bannerNeedsExpansion(banner: string): boolean {
+  return banner.includes('\n') || banner.length > BANNER_PREVIEW_LENGTH
 }
