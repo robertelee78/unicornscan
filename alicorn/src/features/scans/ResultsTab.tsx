@@ -53,7 +53,8 @@ interface ResultRowProps {
 }
 
 function ResultRow({ report }: ResultRowProps) {
-  const flags = decodeTcpFlags(report.type)
+  // TCP flags from report.flags (NOT report.type which is ICMP type code)
+  const flags = decodeTcpFlags(report.flags)
   const protocol = getProtocolName(report.proto)
 
   return (
