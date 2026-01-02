@@ -90,7 +90,7 @@ export function useHostPortTrend(hostIp: string, timeRange: TimeRange = 'all') {
         let udpCount = 0
 
         for (const report of reports) {
-          const key = `${report.dport}-${report.proto}`
+          const key = `${report.sport}-${report.proto}`
           currentPorts.add(key)
 
           if (report.proto === IP_PROTOCOLS.TCP) {
@@ -126,7 +126,7 @@ export function useHostPortTrend(hostIp: string, timeRange: TimeRange = 'all') {
       for (const scan of sortedScans) {
         const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
         for (const report of reports) {
-          allUniquePorts.add(`${report.dport}-${report.proto}`)
+          allUniquePorts.add(`${report.sport}-${report.proto}`)
         }
       }
 
@@ -179,7 +179,7 @@ export function usePortTimeline(hostIp: string) {
         last_scan_id = scan.scan_id
 
         for (const report of reports) {
-          const key = `${report.dport}-${report.proto}`
+          const key = `${report.sport}-${report.proto}`
           const protocol = report.proto === IP_PROTOCOLS.TCP ? 'tcp'
             : report.proto === IP_PROTOCOLS.UDP ? 'udp'
             : 'other'
@@ -191,7 +191,7 @@ export function usePortTimeline(hostIp: string) {
             existing.observationCount++
           } else {
             portMap.set(key, {
-              port: report.dport,
+              port: report.sport,
               protocol,
               firstSeen: scan.s_time,
               lastSeen: scan.s_time,
@@ -253,14 +253,24 @@ export function useGlobalProtocolDistribution(timeRange: TimeRange = 'all') {
       for (const scan of sortedScans) {
         const reports = await db.getIpReports(scan.scan_id)
 
-        let tcp = 0, udp = 0, icmp = 0, other = 0
+        // Count unique (host_addr, sport) pairs per protocol
+        const tcpPairs = new Set<string>()
+        const udpPairs = new Set<string>()
+        const icmpPairs = new Set<string>()
+        const otherPairs = new Set<string>()
 
         for (const report of reports) {
-          if (report.proto === IP_PROTOCOLS.TCP) tcp++
-          else if (report.proto === IP_PROTOCOLS.UDP) udp++
-          else if (report.proto === IP_PROTOCOLS.ICMP) icmp++
-          else other++
+          const key = `${report.host_addr}:${report.sport}`
+          if (report.proto === IP_PROTOCOLS.TCP) tcpPairs.add(key)
+          else if (report.proto === IP_PROTOCOLS.UDP) udpPairs.add(key)
+          else if (report.proto === IP_PROTOCOLS.ICMP) icmpPairs.add(key)
+          else otherPairs.add(key)
         }
+
+        const tcp = tcpPairs.size
+        const udp = udpPairs.size
+        const icmp = icmpPairs.size
+        const other = otherPairs.size
 
         if (tcp + udp + icmp + other > 0) {
           breakdowns.push({
@@ -311,7 +321,7 @@ export function useHostComparison(hostIps: string[], timeRange: TimeRange = 'all
 
           if (reports.length === 0) continue
 
-          const uniquePorts = new Set(reports.map(r => `${r.dport}-${r.proto}`))
+          const uniquePorts = new Set(reports.map(r => `${r.sport}-${r.proto}`))
           const tcpCount = reports.filter(r => r.proto === IP_PROTOCOLS.TCP).length
           const udpCount = reports.filter(r => r.proto === IP_PROTOCOLS.UDP).length
 
@@ -389,14 +399,14 @@ export function useServiceDistribution(timeRange: TimeRange = 'all') {
 
         for (const report of reports) {
           const protocol = report.proto === IP_PROTOCOLS.TCP ? 'tcp' : 'udp'
-          const key = `${report.dport}-${protocol}`
+          const key = `${report.sport}-${protocol}`
 
           const existing = portCounts.get(key)
           if (existing) {
             existing.count++
           } else {
             portCounts.set(key, {
-              port: report.dport,
+              port: report.sport,
               protocol,
               count: 1,
             })
@@ -625,9 +635,9 @@ export function usePortActivityHeatmap(timeRange: TimeRange = 'all', maxPorts: n
         const reports = await db.getIpReports(scan.scan_id)
 
         for (const report of reports) {
-          const key = `${report.dport}-${date}`
+          const key = `${report.sport}-${date}`
           activityMap.set(key, (activityMap.get(key) || 0) + 1)
-          portCounts.set(report.dport, (portCounts.get(report.dport) || 0) + 1)
+          portCounts.set(report.sport, (portCounts.get(report.sport) || 0) + 1)
         }
       }
 

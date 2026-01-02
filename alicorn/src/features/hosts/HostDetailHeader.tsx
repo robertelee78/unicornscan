@@ -3,12 +3,14 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Network, Clock, Server, Activity } from 'lucide-react'
+import { ArrowLeft, Network, Clock, Server, Activity, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatTimestamp, formatRelativeTime, formatMac } from '@/lib/utils'
+import { ensureOuiLoaded, getVendorSync } from '@/lib/oui'
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +35,14 @@ export function HostDetailHeader({
   onQuickExport,
   onAdvancedExport,
 }: HostDetailHeaderProps) {
+  // Load OUI data for vendor lookup
+  useEffect(() => {
+    ensureOuiLoaded()
+  }, [])
+
+  const macAddr = host.current_mac || host.mac_addr
+  const vendor = getVendorSync(macAddr)
+
   return (
     <div className="space-y-4">
       {/* Back link and title */}
@@ -77,14 +87,18 @@ export function HostDetailHeader({
             <MetadataItem
               icon={<Network className="h-4 w-4" />}
               label="MAC Address"
-              value={(host.current_mac || host.mac_addr)
-                ? formatMac(host.current_mac || host.mac_addr || '')
-                : '—'}
+              value={macAddr ? formatMac(macAddr) : '—'}
+            />
+            <MetadataItem
+              icon={<Building2 className="h-4 w-4" />}
+              label="Vendor"
+              value={vendor || '—'}
+              title={vendor || undefined}
             />
             <MetadataItem
               icon={<Server className="h-4 w-4" />}
               label="Responding Ports"
-              value={(host.port_count ?? 0).toString()}
+              value={portHistoryCount.toString()}
             />
             <MetadataItem
               icon={<Activity className="h-4 w-4" />}
@@ -102,11 +116,6 @@ export function HostDetailHeader({
               label="Last Seen"
               value={formatRelativeTime(host.last_seen)}
               title={formatTimestamp(host.last_seen)}
-            />
-            <MetadataItem
-              icon={<Activity className="h-4 w-4" />}
-              label="Port Observations"
-              value={portHistoryCount.toString()}
             />
           </div>
         </CardContent>

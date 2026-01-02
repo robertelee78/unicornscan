@@ -10,6 +10,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -69,11 +70,33 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                   }}
                 />
                 <YAxis
-                  stroke="hsl(var(--muted))"
+                  yAxisId="left"
+                  stroke="hsl(var(--primary))"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) => value.toString()}
+                  label={{
+                    value: 'Scans',
+                    angle: -90,
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: 'hsl(var(--primary))', fontSize: 11 },
+                  }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="hsl(var(--accent))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => value.toString()}
+                  label={{
+                    value: 'Responses',
+                    angle: 90,
+                    position: 'insideRight',
+                    style: { textAnchor: 'middle', fill: 'hsl(var(--accent))', fontSize: 11 },
+                  }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -91,9 +114,15 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                     })
                   }}
                 />
+                <Legend
+                  verticalAlign="top"
+                  height={36}
+                  wrapperStyle={{ fontSize: '12px' }}
+                />
                 <Area
                   type="monotone"
                   dataKey="scans"
+                  yAxisId="left"
                   stroke="hsl(var(--primary))"
                   fill="url(#scanGradient)"
                   strokeWidth={2}
@@ -102,6 +131,7 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                 <Area
                   type="monotone"
                   dataKey="responses"
+                  yAxisId="right"
                   stroke="hsl(var(--accent))"
                   fill="url(#responseGradient)"
                   strokeWidth={2}

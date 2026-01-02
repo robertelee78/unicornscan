@@ -4,6 +4,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
+import { useNavigate } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -46,6 +47,14 @@ export function ProtocolDistribution({
   height = 250,
   className,
 }: ProtocolDistributionProps) {
+  const navigate = useNavigate()
+
+  // Handle bar click to navigate to scan details
+  const handleBarClick = (scanId: number | undefined) => {
+    if (scanId) {
+      navigate(`/scans/${scanId}`)
+    }
+  }
   if (isLoading) {
     return (
       <Card className={className}>
@@ -183,14 +192,18 @@ export function ProtocolDistribution({
               />
 
               <XAxis
-                dataKey="date"
+                dataKey="scan_id"
                 stroke="hsl(var(--muted))"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => {
-                  const date = new Date(value)
-                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                tickFormatter={(value, index) => {
+                  // Show scan ID with abbreviated date
+                  const item = data[index]
+                  if (!item) return `#${value}`
+                  const date = new Date(item.date)
+                  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  return `#${value} (${dateStr})`
                 }}
               />
 
@@ -209,14 +222,19 @@ export function ProtocolDistribution({
                   borderRadius: '6px',
                   fontSize: '12px',
                 }}
-                labelFormatter={(label) => {
-                  const date = new Date(label)
-                  return date.toLocaleDateString('en-US', {
+                labelFormatter={(scanId, payload) => {
+                  // Get the date from the payload
+                  const item = payload?.[0]?.payload
+                  if (!item) return `Scan #${scanId}`
+                  const date = new Date(item.date)
+                  const dateStr = date.toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',
                   })
+                  return `Scan #${scanId} - ${dateStr}`
                 }}
+                wrapperStyle={{ cursor: 'pointer' }}
               />
 
               <Legend
@@ -232,6 +250,8 @@ export function ProtocolDistribution({
                 stackId="protocol"
                 fill={CHART_COLORS.tcp}
                 radius={[0, 0, 0, 0]}
+                cursor="pointer"
+                onClick={(barData) => handleBarClick((barData as unknown as ProtocolBreakdown)?.scan_id)}
               />
               <Bar
                 dataKey="udp"
@@ -239,6 +259,8 @@ export function ProtocolDistribution({
                 stackId="protocol"
                 fill={CHART_COLORS.udp}
                 radius={[0, 0, 0, 0]}
+                cursor="pointer"
+                onClick={(barData) => handleBarClick((barData as unknown as ProtocolBreakdown)?.scan_id)}
               />
               {totals.icmp > 0 && (
                 <Bar
@@ -247,6 +269,8 @@ export function ProtocolDistribution({
                   stackId="protocol"
                   fill={CHART_COLORS.icmp}
                   radius={[0, 0, 0, 0]}
+                  cursor="pointer"
+                  onClick={(barData) => handleBarClick((barData as unknown as ProtocolBreakdown)?.scan_id)}
                 />
               )}
               {totals.other > 0 && (
@@ -256,6 +280,8 @@ export function ProtocolDistribution({
                   stackId="protocol"
                   fill={CHART_COLORS.other}
                   radius={[4, 4, 0, 0]}
+                  cursor="pointer"
+                  onClick={(barData) => handleBarClick((barData as unknown as ProtocolBreakdown)?.scan_id)}
                 />
               )}
             </BarChart>
