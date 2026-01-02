@@ -262,7 +262,7 @@ export interface HostCSVRow {
   first_seen: string
   last_seen: string
   scan_count: number
-  open_port_count: number
+  port_count: number  // Responding ports (got a packet back)
 }
 
 // =============================================================================

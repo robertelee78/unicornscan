@@ -152,7 +152,8 @@ export function useHostPortHistory(hostIp: string) {
             port: report.dport,
             protocol: report.proto === 6 ? 'tcp' : report.proto === 17 ? 'udp' : 'other',
             ttl: report.ttl,
-            flags: report.subtype,
+            // TCP flags from report.flags (NOT report.subtype which is ICMP subtype)
+            flags: report.flags,
           })
         }
       }
