@@ -34,9 +34,9 @@ const REPORT_FIELDS: Record<MetadataDepth, (keyof ReportCSVRow)[]> = {
 }
 
 const HOST_FIELDS: Record<MetadataDepth, (keyof HostCSVRow)[]> = {
-  basic: ['host_id', 'ip_addr', 'open_port_count'],
-  standard: ['host_id', 'ip_addr', 'hostname', 'first_seen', 'last_seen', 'scan_count', 'open_port_count'],
-  full: ['host_id', 'ip_addr', 'hostname', 'mac_addr', 'os_guess', 'first_seen', 'last_seen', 'scan_count', 'open_port_count'],
+  basic: ['host_id', 'ip_addr', 'port_count'],
+  standard: ['host_id', 'ip_addr', 'hostname', 'first_seen', 'last_seen', 'scan_count', 'port_count'],
+  full: ['host_id', 'ip_addr', 'hostname', 'mac_addr', 'os_guess', 'first_seen', 'last_seen', 'scan_count', 'port_count'],
 }
 
 // =============================================================================

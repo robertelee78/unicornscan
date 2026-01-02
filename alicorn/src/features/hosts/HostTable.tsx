@@ -127,7 +127,8 @@ interface HostRowProps {
 }
 
 function HostRow({ host }: HostRowProps) {
-  const portCount = host.port_count ?? host.open_port_count ?? 0
+  // port_count is the canonical field (responding ports)
+  const portCount = host.port_count ?? 0
   const ipAddr = host.host_addr ?? host.ip_addr
   const macAddr = host.current_mac || host.mac_addr
 
@@ -135,7 +136,7 @@ function HostRow({ host }: HostRowProps) {
     <tr className="border-b border-border/50 hover:bg-muted/30">
       <td className="py-3 pr-4">
         <Link
-          to={`/hosts/${host.host_id}`}
+          to={`/hosts/${encodeURIComponent(ipAddr)}`}
           className="text-primary hover:underline"
         >
           {ipAddr}
