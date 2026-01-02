@@ -181,7 +181,7 @@ export interface ScanExportData {
 export interface HostExportData {
   host: Host
   reports: IpReport[]
-  scanHistory: { scansId: number; scanTime: number; portsFound: number }[]
+  scanHistory: { scan_id: number; scan_time: number; ports_found: number }[]
   geoip?: GeoIPRecord[]
   services?: Service[]
 }

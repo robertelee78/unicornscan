@@ -18,7 +18,7 @@ export const hostKeys = {
   lists: () => [...hostKeys.all, 'list'] as const,
   list: (limit?: number) => [...hostKeys.lists(), { limit }] as const,
   summaries: () => [...hostKeys.all, 'summaries'] as const,
-  summaryList: (scansId?: number) => [...hostKeys.summaries(), scansId] as const,
+  summaryList: (scan_id?: number) => [...hostKeys.summaries(), scan_id] as const,
   details: () => [...hostKeys.all, 'detail'] as const,
   detail: (id: number) => [...hostKeys.details(), id] as const,
   byIp: (ip: string) => [...hostKeys.all, 'ip', ip] as const,
@@ -64,12 +64,12 @@ export function useHostByIp(
 }
 
 export function useHostSummaries(
-  scansId?: number,
+  scan_id?: number,
   queryOptions?: Omit<UseQueryOptions<HostSummary[], Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: hostKeys.summaryList(scansId),
-    queryFn: () => db.getHostSummaries(scansId),
+    queryKey: hostKeys.summaryList(scan_id),
+    queryFn: () => db.getHostSummaries(scan_id),
     ...queryOptions,
   })
 }

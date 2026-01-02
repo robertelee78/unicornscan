@@ -44,8 +44,8 @@ export function ScanSelector({
     return groups
   }, [scanOptions])
 
-  const scanA = scanOptions.find((s) => s.scansId === selectedA)
-  const scanB = scanOptions.find((s) => s.scansId === selectedB)
+  const scanA = scanOptions.find((s) => s.scan_id === selectedA)
+  const scanB = scanOptions.find((s) => s.scan_id === selectedB)
 
   const canCompare = selectedA && selectedB && selectedA !== selectedB
 
@@ -83,11 +83,11 @@ export function ScanSelector({
                 <optgroup key={date} label={date}>
                   {scans.map((scan) => (
                     <option
-                      key={scan.scansId}
-                      value={scan.scansId}
-                      disabled={scan.scansId === selectedB}
+                      key={scan.scan_id}
+                      value={scan.scan_id}
+                      disabled={scan.scan_id === selectedB}
                     >
-                      #{scan.scansId} - {scan.targetStr}
+                      #{scan.scan_id} - {scan.target_str}
                     </option>
                   ))}
                 </optgroup>
@@ -95,7 +95,7 @@ export function ScanSelector({
             </select>
             {scanA && (
               <div className="text-xs text-muted p-2 bg-muted/30 rounded">
-                <p><span className="font-medium">Target:</span> {scanA.targetStr}</p>
+                <p><span className="font-medium">Target:</span> {scanA.target_str}</p>
                 <p><span className="font-medium">Time:</span> {formatTimestamp(scanA.time)}</p>
               </div>
             )}
@@ -130,11 +130,11 @@ export function ScanSelector({
                 <optgroup key={date} label={date}>
                   {scans.map((scan) => (
                     <option
-                      key={scan.scansId}
-                      value={scan.scansId}
-                      disabled={scan.scansId === selectedA}
+                      key={scan.scan_id}
+                      value={scan.scan_id}
+                      disabled={scan.scan_id === selectedA}
                     >
-                      #{scan.scansId} - {scan.targetStr}
+                      #{scan.scan_id} - {scan.target_str}
                     </option>
                   ))}
                 </optgroup>
@@ -142,7 +142,7 @@ export function ScanSelector({
             </select>
             {scanB && (
               <div className="text-xs text-muted p-2 bg-muted/30 rounded">
-                <p><span className="font-medium">Target:</span> {scanB.targetStr}</p>
+                <p><span className="font-medium">Target:</span> {scanB.target_str}</p>
                 <p><span className="font-medium">Time:</span> {formatTimestamp(scanB.time)}</p>
               </div>
             )}

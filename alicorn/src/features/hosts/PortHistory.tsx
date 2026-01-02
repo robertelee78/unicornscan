@@ -49,13 +49,13 @@ export function PortHistory({ entries, isLoading }: PortHistoryProps) {
   }
 
   // Group by scan
-  const scanGroups = new Map<number, { scanTime: number; ports: PortHistoryEntry[] }>()
+  const scanGroups = new Map<number, { scan_time: number; ports: PortHistoryEntry[] }>()
   for (const entry of entries) {
-    const existing = scanGroups.get(entry.scansId)
+    const existing = scanGroups.get(entry.scan_id)
     if (existing) {
       existing.ports.push(entry)
     } else {
-      scanGroups.set(entry.scansId, { scanTime: entry.scanTime, ports: [entry] })
+      scanGroups.set(entry.scan_id, { scan_time: entry.scan_time, ports: [entry] })
     }
   }
 
@@ -87,18 +87,18 @@ export function PortHistory({ entries, isLoading }: PortHistoryProps) {
             </thead>
             <tbody className="font-mono">
               {entries.map((entry, idx) => (
-                <tr key={`${entry.scansId}-${entry.port}-${idx}`} className="border-b border-border/50">
+                <tr key={`${entry.scan_id}-${entry.port}-${idx}`} className="border-b border-border/50">
                   <td className="py-2 pr-4">
                     <Link
-                      to={`/scans/${entry.scansId}`}
+                      to={`/scans/${entry.scan_id}`}
                       className="text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      #{entry.scansId}
+                      #{entry.scan_id}
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   </td>
                   <td className="py-2 pr-4 text-muted text-xs">
-                    {formatTimestamp(entry.scanTime)}
+                    {formatTimestamp(entry.scan_time)}
                   </td>
                   <td className="py-2 pr-4">
                     <Badge variant="open">{formatPort(entry.port)}</Badge>

@@ -39,16 +39,16 @@ type TabId = 'results' | 'hosts' | 'raw' | 'notes'
 export function ScanDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const scansId = parseInt(id || '0', 10)
+  const scan_id = parseInt(id || '0', 10)
   const [activeTab, setActiveTab] = useState<TabId>('results')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const { success: toastSuccess, error: toastError } = useToast()
 
   // Fetch scan data
-  const { data: scan, isLoading: scanLoading, error: scanError } = useScan(scansId)
-  const { data: reports = [], isLoading: reportsLoading } = useIpReports(scansId)
-  const { data: arpReports = [], isLoading: arpLoading } = useArpReports(scansId)
-  const { data: notes = [], isLoading: notesLoading } = useScanNotes(scansId)
+  const { data: scan, isLoading: scanLoading, error: scanError } = useScan(scan_id)
+  const { data: reports = [], isLoading: reportsLoading } = useIpReports(scan_id)
+  const { data: arpReports = [], isLoading: arpLoading } = useArpReports(scan_id)
+  const { data: notes = [], isLoading: notesLoading } = useScanNotes(scan_id)
 
   // Export functionality
   const exportDialog = useExportDialog()
@@ -62,7 +62,7 @@ export function ScanDetail() {
       }
       toastSuccess(
         'Scan deleted',
-        `Scan #${scansId} and all associated data have been removed.`
+        `Scan #${scan_id} and all associated data have been removed.`
       )
       setDeleteDialogOpen(false)
       navigate('/scans')
@@ -85,8 +85,8 @@ export function ScanDetail() {
   }, [])
 
   const handleConfirmDelete = useCallback(() => {
-    deleteScan(scansId)
-  }, [deleteScan, scansId])
+    deleteScan(scan_id)
+  }, [deleteScan, scan_id])
 
   // Calculate host count
   const hostCount = useMemo(() => {
@@ -117,7 +117,7 @@ export function ScanDetail() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Scan Details</h1>
-          <p className="text-muted mt-1">Scan #{scansId}</p>
+          <p className="text-muted mt-1">Scan #{scan_id}</p>
         </div>
         <ErrorFallback
           error={scanError}
@@ -154,7 +154,7 @@ export function ScanDetail() {
       <DeleteConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        scansId={scansId}
+        scan_id={scan_id}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
       />
@@ -201,7 +201,7 @@ export function ScanDetail() {
             {activeTab === 'notes' && (
               <NotesTab
                 entityType="scan"
-                entityId={scansId}
+                entityId={scan_id}
                 scanNotes={scan.scan_notes}
                 notes={notes}
                 isLoading={notesLoading}

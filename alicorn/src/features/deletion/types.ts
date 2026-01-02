@@ -8,15 +8,15 @@
 // =============================================================================
 
 export interface ScanDeleteStats {
-  scansId: number
+  scan_id: number
   target: string
-  scanTime: number
-  portCount: number
-  hostCount: number
-  arpCount: number
-  hopCount: number
-  noteCount: number
-  tagCount: number
+  scan_time: number
+  port_count: number
+  host_count: number
+  arp_count: number
+  hop_count: number
+  note_count: number
+  tag_count: number
 }
 
 // =============================================================================
@@ -25,7 +25,7 @@ export interface ScanDeleteStats {
 
 export interface DeleteScanResult {
   success: boolean
-  scansId: number
+  scan_id: number
   deleted: {
     reports: number
     arp: number
@@ -62,7 +62,7 @@ export type DeleteMode = 'permanent'
 // =============================================================================
 
 export interface DeleteConfirmProps {
-  scansId: number
+  scan_id: number
   target: string
   onConfirm: () => void
   onCancel: () => void
@@ -70,8 +70,8 @@ export interface DeleteConfirmProps {
 }
 
 export interface BulkDeleteConfirmProps {
-  scanIds: number[]
-  scans: Array<{ scansId: number; target: string }>
+  scan_ids: number[]
+  scans: Array<{ scan_id: number; target: string }>
   onConfirm: () => void
   onCancel: () => void
   isLoading?: boolean

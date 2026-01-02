@@ -29,13 +29,13 @@ export function RecentScans({ scans, isLoading }: RecentScansProps) {
           <div className="space-y-2">
             {scans?.map((scan) => (
               <Link
-                key={scan.scans_id}
-                to={`/scans/${scan.scans_id}`}
+                key={scan.scan_id}
+                to={`/scans/${scan.scan_id}`}
                 className="flex items-center justify-between p-3 rounded-md bg-surface-light/50 hover:bg-surface-light transition-colors"
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="min-w-0">
-                    <p className="font-mono text-sm truncate">{scan.target_str || `Scan #${scan.scans_id}`}</p>
+                    <p className="font-mono text-sm truncate">{scan.target_str || `Scan #${scan.scan_id}`}</p>
                     <p className="text-xs text-muted">{formatRelativeTime(scan.s_time)}</p>
                   </div>
                 </div>

@@ -1,3 +1,18 @@
+unicornscan (0.4.28-1) unstable; urgency=medium
+
+  * Rename uni_scans table to uni_scan (singular, Jack Louis naming convention)
+    - Table: uni_scans → uni_scan
+    - Column: scans_id → scan_id throughout schema
+    - All foreign keys and constraints updated
+    - BREAKING: Requires database recreation or migration
+
+  * Update Alicorn frontend for scan_id consistency
+    - All TypeScript types updated to use scan_id
+    - Hooks, components, and export utilities updated
+    - 329 tests passing
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 09:30:00 -0800
+
 unicornscan (0.4.27-1) unstable; urgency=medium
 
   * Add OS fingerprint data to v_hosts view

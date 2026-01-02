@@ -76,9 +76,9 @@ export function HostDetail() {
   const exportDialog = useExportDialog()
   const scanHistory = useMemo(() =>
     hostScans.map((s) => ({
-      scansId: s.scansId,
-      scanTime: s.scanTime,
-      portsFound: s.portsFound,
+      scan_id: s.scan_id,
+      scan_time: s.scan_time,
+      ports_found: s.ports_found,
     })),
     [hostScans]
   )

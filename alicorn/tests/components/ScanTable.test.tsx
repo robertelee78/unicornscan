@@ -13,7 +13,7 @@ import type { SortState, SortField } from '@/features/scans/types'
 // Mock scan data factory
 function createMockScan(overrides: Partial<ScanSummary> = {}): ScanSummary {
   return {
-    scans_id: 1,
+    scan_id: 1,
     target_str: '192.168.1.0/24',
     profile: 'Default',
     mode_str: 'tcp',
@@ -104,8 +104,8 @@ describe('ScanTable', () => {
 
     it('renders scan rows', () => {
       const scans = [
-        createMockScan({ scans_id: 1, target_str: '10.0.0.1' }),
-        createMockScan({ scans_id: 2, target_str: '10.0.0.2' }),
+        createMockScan({ scan_id: 1, target_str: '10.0.0.1' }),
+        createMockScan({ scan_id: 2, target_str: '10.0.0.2' }),
       ]
 
       renderWithProviders(
@@ -124,7 +124,7 @@ describe('ScanTable', () => {
     })
 
     it('renders ID as link to scan detail', () => {
-      const scans = [createMockScan({ scans_id: 42 })]
+      const scans = [createMockScan({ scan_id: 42 })]
 
       renderWithProviders(
         <ScanTable
@@ -203,12 +203,12 @@ describe('ScanTable', () => {
       const idHeader = screen.getByRole('button', { name: /id/i })
       fireEvent.click(idHeader)
 
-      expect(onSort).toHaveBeenCalledWith('scans_id')
+      expect(onSort).toHaveBeenCalledWith('scan_id')
     })
 
     it('shows up arrow for ascending sort', () => {
       const scans = [createMockScan()]
-      const ascSort: SortState = { field: 'scans_id', direction: 'asc' }
+      const ascSort: SortState = { field: 'scan_id', direction: 'asc' }
 
       renderWithProviders(
         <ScanTable
@@ -227,7 +227,7 @@ describe('ScanTable', () => {
 
     it('shows down arrow for descending sort', () => {
       const scans = [createMockScan()]
-      const descSort: SortState = { field: 'scans_id', direction: 'desc' }
+      const descSort: SortState = { field: 'scan_id', direction: 'desc' }
 
       renderWithProviders(
         <ScanTable
@@ -266,7 +266,7 @@ describe('ScanTable', () => {
 
     it('allows sorting by all sortable fields', () => {
       const scans = [createMockScan()]
-      const sortableFields: SortField[] = ['scans_id', 'profile', 'host_count', 'port_count', 'duration', 's_time']
+      const sortableFields: SortField[] = ['scan_id', 'profile', 'host_count', 'port_count', 'duration', 's_time']
 
       renderWithProviders(
         <ScanTable
@@ -280,7 +280,7 @@ describe('ScanTable', () => {
       // Click each sortable header
       sortableFields.forEach((field) => {
         const headerText = {
-          scans_id: 'ID',
+          scan_id: 'ID',
           profile: 'Profile',
           host_count: 'Hosts',
           port_count: 'Ports',
@@ -340,7 +340,7 @@ describe('ScanTable', () => {
     })
 
     it('calls onSelectionChange when row checkbox clicked', () => {
-      const scans = [createMockScan({ scans_id: 42 })]
+      const scans = [createMockScan({ scan_id: 42 })]
 
       renderWithProviders(
         <ScanTable
@@ -362,7 +362,7 @@ describe('ScanTable', () => {
     })
 
     it('shows checkbox as checked when selected', () => {
-      const scans = [createMockScan({ scans_id: 42 })]
+      const scans = [createMockScan({ scan_id: 42 })]
 
       renderWithProviders(
         <ScanTable
@@ -382,7 +382,7 @@ describe('ScanTable', () => {
     })
 
     it('applies selected styling to row', () => {
-      const scans = [createMockScan({ scans_id: 42 })]
+      const scans = [createMockScan({ scan_id: 42 })]
 
       const { container } = renderWithProviders(
         <ScanTable
@@ -405,9 +405,9 @@ describe('ScanTable', () => {
     describe('select all', () => {
       it('calls onSelectAll with all IDs when header checkbox clicked', () => {
         const scans = [
-          createMockScan({ scans_id: 1 }),
-          createMockScan({ scans_id: 2 }),
-          createMockScan({ scans_id: 3 }),
+          createMockScan({ scan_id: 1 }),
+          createMockScan({ scan_id: 2 }),
+          createMockScan({ scan_id: 3 }),
         ]
 
         renderWithProviders(
@@ -431,8 +431,8 @@ describe('ScanTable', () => {
 
       it('calls onSelectAll with empty array when all selected and header clicked', () => {
         const scans = [
-          createMockScan({ scans_id: 1 }),
-          createMockScan({ scans_id: 2 }),
+          createMockScan({ scan_id: 1 }),
+          createMockScan({ scan_id: 2 }),
         ]
 
         renderWithProviders(
@@ -456,8 +456,8 @@ describe('ScanTable', () => {
 
       it('shows header checkbox as checked when all selected', () => {
         const scans = [
-          createMockScan({ scans_id: 1 }),
-          createMockScan({ scans_id: 2 }),
+          createMockScan({ scan_id: 1 }),
+          createMockScan({ scan_id: 2 }),
         ]
 
         renderWithProviders(
@@ -479,8 +479,8 @@ describe('ScanTable', () => {
 
       it('shows header checkbox as unchecked when none selected', () => {
         const scans = [
-          createMockScan({ scans_id: 1 }),
-          createMockScan({ scans_id: 2 }),
+          createMockScan({ scan_id: 1 }),
+          createMockScan({ scan_id: 2 }),
         ]
 
         renderWithProviders(

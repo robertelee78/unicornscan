@@ -80,8 +80,8 @@ export function Scans() {
       setBulkDeleteOpen(false)
       setShowSelection(false)
     },
-    onError: (error, scansId) => {
-      toastError(`Failed to delete scan #${scansId}`, error.message)
+    onError: (error, scan_id) => {
+      toastError(`Failed to delete scan #${scan_id}`, error.message)
     },
   })
 
@@ -235,7 +235,7 @@ export function Scans() {
       <BulkDeleteConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        scanIds={Array.from(selectedIds)}
+        scan_ids={Array.from(selectedIds)}
         onConfirm={handleConfirmBulkDelete}
         isDeleting={isDeleting}
         progress={progress}

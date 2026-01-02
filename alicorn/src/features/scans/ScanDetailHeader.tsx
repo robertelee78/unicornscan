@@ -88,7 +88,7 @@ export function ScanDetailHeader({
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3">
-            Scan #{scan.scans_id}
+            Scan #{scan.scan_id}
             <Badge variant="outline" className="text-sm font-normal">
               {scan.mode_str || 'Unknown'}
             </Badge>

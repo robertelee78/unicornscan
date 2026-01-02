@@ -130,7 +130,7 @@ export interface MatrixCell {
   /** Host IP address */
   hostIp: string
   /** Scan ID */
-  scansId: number
+  scan_id: number
   /** Scan timestamp */
   timestamp: number
   /** Ports observed in this scan for this host */
@@ -152,7 +152,7 @@ export interface MatrixCell {
  */
 export interface MatrixCellSerialized {
   hostIp: string
-  scansId: number
+  scan_id: number
   timestamp: number
   currentPorts: PortKey[]
   baselinePorts: PortKey[] | null

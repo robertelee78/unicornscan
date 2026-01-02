@@ -20,7 +20,7 @@ const db = getDatabase()
 
 export const topologyKeys = {
   all: ['topology'] as const,
-  forScan: (scansId: number) => [...topologyKeys.all, 'scan', scansId] as const,
+  forScan: (scan_id: number) => [...topologyKeys.all, 'scan', scan_id] as const,
   global: (filters: TopologyFilters) => [...topologyKeys.all, 'global', filters] as const,
 }
 
@@ -171,29 +171,29 @@ function inferOsFamilyFromGuess(guess: string): TopologyNode['osFamily'] {
 /**
  * Get topology data for a specific scan
  */
-export function useTopologyForScan(scansId: number) {
+export function useTopologyForScan(scan_id: number) {
   // Fetch all required data
   const hostsQuery = useQuery({
-    queryKey: [...topologyKeys.forScan(scansId), 'hosts'],
+    queryKey: [...topologyKeys.forScan(scan_id), 'hosts'],
     queryFn: () => db.getHosts({ limit: 10000 }),
     staleTime: 60000,
   })
 
   const hopsQuery = useQuery({
-    queryKey: [...topologyKeys.forScan(scansId), 'hops'],
-    queryFn: () => db.getHops(scansId),
+    queryKey: [...topologyKeys.forScan(scan_id), 'hops'],
+    queryFn: () => db.getHops(scan_id),
     staleTime: 60000,
   })
 
   const reportsQuery = useQuery({
-    queryKey: [...topologyKeys.forScan(scansId), 'reports'],
-    queryFn: () => db.getIpReports(scansId),
+    queryKey: [...topologyKeys.forScan(scan_id), 'reports'],
+    queryFn: () => db.getIpReports(scan_id),
     staleTime: 60000,
   })
 
   const scanQuery = useQuery({
-    queryKey: [...topologyKeys.forScan(scansId), 'scan'],
-    queryFn: () => db.getScan(scansId),
+    queryKey: [...topologyKeys.forScan(scan_id), 'scan'],
+    queryFn: () => db.getScan(scan_id),
     staleTime: 60000,
   })
 

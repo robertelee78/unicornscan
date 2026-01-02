@@ -47,7 +47,7 @@ export interface FilteredScansOptions {
   dateTo?: number | null
   profiles?: string[]
   modes?: string[]
-  sortField?: 'scans_id' | 's_time' | 'profile' | 'target_str'
+  sortField?: 'scan_id' | 's_time' | 'profile' | 'target_str'
   sortDirection?: 'asc' | 'desc'
   offset?: number
   limit?: number
@@ -68,16 +68,16 @@ export interface DatabaseClient {
 
   // Scans
   getScans(options?: { limit?: number; offset?: number }): Promise<Scan[]>
-  getScan(scansId: number): Promise<Scan | null>
+  getScan(scan_id: number): Promise<Scan | null>
   getScanSummaries(options?: { limit?: number }): Promise<ScanSummary[]>
   getFilteredScans(options: FilteredScansOptions): Promise<FilteredScansResult>
 
   // IP Reports (ports/responses)
-  getIpReports(scansId: number): Promise<IpReport[]>
-  getIpReportsByHost(scansId: number, hostAddr: string): Promise<IpReport[]>
+  getIpReports(scan_id: number): Promise<IpReport[]>
+  getIpReportsByHost(scan_id: number, hostAddr: string): Promise<IpReport[]>
 
   // ARP Reports
-  getArpReports(scansId: number): Promise<ArpReport[]>
+  getArpReports(scan_id: number): Promise<ArpReport[]>
 
   // Notes
   getNotes(entityType: NoteEntityType, entityId: number): Promise<Note[]>
@@ -90,16 +90,16 @@ export interface DatabaseClient {
   getHosts(options?: { limit?: number }): Promise<Host[]>
   getHost(hostId: number): Promise<Host | null>
   getHostByIp(ip: string): Promise<Host | null>
-  getHostSummaries(scansId?: number): Promise<HostSummary[]>
+  getHostSummaries(scan_id?: number): Promise<HostSummary[]>
 
   // Host-centric queries (optimized - avoids N+1)
   getReportsForHost(hostAddr: string): Promise<IpReport[]>
   getScansForHost(hostAddr: string): Promise<Array<{
-    scansId: number
-    scanTime: number
+    scan_id: number
+    scan_time: number
     profile: string
-    targetStr: string | null
-    portsFound: number
+    target_str: string | null
+    ports_found: number
   }>>
 
   // Dashboard (time-filtered)
@@ -109,18 +109,18 @@ export interface DatabaseClient {
   getRecentScans(options: { limit: number; since: number | null }): Promise<ScanSummary[]>
 
   // Topology (network graph)
-  getHops(scansId: number): Promise<Hop[]>
+  getHops(scan_id: number): Promise<Hop[]>
   getHopsForHosts(hostAddrs: string[]): Promise<Hop[]>
 
   // GeoIP (v6 schema)
-  getGeoIPByHost(hostIp: string, scansId?: number): Promise<GeoIPRecord | null>
+  getGeoIPByHost(hostIp: string, scan_id?: number): Promise<GeoIPRecord | null>
   getGeoIPHistory(hostIp: string): Promise<GeoIPRecord[]>
-  getGeoIPByScan(scansId: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]>
-  getGeoIPCountryStats(scansId: number): Promise<GeoIPCountryStats[]>
+  getGeoIPByScan(scan_id: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]>
+  getGeoIPCountryStats(scan_id: number): Promise<GeoIPCountryStats[]>
 
   // Deletion
-  getScanDeleteStats(scansId: number): Promise<ScanDeleteStats | null>
-  deleteScan(scansId: number): Promise<DeleteScanResult>
+  getScanDeleteStats(scan_id: number): Promise<ScanDeleteStats | null>
+  deleteScan(scan_id: number): Promise<DeleteScanResult>
 
   // Saved Filters
   getSavedFilters(filterType?: SavedFilterType): Promise<SavedFilter[]>
@@ -155,7 +155,7 @@ class RestDatabase implements DatabaseClient {
 
   async checkConnection(): Promise<boolean> {
     try {
-      const { error } = await this.client.from('uni_scans').select('scans_id', { head: true })
+      const { error } = await this.client.from('uni_scan').select('scan_id', { head: true })
       return !error
     } catch {
       return false
@@ -164,7 +164,7 @@ class RestDatabase implements DatabaseClient {
 
   async getScans(options?: { limit?: number; offset?: number }): Promise<Scan[]> {
     const query = this.client
-      .from('uni_scans')
+      .from('uni_scan')
       .select('*')
       .order('s_time', { ascending: false })
 
@@ -176,11 +176,11 @@ class RestDatabase implements DatabaseClient {
     return data as Scan[]
   }
 
-  async getScan(scansId: number): Promise<Scan | null> {
+  async getScan(scan_id: number): Promise<Scan | null> {
     const { data, error } = await this.client
-      .from('uni_scans')
+      .from('uni_scan')
       .select('*')
-      .eq('scans_id', scansId)
+      .eq('scan_id', scan_id)
       .single()
 
     if (error) {
@@ -192,8 +192,8 @@ class RestDatabase implements DatabaseClient {
 
   async getScanSummaries(options?: { limit?: number }): Promise<ScanSummary[]> {
     const { data, error } = await this.client
-      .from('uni_scans')
-      .select('scans_id, s_time, e_time, profile, target_str, mode_str')
+      .from('uni_scan')
+      .select('scan_id, s_time, e_time, profile, target_str, mode_str')
       .order('s_time', { ascending: false })
       .limit(options?.limit || 50)
 
@@ -205,21 +205,21 @@ class RestDatabase implements DatabaseClient {
           this.client
             .from('uni_ipreport')
             .select('*', { count: 'exact', head: true })
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
           this.client
             .from('uni_ipreport')
             .select('host_addr')
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
           this.client
             .from('uni_scan_tags')
             .select('tag_name')
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
         ])
 
         const uniqueHosts = new Set(hostsResult.data?.map((h) => h.host_addr) || [])
 
         return {
-          scans_id: scan.scans_id,
+          scan_id: scan.scan_id,
           s_time: scan.s_time,
           e_time: scan.e_time,
           profile: scan.profile,
@@ -252,12 +252,12 @@ class RestDatabase implements DatabaseClient {
 
     // Build the base query for data
     let query = this.client
-      .from('uni_scans')
-      .select('scans_id, s_time, e_time, profile, target_str, mode_str, scan_notes')
+      .from('uni_scan')
+      .select('scan_id, s_time, e_time, profile, target_str, mode_str, scan_notes')
 
     // Build count query with same filters
     let countQuery = this.client
-      .from('uni_scans')
+      .from('uni_scan')
       .select('*', { count: 'exact', head: true })
 
     // Apply filters to both queries
@@ -311,21 +311,21 @@ class RestDatabase implements DatabaseClient {
           this.client
             .from('uni_ipreport')
             .select('*', { count: 'exact', head: true })
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
           this.client
             .from('uni_ipreport')
             .select('host_addr')
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
           this.client
             .from('uni_scan_tags')
             .select('tag_name')
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
         ])
 
         const uniqueHosts = new Set(hostsResult.data?.map((h) => h.host_addr) || [])
 
         return {
-          scans_id: scan.scans_id,
+          scan_id: scan.scan_id,
           s_time: scan.s_time,
           e_time: scan.e_time,
           profile: scan.profile,
@@ -345,11 +345,11 @@ class RestDatabase implements DatabaseClient {
     }
   }
 
-  async getIpReports(scansId: number): Promise<IpReport[]> {
+  async getIpReports(scan_id: number): Promise<IpReport[]> {
     const { data, error } = await this.client
       .from('uni_ipreport')
       .select('*')
-      .eq('scans_id', scansId)
+      .eq('scan_id', scan_id)
       .order('host_addr', { ascending: true })
       .order('dport', { ascending: true })
 
@@ -357,23 +357,23 @@ class RestDatabase implements DatabaseClient {
     return data as IpReport[]
   }
 
-  async getIpReportsByHost(scansId: number, hostAddr: string): Promise<IpReport[]> {
+  async getIpReportsByHost(scan_id: number, host_addr: string): Promise<IpReport[]> {
     const { data, error } = await this.client
       .from('uni_ipreport')
       .select('*')
-      .eq('scans_id', scansId)
-      .eq('host_addr', hostAddr)
+      .eq('scan_id', scan_id)
+      .eq('host_addr', host_addr)
       .order('dport', { ascending: true })
 
     if (error) throw error
     return data as IpReport[]
   }
 
-  async getArpReports(scansId: number): Promise<ArpReport[]> {
+  async getArpReports(scan_id: number): Promise<ArpReport[]> {
     const { data, error } = await this.client
       .from('uni_arpreport')
       .select('*')
-      .eq('scans_id', scansId)
+      .eq('scan_id', scan_id)
       .order('host_addr', { ascending: true })
 
     if (error) throw error
@@ -513,7 +513,7 @@ class RestDatabase implements DatabaseClient {
     return data as Host
   }
 
-  async getHostSummaries(_scansId?: number): Promise<HostSummary[]> {
+  async getHostSummaries(_scan_id?: number): Promise<HostSummary[]> {
     const { data, error } = await this.client
       .from('uni_hosts')
       .select('*')
@@ -546,7 +546,7 @@ class RestDatabase implements DatabaseClient {
       .from('uni_ipreport')
       .select('*')
       .eq('host_addr', hostAddr)
-      .order('scans_id', { ascending: false })
+      .order('scan_id', { ascending: false })
       .order('dport', { ascending: true })
 
     if (error) throw error
@@ -556,49 +556,49 @@ class RestDatabase implements DatabaseClient {
   /**
    * Get all scans that contain reports for a specific host.
    * Uses 2 queries instead of N+1:
-   *   1. Fetch all reports for host (get unique scans_ids)
+   *   1. Fetch all reports for host (get unique scan_ids)
    *   2. Fetch scan details for those IDs
    */
-  async getScansForHost(hostAddr: string): Promise<Array<{
-    scansId: number
-    scanTime: number
+  async getScansForHost(host_addr: string): Promise<Array<{
+    scan_id: number
+    scan_time: number
     profile: string
-    targetStr: string | null
-    portsFound: number
+    target_str: string | null
+    ports_found: number
   }>> {
-    // Query 1: Get all reports for this host (includes scans_id)
+    // Query 1: Get all reports for this host (includes scan_id)
     const { data: reports, error: reportsError } = await this.client
       .from('uni_ipreport')
-      .select('scans_id')
-      .eq('host_addr', hostAddr)
+      .select('scan_id')
+      .eq('host_addr', host_addr)
 
     if (reportsError) throw reportsError
     if (!reports || reports.length === 0) return []
 
     // Aggregate: count ports per scan
-    const scanPortCounts = new Map<number, number>()
+    const scan_port_counts = new Map<number, number>()
     for (const r of reports) {
-      scanPortCounts.set(r.scans_id, (scanPortCounts.get(r.scans_id) || 0) + 1)
+      scan_port_counts.set(r.scan_id, (scan_port_counts.get(r.scan_id) || 0) + 1)
     }
 
-    const uniqueScanIds = Array.from(scanPortCounts.keys())
+    const unique_scan_ids = Array.from(scan_port_counts.keys())
 
     // Query 2: Get scan details for those IDs
     const { data: scans, error: scansError } = await this.client
-      .from('uni_scans')
-      .select('scans_id, s_time, profile, target_str')
-      .in('scans_id', uniqueScanIds)
+      .from('uni_scan')
+      .select('scan_id, s_time, profile, target_str')
+      .in('scan_id', unique_scan_ids)
       .order('s_time', { ascending: false })
 
     if (scansError) throw scansError
 
     // Combine scan details with port counts
     return (scans || []).map(scan => ({
-      scansId: scan.scans_id,
-      scanTime: scan.s_time,
+      scan_id: scan.scan_id,
+      scan_time: scan.s_time,
       profile: scan.profile,
-      targetStr: scan.target_str,
-      portsFound: scanPortCounts.get(scan.scans_id) || 0,
+      target_str: scan.target_str,
+      ports_found: scan_port_counts.get(scan.scan_id) || 0,
     }))
   }
 
@@ -606,7 +606,7 @@ class RestDatabase implements DatabaseClient {
     const { since } = options
 
     // Build queries with optional time filter
-    const scansQuery = this.client.from('uni_scans').select('*', { count: 'exact', head: true })
+    const scansQuery = this.client.from('uni_scan').select('*', { count: 'exact', head: true })
     const hostsQuery = this.client.from('uni_hosts').select('*', { count: 'exact', head: true })
     const responsesQuery = this.client.from('uni_ipreport').select('*', { count: 'exact', head: true })
     const portsQuery = this.client.from('uni_ipreport').select('dport')
@@ -672,8 +672,8 @@ class RestDatabase implements DatabaseClient {
     const { since } = options
 
     // Get scans within time range
-    const scansQuery = this.client.from('uni_scans').select('scans_id, s_time')
-    const reportsQuery = this.client.from('uni_ipreport').select('scans_id, tstamp')
+    const scansQuery = this.client.from('uni_scan').select('scan_id, s_time')
+    const reportsQuery = this.client.from('uni_ipreport').select('scan_id, tstamp')
 
     if (since !== null) {
       scansQuery.gte('s_time', since)
@@ -727,8 +727,8 @@ class RestDatabase implements DatabaseClient {
     const { limit, since } = options
 
     const query = this.client
-      .from('uni_scans')
-      .select('scans_id, s_time, e_time, profile, target_str, mode_str')
+      .from('uni_scan')
+      .select('scan_id, s_time, e_time, profile, target_str, mode_str')
       .order('s_time', { ascending: false })
       .limit(limit)
 
@@ -745,21 +745,21 @@ class RestDatabase implements DatabaseClient {
           this.client
             .from('uni_ipreport')
             .select('*', { count: 'exact', head: true })
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
           this.client
             .from('uni_ipreport')
             .select('host_addr')
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
           this.client
             .from('uni_scan_tags')
             .select('tag_name')
-            .eq('scans_id', scan.scans_id),
+            .eq('scan_id', scan.scan_id),
         ])
 
         const uniqueHosts = new Set(hostsResult.data?.map((h) => h.host_addr) || [])
 
         return {
-          scans_id: scan.scans_id,
+          scan_id: scan.scan_id,
           s_time: scan.s_time,
           e_time: scan.e_time,
           profile: scan.profile,
@@ -776,11 +776,11 @@ class RestDatabase implements DatabaseClient {
     return summaries
   }
 
-  async getHops(scansId: number): Promise<Hop[]> {
+  async getHops(scan_id: number): Promise<Hop[]> {
     const { data, error } = await this.client
       .from('uni_hops')
       .select('*')
-      .eq('scans_id', scansId)
+      .eq('scan_id', scan_id)
       .order('target_addr', { ascending: true })
 
     if (error) {
@@ -811,16 +811,16 @@ class RestDatabase implements DatabaseClient {
   // GeoIP Methods (v6 schema)
   // ===========================================================================
 
-  async getGeoIPByHost(hostIp: string, scansId?: number): Promise<GeoIPRecord | null> {
+  async getGeoIPByHost(host_ip: string, scan_id?: number): Promise<GeoIPRecord | null> {
     let query = this.client
       .from('uni_geoip')
       .select('*')
-      .eq('host_ip', hostIp)
+      .eq('host_ip', host_ip)
       .order('lookup_time', { ascending: false })
       .limit(1)
 
-    if (scansId !== undefined) {
-      query = query.eq('scans_id', scansId)
+    if (scan_id !== undefined) {
+      query = query.eq('scan_id', scan_id)
     }
 
     const { data, error } = await query
@@ -833,11 +833,11 @@ class RestDatabase implements DatabaseClient {
     return data && data.length > 0 ? (data[0] as GeoIPRecord) : null
   }
 
-  async getGeoIPHistory(hostIp: string): Promise<GeoIPRecord[]> {
+  async getGeoIPHistory(host_ip: string): Promise<GeoIPRecord[]> {
     const { data, error } = await this.client
       .from('uni_geoip')
       .select('*')
-      .eq('host_ip', hostIp)
+      .eq('host_ip', host_ip)
       .order('lookup_time', { ascending: false })
 
     if (error) {
@@ -847,11 +847,11 @@ class RestDatabase implements DatabaseClient {
     return data as GeoIPRecord[]
   }
 
-  async getGeoIPByScan(scansId: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]> {
+  async getGeoIPByScan(scan_id: number, options?: GeoIPQueryOptions): Promise<GeoIPRecord[]> {
     let query = this.client
       .from('uni_geoip')
       .select('*')
-      .eq('scans_id', scansId)
+      .eq('scan_id', scan_id)
 
     // Apply filters
     if (options?.countryCode) {
@@ -886,27 +886,27 @@ class RestDatabase implements DatabaseClient {
     return data as GeoIPRecord[]
   }
 
-  async getGeoIPCountryStats(scansId: number): Promise<GeoIPCountryStats[]> {
+  async getGeoIPCountryStats(scan_id: number): Promise<GeoIPCountryStats[]> {
     // Use the v_geoip_stats view if available, otherwise aggregate manually
     const { data, error } = await this.client
       .from('v_geoip_stats')
       .select('*')
-      .eq('scans_id', scansId)
+      .eq('scan_id', scan_id)
       .order('host_count', { ascending: false })
 
     if (error) {
       // View might not exist - fall back to manual aggregation
       if (error.code === 'PGRST116' || error.code === '42P01') {
         // Get raw GeoIP records and aggregate in JS
-        const records = await this.getGeoIPByScan(scansId)
-        return this.aggregateCountryStats(scansId, records)
+        const records = await this.getGeoIPByScan(scan_id)
+        return this.aggregateCountryStats(scan_id, records)
       }
       throw error
     }
     return data as GeoIPCountryStats[]
   }
 
-  private aggregateCountryStats(scansId: number, records: GeoIPRecord[]): GeoIPCountryStats[] {
+  private aggregateCountryStats(scan_id: number, records: GeoIPRecord[]): GeoIPCountryStats[] {
     const countryMap = new Map<string, GeoIPCountryStats>()
 
     for (const r of records) {
@@ -924,7 +924,7 @@ class RestDatabase implements DatabaseClient {
         if (r.ip_type === 'mobile') existing.mobile_count++
       } else {
         countryMap.set(key, {
-          scans_id: scansId,
+          scan_id: scan_id,
           country_code: r.country_code,
           country_name: r.country_name,
           host_count: 1,
@@ -943,41 +943,41 @@ class RestDatabase implements DatabaseClient {
       .sort((a, b) => b.host_count - a.host_count)
   }
 
-  async getScanDeleteStats(scansId: number): Promise<ScanDeleteStats | null> {
+  async getScanDeleteStats(scan_id: number): Promise<ScanDeleteStats | null> {
     // Get scan info
-    const scan = await this.getScan(scansId)
+    const scan = await this.getScan(scan_id)
     if (!scan) return null
 
     // Get counts for all related tables
     const [reportsResult, arpResult, hopsResult, notesResult, tagsResult] = await Promise.all([
-      this.client.from('uni_ipreport').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
-      this.client.from('uni_arpreport').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
-      this.client.from('uni_hops').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
-      this.client.from('uni_notes').select('*', { count: 'exact', head: true }).eq('entity_type', 'scan').eq('entity_id', scansId),
-      this.client.from('uni_scan_tags').select('*', { count: 'exact', head: true }).eq('scans_id', scansId),
+      this.client.from('uni_ipreport').select('*', { count: 'exact', head: true }).eq('scan_id', scan_id),
+      this.client.from('uni_arpreport').select('*', { count: 'exact', head: true }).eq('scan_id', scan_id),
+      this.client.from('uni_hops').select('*', { count: 'exact', head: true }).eq('scan_id', scan_id),
+      this.client.from('uni_notes').select('*', { count: 'exact', head: true }).eq('entity_type', 'scan').eq('entity_id', scan_id),
+      this.client.from('uni_scan_tags').select('*', { count: 'exact', head: true }).eq('scan_id', scan_id),
     ])
 
     // Count unique hosts
-    const hostsResult = await this.client.from('uni_ipreport').select('host_addr').eq('scans_id', scansId)
-    const uniqueHosts = new Set(hostsResult.data?.map((r) => r.host_addr) || [])
+    const hostsResult = await this.client.from('uni_ipreport').select('host_addr').eq('scan_id', scan_id)
+    const unique_hosts = new Set(hostsResult.data?.map((r) => r.host_addr) || [])
 
     return {
-      scansId,
+      scan_id,
       target: scan.target_str ?? '',
-      scanTime: scan.s_time,
-      portCount: reportsResult.count || 0,
-      hostCount: uniqueHosts.size,
-      arpCount: arpResult.count || 0,
-      hopCount: hopsResult.count || 0,
-      noteCount: notesResult.count || 0,
-      tagCount: tagsResult.count || 0,
+      scan_time: scan.s_time,
+      port_count: reportsResult.count || 0,
+      host_count: unique_hosts.size,
+      arp_count: arpResult.count || 0,
+      hop_count: hopsResult.count || 0,
+      note_count: notesResult.count || 0,
+      tag_count: tagsResult.count || 0,
     }
   }
 
-  async deleteScan(scansId: number): Promise<DeleteScanResult> {
+  async deleteScan(scan_id: number): Promise<DeleteScanResult> {
     const result: DeleteScanResult = {
       success: false,
-      scansId,
+      scan_id,
       deleted: {
         reports: 0,
         arp: 0,
@@ -990,21 +990,21 @@ class RestDatabase implements DatabaseClient {
     try {
       // Delete in order to avoid foreign key violations
       // 1. Delete IP reports
-      const reportsDelete = await this.client.from('uni_ipreport').delete().eq('scans_id', scansId)
+      const reportsDelete = await this.client.from('uni_ipreport').delete().eq('scan_id', scan_id)
       if (reportsDelete.error && reportsDelete.error.code !== 'PGRST116') {
         throw reportsDelete.error
       }
       result.deleted.reports = reportsDelete.count || 0
 
       // 2. Delete ARP reports
-      const arpDelete = await this.client.from('uni_arpreport').delete().eq('scans_id', scansId)
+      const arpDelete = await this.client.from('uni_arpreport').delete().eq('scan_id', scan_id)
       if (arpDelete.error && arpDelete.error.code !== 'PGRST116') {
         throw arpDelete.error
       }
       result.deleted.arp = arpDelete.count || 0
 
       // 3. Delete hops/traceroute data
-      const hopsDelete = await this.client.from('uni_hops').delete().eq('scans_id', scansId)
+      const hopsDelete = await this.client.from('uni_hops').delete().eq('scan_id', scan_id)
       if (hopsDelete.error && hopsDelete.error.code !== 'PGRST116') {
         // Table might not exist
         if (hopsDelete.error.code !== '42P01') throw hopsDelete.error
@@ -1012,27 +1012,27 @@ class RestDatabase implements DatabaseClient {
       result.deleted.hops = hopsDelete.count || 0
 
       // 4. Delete notes
-      const notesDelete = await this.client.from('uni_notes').delete().eq('entity_type', 'scan').eq('entity_id', scansId)
+      const notesDelete = await this.client.from('uni_notes').delete().eq('entity_type', 'scan').eq('entity_id', scan_id)
       if (notesDelete.error && notesDelete.error.code !== 'PGRST116' && notesDelete.error.code !== '42P01') {
         throw notesDelete.error
       }
       result.deleted.notes = notesDelete.count || 0
 
       // 5. Delete tags
-      const tagsDelete = await this.client.from('uni_scan_tags').delete().eq('scans_id', scansId)
+      const tagsDelete = await this.client.from('uni_scan_tags').delete().eq('scan_id', scan_id)
       if (tagsDelete.error && tagsDelete.error.code !== 'PGRST116' && tagsDelete.error.code !== '42P01') {
         throw tagsDelete.error
       }
       result.deleted.tags = tagsDelete.count || 0
 
       // 6. Delete GeoIP records
-      const geoDelete = await this.client.from('uni_geoip').delete().eq('scans_id', scansId)
+      const geoDelete = await this.client.from('uni_geoip').delete().eq('scan_id', scan_id)
       if (geoDelete.error && geoDelete.error.code !== 'PGRST116' && geoDelete.error.code !== '42P01') {
         // Ignore if table doesn't exist
       }
 
       // 7. Finally, delete the scan record
-      const scanDelete = await this.client.from('uni_scans').delete().eq('scans_id', scansId)
+      const scanDelete = await this.client.from('uni_scan').delete().eq('scan_id', scan_id)
       if (scanDelete.error) {
         throw scanDelete.error
       }

@@ -50,7 +50,7 @@ export function ComparisonView({ onViewMatrix }: ComparisonViewProps) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `comparison-${comparison.scanA.scans_id}-vs-${comparison.scanB.scans_id}.csv`
+      a.download = `comparison-${comparison.scanA.scan_id}-vs-${comparison.scanB.scan_id}.csv`
       a.click()
       URL.revokeObjectURL(url)
     }
@@ -63,7 +63,7 @@ export function ComparisonView({ onViewMatrix }: ComparisonViewProps) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `comparison-${comparison.scanA.scans_id}-vs-${comparison.scanB.scans_id}.json`
+      a.download = `comparison-${comparison.scanA.scan_id}-vs-${comparison.scanB.scan_id}.json`
       a.click()
       URL.revokeObjectURL(url)
     }

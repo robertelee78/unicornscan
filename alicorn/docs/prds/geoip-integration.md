@@ -57,7 +57,7 @@ Currently, Unicornscan has basic GeoIP support via libmaxminddb, but it's only u
 CREATE TABLE uni_geoip (
     geoip_id SERIAL PRIMARY KEY,
     host_ip VARCHAR(45) NOT NULL,           -- IPv4 or IPv6
-    scans_id INTEGER REFERENCES uni_scans(scans_id),
+    scan_id INTEGER REFERENCES uni_scan(scan_id),
 
     -- Geographic data
     country_code CHAR(2),                    -- ISO 3166-1 alpha-2
@@ -84,11 +84,11 @@ CREATE TABLE uni_geoip (
     confidence INTEGER,                      -- 0-100 if provider supplies it
 
     -- Indexes
-    CONSTRAINT uni_geoip_unique UNIQUE (host_ip, scans_id)
+    CONSTRAINT uni_geoip_unique UNIQUE (host_ip, scan_id)
 );
 
 CREATE INDEX idx_geoip_host ON uni_geoip(host_ip);
-CREATE INDEX idx_geoip_scan ON uni_geoip(scans_id);
+CREATE INDEX idx_geoip_scan ON uni_geoip(scan_id);
 CREATE INDEX idx_geoip_country ON uni_geoip(country_code);
 CREATE INDEX idx_geoip_type ON uni_geoip(ip_type);
 ```

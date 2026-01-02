@@ -301,7 +301,7 @@ export function exportScanToPDF(
   let currentPage = 1
   let yPosition = HEADER_HEIGHT
 
-  addPageHeader(doc, `Scan Report #${data.scan.scans_id}`, currentPage)
+  addPageHeader(doc, `Scan Report #${data.scan.scan_id}`, currentPage)
 
   // Scan metadata section
   yPosition = addScanMetadataSection(doc, data.scan, data.reports.length, yPosition)
@@ -320,7 +320,7 @@ export function exportScanToPDF(
     if (yPosition > doc.internal.pageSize.getHeight() - 100) {
       doc.addPage()
       currentPage++
-      addPageHeader(doc, `Scan Report #${data.scan.scans_id}`, currentPage)
+      addPageHeader(doc, `Scan Report #${data.scan.scan_id}`, currentPage)
       yPosition = HEADER_HEIGHT
     }
 
@@ -360,7 +360,7 @@ export function exportScanToPDF(
     if (yPosition > doc.internal.pageSize.getHeight() - 60) {
       doc.addPage()
       currentPage++
-      addPageHeader(doc, `Scan Report #${data.scan.scans_id}`, currentPage)
+      addPageHeader(doc, `Scan Report #${data.scan.scan_id}`, currentPage)
       yPosition = HEADER_HEIGHT
     }
 
@@ -462,7 +462,7 @@ export function exportBulkScansToPDF(
   const scansTableData = data.scans.map((s) => {
     const hostCount = new Set(s.reports.map((r) => r.host_addr)).size
     return [
-      s.scan.scans_id,
+      s.scan.scan_id,
       new Date(s.scan.s_time * 1000).toLocaleDateString(),
       s.scan.target_str ?? '—',
       hostCount,

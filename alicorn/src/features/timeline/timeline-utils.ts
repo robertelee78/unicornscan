@@ -31,7 +31,7 @@ export function reportToObservation(report: IpReport, scan: Scan): PortObservati
     : 'other'
 
   return {
-    scansId: scan.scans_id,
+    scan_id: scan.scan_id,
     timestamp: scan.s_time,
     port: report.dport,
     protocol,
@@ -209,7 +209,7 @@ export function buildHostTimeline(
   // Process each scan
   for (let scanIndex = 0; scanIndex < sortedScans.length; scanIndex++) {
     const scan = sortedScans[scanIndex]
-    const reports = reportsByScansId.get(scan.scans_id) || []
+    const reports = reportsByScansId.get(scan.scan_id) || []
 
     const seenInThisScan = new Set<string>()
     let changesInScan = 0
@@ -232,7 +232,7 @@ export function buildHostTimeline(
         const change: PortStateChange = {
           type: 'appeared',
           timestamp: scan.s_time,
-          scansId: scan.scans_id,
+          scan_id: scan.scan_id,
           port: observation.port,
           protocol: observation.protocol,
           previous: null,
@@ -252,7 +252,7 @@ export function buildHostTimeline(
           const change: PortStateChange = {
             type: 'reappeared',
             timestamp: scan.s_time,
-            scansId: scan.scans_id,
+            scan_id: scan.scan_id,
             port: observation.port,
             protocol: observation.protocol,
             previous: prevObservation,
@@ -270,7 +270,7 @@ export function buildHostTimeline(
           const change: PortStateChange = {
             type: changeType,
             timestamp: scan.s_time,
-            scansId: scan.scans_id,
+            scan_id: scan.scan_id,
             port: observation.port,
             protocol: observation.protocol,
             previous: prevObservation,
@@ -296,7 +296,7 @@ export function buildHostTimeline(
           const change: PortStateChange = {
             type: 'disappeared',
             timestamp: scan.s_time,
-            scansId: scan.scans_id,
+            scan_id: scan.scan_id,
             port: lastObs.port,
             protocol: lastObs.protocol,
             previous: lastObs,
@@ -312,7 +312,7 @@ export function buildHostTimeline(
 
     // Build scan point
     scanPoints.push({
-      scansId: scan.scans_id,
+      scan_id: scan.scan_id,
       timestamp: scan.s_time,
       date: new Date(scan.s_time * 1000).toISOString().split('T')[0],
       portCount: seenInThisScan.size,
@@ -334,7 +334,7 @@ export function buildHostTimeline(
     let gapCount = 0
     let prevScanIndex = -1
     for (const obs of observations) {
-      const scanIndex = sortedScans.findIndex(s => s.scans_id === obs.scansId)
+      const scanIndex = sortedScans.findIndex(s => s.scan_id === obs.scan_id)
       if (prevScanIndex >= 0 && scanIndex > prevScanIndex + 1) {
         gapCount++
       }

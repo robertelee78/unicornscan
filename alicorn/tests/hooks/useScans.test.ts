@@ -111,8 +111,8 @@ describe('useScans', () => {
 
   it('fetches scans with default options', async () => {
     const mockScans = [
-      { scans_id: 1, target_str: '192.168.1.0/24' },
-      { scans_id: 2, target_str: '10.0.0.0/24' },
+      { scan_id: 1, target_str: '192.168.1.0/24' },
+      { scan_id: 2, target_str: '10.0.0.0/24' },
     ]
     mockDb.getScans.mockResolvedValue(mockScans)
 
@@ -132,7 +132,7 @@ describe('useScans', () => {
   })
 
   it('fetches scans with limit and offset', async () => {
-    const mockScans = [{ scans_id: 1 }]
+    const mockScans = [{ scan_id: 1 }]
     mockDb.getScans.mockResolvedValue(mockScans)
 
     const queryClient = createTestQueryClient()
@@ -166,7 +166,7 @@ describe('useScan', () => {
   })
 
   it('fetches single scan by id', async () => {
-    const mockScan = { scans_id: 123, target_str: '192.168.1.0/24' }
+    const mockScan = { scan_id: 123, target_str: '192.168.1.0/24' }
     mockDb.getScan.mockResolvedValue(mockScan)
 
     const queryClient = createTestQueryClient()
@@ -222,8 +222,8 @@ describe('useScanSummaries', () => {
 
   it('fetches scan summaries', async () => {
     const mockSummaries = [
-      { scans_id: 1, host_count: 10, port_count: 50 },
-      { scans_id: 2, host_count: 5, port_count: 25 },
+      { scan_id: 1, host_count: 10, port_count: 50 },
+      { scan_id: 2, host_count: 5, port_count: 25 },
     ]
     mockDb.getScanSummaries.mockResolvedValue(mockSummaries)
 

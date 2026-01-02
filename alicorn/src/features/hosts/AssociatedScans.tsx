@@ -114,13 +114,13 @@ export function AssociatedScans({ scans, isLoading, error, hostIp }: AssociatedS
             </thead>
             <tbody className="font-mono">
               {scans.map((scan) => (
-                <tr key={scan.scansId} className="border-b border-border/50 hover:bg-muted/30">
+                <tr key={scan.scan_id} className="border-b border-border/50 hover:bg-muted/30">
                   <td className="py-2 pr-4">
                     <Link
-                      to={`/scans/${scan.scansId}`}
+                      to={`/scans/${scan.scan_id}`}
                       className="text-primary hover:underline inline-flex items-center gap-1"
                     >
-                      #{scan.scansId}
+                      #{scan.scan_id}
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   </td>
@@ -129,21 +129,21 @@ export function AssociatedScans({ scans, isLoading, error, hostIp }: AssociatedS
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-xs text-muted cursor-help">
-                            {formatRelativeTime(scan.scanTime)}
+                            {formatRelativeTime(scan.scan_time)}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <span>{formatTimestamp(scan.scanTime)}</span>
+                          <span>{formatTimestamp(scan.scan_time)}</span>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </td>
-                  <td className="py-2 pr-4">{scan.targetStr}</td>
+                  <td className="py-2 pr-4">{scan.target_str}</td>
                   <td className="py-2 pr-4">
                     <Badge variant="outline">{scan.profile}</Badge>
                   </td>
                   <td className="py-2">
-                    <Badge variant="open">{scan.portsFound}</Badge>
+                    <Badge variant="open">{scan.ports_found}</Badge>
                   </td>
                 </tr>
               ))}

@@ -32,7 +32,7 @@ interface DatabaseConfig {
 const ENV_PATH = resolve(process.cwd(), '.env')
 
 const REQUIRED_TABLES = [
-  'uni_scans',
+  'uni_scan',
   'uni_ipreport',
   'uni_hosts',
 ]
@@ -97,7 +97,7 @@ function getCurrentBackend(): string | null {
 async function testPostgrestConnection(url: string): Promise<{ success: boolean; error?: string }> {
   try {
     const client = new PostgrestClient(url)
-    const { error } = await client.from('uni_scans').select('scans_id', { head: true, count: 'exact' })
+    const { error } = await client.from('uni_scan').select('scan_id', { head: true, count: 'exact' })
 
     if (error) {
       // PGRST116 = no rows, which is fine (table exists but empty)
@@ -106,7 +106,7 @@ async function testPostgrestConnection(url: string): Promise<{ success: boolean;
         return { success: true }
       }
       if (error.code === '42P01') {
-        return { success: false, error: 'Table uni_scans not found. Schema may not be initialized.' }
+        return { success: false, error: 'Table uni_scan not found. Schema may not be initialized.' }
       }
       return { success: false, error: error.message }
     }

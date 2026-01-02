@@ -15,7 +15,7 @@
 export interface PortTrendPoint {
   timestamp: number       // Unix timestamp of scan
   date: string           // ISO date string for display
-  scansId: number        // Reference to scan
+  scan_id: number        // Reference to scan
   totalPorts: number     // Total unique ports observed
   tcpPorts: number       // TCP port count
   udpPorts: number       // UDP port count
@@ -52,8 +52,8 @@ export interface PortLifespan {
   protocol: 'tcp' | 'udp' | 'other'
   firstSeen: number      // Unix timestamp
   lastSeen: number       // Unix timestamp
-  firstScansId: number
-  lastScansId: number
+  first_scan_id: number
+  last_scan_id: number
   observationCount: number  // How many scans observed this port
   isActive: boolean      // Was it seen in the most recent scan?
 }
@@ -80,7 +80,7 @@ export interface PortTimelineData {
 export interface ProtocolBreakdown {
   timestamp: number
   date: string
-  scansId?: number
+  scan_id?: number
   tcp: number
   udp: number
   icmp: number

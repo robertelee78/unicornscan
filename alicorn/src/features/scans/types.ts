@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-export type SortField = 'scans_id' | 's_time' | 'profile' | 'host_count' | 'port_count' | 'duration'
+export type SortField = 'scan_id' | 's_time' | 'profile' | 'host_count' | 'port_count' | 'duration'
 export type SortDirection = 'asc' | 'desc'
 
 export interface SortState {

@@ -26,12 +26,12 @@ const db = getDatabase()
 export const geoipKeys = {
   all: ['geoip'] as const,
   byHost: (hostIp: string) => [...geoipKeys.all, 'host', hostIp] as const,
-  byScan: (scansId: number) => [...geoipKeys.all, 'scan', scansId] as const,
-  stats: (scansId: number) => [...geoipKeys.all, 'stats', scansId] as const,
-  countryBreakdown: (scansId: number) => [...geoipKeys.all, 'countries', scansId] as const,
-  typeBreakdown: (scansId: number) => [...geoipKeys.all, 'types', scansId] as const,
-  mapPoints: (scansId: number) => [...geoipKeys.all, 'map', scansId] as const,
-  asnBreakdown: (scansId: number) => [...geoipKeys.all, 'asns', scansId] as const,
+  byScan: (scanId: number) => [...geoipKeys.all, 'scan', scanId] as const,
+  stats: (scanId: number) => [...geoipKeys.all, 'stats', scanId] as const,
+  countryBreakdown: (scanId: number) => [...geoipKeys.all, 'countries', scanId] as const,
+  typeBreakdown: (scanId: number) => [...geoipKeys.all, 'types', scanId] as const,
+  mapPoints: (scanId: number) => [...geoipKeys.all, 'map', scanId] as const,
+  asnBreakdown: (scanId: number) => [...geoipKeys.all, 'asns', scanId] as const,
 }
 
 // =============================================================================
@@ -42,11 +42,11 @@ export const geoipKeys = {
  * Get GeoIP data for a specific host IP
  * Returns the most recent lookup, optionally filtered by scan
  */
-export function useGeoIP(hostIp: string, scansId?: number) {
+export function useGeoIP(hostIp: string, scanId?: number) {
   return useQuery({
-    queryKey: scansId ? [...geoipKeys.byHost(hostIp), scansId] : geoipKeys.byHost(hostIp),
+    queryKey: scanId ? [...geoipKeys.byHost(hostIp), scanId] : geoipKeys.byHost(hostIp),
     queryFn: async (): Promise<GeoIPRecord | null> => {
-      return db.getGeoIPByHost(hostIp, scansId)
+      return db.getGeoIPByHost(hostIp, scanId)
     },
     enabled: !!hostIp,
     staleTime: 60000,  // GeoIP data doesn't change often
@@ -75,13 +75,13 @@ export function useGeoIPHistory(hostIp: string) {
 /**
  * Get all GeoIP records for a scan
  */
-export function useScanGeoIP(scansId: number, options?: GeoIPQueryOptions) {
+export function useScanGeoIP(scanId: number, options?: GeoIPQueryOptions) {
   return useQuery({
-    queryKey: [...geoipKeys.byScan(scansId), options],
+    queryKey: [...geoipKeys.byScan(scanId), options],
     queryFn: async (): Promise<GeoIPRecord[]> => {
-      return db.getGeoIPByScan(scansId, options)
+      return db.getGeoIPByScan(scanId, options)
     },
-    enabled: scansId > 0,
+    enabled: scanId > 0,
     staleTime: 60000,
   })
 }
@@ -89,9 +89,9 @@ export function useScanGeoIP(scansId: number, options?: GeoIPQueryOptions) {
 /**
  * Get aggregated GeoIP statistics for a scan
  */
-export function useGeoIPStats(scansId: number) {
-  const { data: geoipRecords, isLoading: recordsLoading } = useScanGeoIP(scansId)
-  const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdown(scansId)
+export function useGeoIPStats(scanId: number) {
+  const { data: geoipRecords, isLoading: recordsLoading } = useScanGeoIP(scanId)
+  const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdown(scanId)
 
   const stats = useMemo((): GeoIPScanStats | null => {
     if (!geoipRecords) return null
@@ -99,7 +99,7 @@ export function useGeoIPStats(scansId: number) {
     const total = geoipRecords.length
     if (total === 0) {
       return {
-        scans_id: scansId,
+        scan_id: scanId,
         total_hosts: 0,
         hosts_with_geoip: 0,
         coverage_percentage: 0,
@@ -168,7 +168,7 @@ export function useGeoIPStats(scansId: number) {
     }
 
     return {
-      scans_id: scansId,
+      scan_id: scanId,
       total_hosts: total,
       hosts_with_geoip: total,
       coverage_percentage: 100,  // All records have GeoIP by definition
@@ -179,7 +179,7 @@ export function useGeoIPStats(scansId: number) {
       top_asns: topAsns,
       bounds,
     }
-  }, [geoipRecords, countryStats, scansId])
+  }, [geoipRecords, countryStats, scanId])
 
   return {
     data: stats,
@@ -195,13 +195,13 @@ export function useGeoIPStats(scansId: number) {
 /**
  * Get country breakdown for a scan (from v_geoip_stats view)
  */
-export function useGeoIPCountryBreakdown(scansId: number) {
+export function useGeoIPCountryBreakdown(scanId: number) {
   return useQuery({
-    queryKey: geoipKeys.countryBreakdown(scansId),
+    queryKey: geoipKeys.countryBreakdown(scanId),
     queryFn: async (): Promise<GeoIPCountryStats[]> => {
-      return db.getGeoIPCountryStats(scansId)
+      return db.getGeoIPCountryStats(scanId)
     },
-    enabled: scansId > 0,
+    enabled: scanId > 0,
     staleTime: 60000,
   })
 }
@@ -209,8 +209,8 @@ export function useGeoIPCountryBreakdown(scansId: number) {
 /**
  * Get IP type breakdown for a scan
  */
-export function useGeoIPTypeBreakdown(scansId: number) {
-  const { data: records } = useScanGeoIP(scansId)
+export function useGeoIPTypeBreakdown(scanId: number) {
+  const { data: records } = useScanGeoIP(scanId)
 
   return useMemo((): GeoIPTypeDistribution[] => {
     if (!records || records.length === 0) return []
@@ -240,11 +240,11 @@ export function useGeoIPTypeBreakdown(scansId: number) {
 /**
  * Get GeoIP data as map points for visualization
  */
-export function useGeoIPMapPoints(scansId: number) {
+export function useGeoIPMapPoints(scanId: number) {
   return useQuery({
-    queryKey: geoipKeys.mapPoints(scansId),
+    queryKey: geoipKeys.mapPoints(scanId),
     queryFn: async (): Promise<GeoIPMapPoint[]> => {
-      const records = await db.getGeoIPByScan(scansId, { hasCoordinates: true })
+      const records = await db.getGeoIPByScan(scanId, { hasCoordinates: true })
       return records
         .filter((r): r is GeoIPRecord & { latitude: number; longitude: number } =>
           r.latitude !== null && r.longitude !== null
@@ -256,10 +256,10 @@ export function useGeoIPMapPoints(scansId: number) {
           country_code: r.country_code,
           city: r.city,
           ip_type: r.ip_type,
-          scans_id: r.scans_id,
+          scan_id: r.scan_id,
         }))
     },
-    enabled: scansId > 0,
+    enabled: scanId > 0,
     staleTime: 60000,
   })
 }
@@ -271,8 +271,8 @@ export function useGeoIPMapPoints(scansId: number) {
 /**
  * Get ASN breakdown for a scan
  */
-export function useGeoIPAsnBreakdown(scansId: number, limit: number = 20) {
-  const { data: records } = useScanGeoIP(scansId)
+export function useGeoIPAsnBreakdown(scanId: number, limit: number = 20) {
+  const { data: records } = useScanGeoIP(scanId)
 
   return useMemo((): GeoIPAsnStats[] => {
     if (!records || records.length === 0) return []
@@ -313,8 +313,8 @@ export function useGeoIPAsnBreakdown(scansId: number, limit: number = 20) {
 /**
  * Check if GeoIP data is available for a scan
  */
-export function useHasGeoIP(scansId: number) {
-  const { data: records, isLoading } = useScanGeoIP(scansId, { limit: 1 })
+export function useHasGeoIP(scanId: number) {
+  const { data: records, isLoading } = useScanGeoIP(scanId, { limit: 1 })
 
   return {
     hasGeoIP: records && records.length > 0,

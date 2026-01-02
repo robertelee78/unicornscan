@@ -57,7 +57,7 @@ export interface GeoIPRegionSummary {
  * Aggregate GeoIP statistics for a scan
  */
 export interface GeoIPScanStats {
-  scans_id: number
+  scan_id: number
   total_hosts: number
   hosts_with_geoip: number
   coverage_percentage: number
@@ -119,7 +119,7 @@ export interface GeoIPMapPoint {
   country_code: string | null
   city: string | null
   ip_type: IpType | null
-  scans_id: number
+  scan_id: number
 }
 
 /**

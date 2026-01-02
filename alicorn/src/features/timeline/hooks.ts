@@ -46,14 +46,14 @@ export function useHostTimeline(hostIp: string) {
       const reportsByScansId = new Map<number, Awaited<ReturnType<typeof db.getIpReportsByHost>>>()
 
       for (const scan of scans) {
-        const reports = await db.getIpReportsByHost(scan.scans_id, hostIp)
+        const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
         if (reports.length > 0) {
-          reportsByScansId.set(scan.scans_id, reports)
+          reportsByScansId.set(scan.scan_id, reports)
         }
       }
 
       // Filter scans to only those with data for this host
-      const relevantScans = scans.filter(s => reportsByScansId.has(s.scans_id))
+      const relevantScans = scans.filter(s => reportsByScansId.has(s.scan_id))
 
       // Build the timeline
       return buildHostTimeline(hostIp, relevantScans, reportsByScansId)

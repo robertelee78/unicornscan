@@ -82,7 +82,7 @@ export function objectsToCSV<T>(
  */
 export function scanToCSVRow(scan: Scan, hostCount: number, portCount: number): ScanCSVRow {
   return {
-    scan_id: scan.scans_id,
+    scan_id: scan.scan_id,
     start_time: new Date(scan.s_time * 1000).toISOString(),
     end_time: new Date(scan.e_time * 1000).toISOString(),
     duration_seconds: scan.e_time - scan.s_time,
@@ -103,7 +103,7 @@ export function scanToCSVRow(scan: Scan, hostCount: number, portCount: number): 
  */
 export function reportToCSVRow(report: IpReport, service?: string): ReportCSVRow {
   return {
-    scan_id: report.scans_id,
+    scan_id: report.scan_id,
     report_id: report.ipreport_id,
     host_ip: report.host_addr,
     port: report.dport,

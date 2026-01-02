@@ -33,8 +33,8 @@ export const activityMatrixKeys = {
   all: ['activity-matrix'] as const,
   matrix: (filters: MatrixFilters) =>
     [...activityMatrixKeys.all, 'matrix', JSON.stringify(filters)] as const,
-  hostPorts: (scansId: number, hostIp: string) =>
-    [...activityMatrixKeys.all, 'host-ports', scansId, hostIp] as const,
+  hostPorts: (scan_id: number, hostIp: string) =>
+    [...activityMatrixKeys.all, 'host-ports', scan_id, hostIp] as const,
   scansForMatrix: (timeRange: string) =>
     [...activityMatrixKeys.all, 'scans', timeRange] as const,
 }
@@ -123,9 +123,9 @@ export function useActivityMatrix(filters: MatrixFilters) {
       const hostPortsBySccan = new Map<number, Map<string, Set<PortKey>>>()
 
       for (const scan of scans) {
-        const reports = await db.getIpReports(scan.scans_id)
+        const reports = await db.getIpReports(scan.scan_id)
         const hostPorts = processReports(reports, filters)
-        hostPortsBySccan.set(scan.scans_id, hostPorts)
+        hostPortsBySccan.set(scan.scan_id, hostPorts)
       }
 
       // Step 4: Collect all unique hosts
@@ -146,9 +146,9 @@ export function useActivityMatrix(filters: MatrixFilters) {
 
       // Initialize columns
       for (const scan of scans) {
-        columns.set(scan.scans_id, {
+        columns.set(scan.scan_id, {
           scan,
-          isBaseline: scan.scans_id === baselineScansId,
+          isBaseline: scan.scan_id === baselineScansId,
           changedHostCount: 0,
         })
       }
@@ -178,7 +178,7 @@ export function useActivityMatrix(filters: MatrixFilters) {
           : new Set<PortKey>()
 
         for (const scan of scans) {
-          const scanHostPorts = hostPortsBySccan.get(scan.scans_id)
+          const scanHostPorts = hostPortsBySccan.get(scan.scan_id)
           const currentPorts = scanHostPorts?.get(hostIp) || new Set<PortKey>()
 
           // Add to all host ports
@@ -188,7 +188,7 @@ export function useActivityMatrix(filters: MatrixFilters) {
           }
 
           // Calculate diff
-          const isBaseline = scan.scans_id === baselineScansId
+          const isBaseline = scan.scan_id === baselineScansId
           const { newPorts, removedPorts, status } = calculateDiff(
             currentPorts,
             isBaseline ? null : baselinePorts,
@@ -197,7 +197,7 @@ export function useActivityMatrix(filters: MatrixFilters) {
 
           const cell: MatrixCell = {
             hostIp,
-            scansId: scan.scans_id,
+            scan_id: scan.scan_id,
             timestamp: scan.s_time,
             currentPorts,
             baselinePorts: isBaseline ? null : baselinePorts,
@@ -207,7 +207,7 @@ export function useActivityMatrix(filters: MatrixFilters) {
             isBaseline,
           }
 
-          cells.set(scan.scans_id, cell)
+          cells.set(scan.scan_id, cell)
 
           // Update counts
           if (status === 'new' || status === 'removed' || status === 'mixed') {
@@ -245,10 +245,10 @@ export function useActivityMatrix(filters: MatrixFilters) {
       for (const scan of scans) {
         let hasChanges = false
         for (const row of rows.values()) {
-          const cell = row.cells.get(scan.scans_id)
+          const cell = row.cells.get(scan.scan_id)
           if (cell && (cell.status === 'new' || cell.status === 'removed' || cell.status === 'mixed')) {
             hasChanges = true
-            const col = columns.get(scan.scans_id)
+            const col = columns.get(scan.scan_id)
             if (col) col.changedHostCount++
           }
         }
@@ -265,7 +265,7 @@ export function useActivityMatrix(filters: MatrixFilters) {
         })
         .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
-      const scanOrder = scans.map((s) => s.scans_id)
+      const scanOrder = scans.map((s) => s.scan_id)
 
       return {
         rows,
@@ -289,26 +289,26 @@ export function useActivityMatrix(filters: MatrixFilters) {
  */
 export function useCellDiff(
   hostIp: string | null,
-  scansId: number | null,
+  scan_id: number | null,
   baselineScansId: number | null
 ) {
   return useQuery({
-    queryKey: activityMatrixKeys.hostPorts(scansId ?? 0, hostIp ?? ''),
+    queryKey: activityMatrixKeys.hostPorts(scan_id ?? 0, hostIp ?? ''),
     queryFn: async (): Promise<DiffDialogData | null> => {
-      if (!hostIp || !scansId) return null
+      if (!hostIp || !scan_id) return null
 
       // Get current scan
       const scans = await db.getScans({ limit: 500 })
-      const currentScan = scans.find((s) => s.scans_id === scansId)
+      const currentScan = scans.find((s) => s.scan_id === scan_id)
       if (!currentScan) return null
 
       // Get baseline scan if specified
       const baselineScan = baselineScansId
-        ? scans.find((s) => s.scans_id === baselineScansId)
+        ? scans.find((s) => s.scan_id === baselineScansId)
         : null
 
       // Get ports for current scan
-      const currentReports = await db.getIpReportsByHost(scansId, hostIp)
+      const currentReports = await db.getIpReportsByHost(scan_id, hostIp)
       const currentPorts = new Set<PortKey>()
       for (const report of currentReports) {
         currentPorts.add(makePortKey(report.dport, report.proto))
@@ -378,7 +378,7 @@ export function useCellDiff(
         status,
       }
     },
-    enabled: !!hostIp && !!scansId,
+    enabled: !!hostIp && !!scan_id,
     staleTime: 60000,
   })
 }
@@ -406,14 +406,14 @@ function getBaselineScansId(scans: Scan[], filters: MatrixFilters): number | nul
 
   switch (filters.baselineMode) {
     case 'first':
-      return scans[0].scans_id
+      return scans[0].scan_id
     case 'specific':
       return filters.baselineScansId
     case 'previous':
     default:
       // In 'previous' mode, baseline is calculated per-cell dynamically
       // For the matrix view, we use the first scan as a reference point
-      return scans[0].scans_id
+      return scans[0].scan_id
   }
 }
 
@@ -555,7 +555,7 @@ export function useBaselineScanOptions(timeRange: string) {
   const options = useMemo(() => {
     if (!scans) return []
     return scans.map((scan) => ({
-      value: scan.scans_id,
+      value: scan.scan_id,
       label: `${new Date(scan.s_time * 1000).toLocaleString()} - ${scan.target_str}`,
       scan,
     }))

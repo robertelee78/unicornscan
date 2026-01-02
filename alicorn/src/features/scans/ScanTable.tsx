@@ -41,15 +41,15 @@ export function ScanTable({
     return <div className="text-muted py-8 text-center">No scans match your filters</div>
   }
 
-  const allSelected = scans.length > 0 && scans.every((s) => selectedIds.has(s.scans_id))
-  const someSelected = scans.some((s) => selectedIds.has(s.scans_id))
+  const allSelected = scans.length > 0 && scans.every((s) => selectedIds.has(s.scan_id))
+  const someSelected = scans.some((s) => selectedIds.has(s.scan_id))
 
   const handleSelectAll = () => {
     if (onSelectAll) {
       if (allSelected) {
         onSelectAll([]) // Clear selection
       } else {
-        onSelectAll(scans.map((s) => s.scans_id))
+        onSelectAll(scans.map((s) => s.scan_id))
       }
     }
   }
@@ -70,7 +70,7 @@ export function ScanTable({
               </th>
             )}
             <SortableHeader
-              field="scans_id"
+              field="scan_id"
               label="ID"
               sort={sort}
               onSort={onSort}
@@ -112,27 +112,27 @@ export function ScanTable({
         </thead>
         <tbody className="font-mono text-sm">
           {scans.map((scan) => {
-            const isSelected = selectedIds.has(scan.scans_id)
+            const isSelected = selectedIds.has(scan.scan_id)
             return (
               <tr
-                key={scan.scans_id}
+                key={scan.scan_id}
                 className={`border-b border-border/50 hover:bg-surface-light/50 ${isSelected ? 'bg-primary/5' : ''}`}
               >
                 {showSelection && (
                   <td className="py-3 px-2">
                     <Checkbox
                       checked={isSelected}
-                      onCheckedChange={() => onSelectionChange?.(scan.scans_id)}
-                      aria-label={`Select scan ${scan.scans_id}`}
+                      onCheckedChange={() => onSelectionChange?.(scan.scan_id)}
+                      aria-label={`Select scan ${scan.scan_id}`}
                     />
                   </td>
                 )}
                 <td className="py-3 px-2">
                   <Link
-                    to={`/scans/${scan.scans_id}`}
+                    to={`/scans/${scan.scan_id}`}
                     className="text-primary hover:underline"
                   >
-                    #{scan.scans_id}
+                    #{scan.scan_id}
                   </Link>
                 </td>
               <td className="py-3 px-2 max-w-[200px] truncate" title={scan.target_str || undefined}>

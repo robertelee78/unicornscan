@@ -26,7 +26,7 @@ import type { ScanDeleteStats } from './types'
 interface DeleteConfirmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  scansId: number
+  scan_id: number
   onConfirm: () => void
   isDeleting?: boolean
 }
@@ -34,11 +34,11 @@ interface DeleteConfirmDialogProps {
 export function DeleteConfirmDialog({
   open,
   onOpenChange,
-  scansId,
+  scan_id,
   onConfirm,
   isDeleting = false,
 }: DeleteConfirmDialogProps) {
-  const { data: stats, isLoading: statsLoading } = useScanDeleteStats(open ? scansId : null)
+  const { data: stats, isLoading: statsLoading } = useScanDeleteStats(open ? scan_id : null)
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -46,7 +46,7 @@ export function DeleteConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
-            Delete Scan #{scansId}
+            Delete Scan #{scan_id}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-4">
@@ -100,7 +100,7 @@ export function DeleteConfirmDialog({
 interface BulkDeleteConfirmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  scanIds: number[]
+  scan_ids: number[]
   onConfirm: () => void
   isDeleting?: boolean
   progress?: {
@@ -113,12 +113,12 @@ interface BulkDeleteConfirmDialogProps {
 export function BulkDeleteConfirmDialog({
   open,
   onOpenChange,
-  scanIds,
+  scan_ids,
   onConfirm,
   isDeleting = false,
   progress,
 }: BulkDeleteConfirmDialogProps) {
-  const count = scanIds.length
+  const count = scan_ids.length
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -169,14 +169,14 @@ export function BulkDeleteConfirmDialog({
               )}
 
               <div className="flex flex-wrap gap-1">
-                {scanIds.slice(0, 10).map((id) => (
+                {scan_ids.slice(0, 10).map((id) => (
                   <Badge key={id} variant="secondary" className="text-xs">
                     #{id}
                   </Badge>
                 ))}
-                {scanIds.length > 10 && (
+                {scan_ids.length > 10 && (
                   <Badge variant="outline" className="text-xs">
-                    +{scanIds.length - 10} more
+                    +{scan_ids.length - 10} more
                   </Badge>
                 )}
               </div>
@@ -221,12 +221,12 @@ interface ScanDeleteSummaryProps {
 
 function ScanDeleteSummary({ stats }: ScanDeleteSummaryProps) {
   const items = [
-    { label: 'Port responses', count: stats.portCount },
-    { label: 'Unique hosts', count: stats.hostCount },
-    { label: 'ARP records', count: stats.arpCount },
-    { label: 'Traceroute hops', count: stats.hopCount },
-    { label: 'Notes', count: stats.noteCount },
-    { label: 'Tags', count: stats.tagCount },
+    { label: 'Port responses', count: stats.port_count },
+    { label: 'Unique hosts', count: stats.host_count },
+    { label: 'ARP records', count: stats.arp_count },
+    { label: 'Traceroute hops', count: stats.hop_count },
+    { label: 'Notes', count: stats.note_count },
+    { label: 'Tags', count: stats.tag_count },
   ].filter((item) => item.count > 0)
 
   return (
@@ -235,7 +235,7 @@ function ScanDeleteSummary({ stats }: ScanDeleteSummaryProps) {
       <div className="p-3 rounded-md bg-muted/50 border">
         <p className="font-medium text-foreground">{stats.target}</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Scan #{stats.scansId} - {formatTimestamp(stats.scanTime)}
+          Scan #{stats.scan_id} - {formatTimestamp(stats.scan_time)}
         </p>
       </div>
 

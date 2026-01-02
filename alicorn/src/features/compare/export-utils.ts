@@ -24,8 +24,8 @@ export function exportComparisonToCSV(result: ScanComparisonResult): string {
   // Header with metadata
   lines.push('# Scan Comparison Report')
   lines.push(`# Generated: ${new Date().toISOString()}`)
-  lines.push(`# Scan A: #${result.scanA.scans_id} - ${result.scanA.target_str}`)
-  lines.push(`# Scan B: #${result.scanB.scans_id} - ${result.scanB.target_str}`)
+  lines.push(`# Scan A: #${result.scanA.scan_id} - ${result.scanA.target_str}`)
+  lines.push(`# Scan B: #${result.scanB.scan_id} - ${result.scanB.target_str}`)
   lines.push('')
 
   // Summary section
@@ -95,13 +95,13 @@ export function exportComparisonToJSON(result: ScanComparisonResult): string {
     metadata: {
       generatedAt: new Date().toISOString(),
       scanA: {
-        id: result.scanA.scans_id,
+        id: result.scanA.scan_id,
         target: result.scanA.target_str,
         time: result.scanA.s_time,
         mode: result.scanA.mode_str,
       },
       scanB: {
-        id: result.scanB.scans_id,
+        id: result.scanB.scan_id,
         target: result.scanB.target_str,
         time: result.scanB.s_time,
         mode: result.scanB.mode_str,

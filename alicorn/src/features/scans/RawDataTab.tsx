@@ -18,7 +18,7 @@ export function RawDataTab({ scan, reports }: RawDataTabProps) {
 
   const rawData = {
     scan: {
-      scans_id: scan.scans_id,
+      scan_id: scan.scan_id,
       s_time: scan.s_time,
       e_time: scan.e_time,
       profile: scan.profile,

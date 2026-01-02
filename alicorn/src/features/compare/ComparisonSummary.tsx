@@ -124,12 +124,12 @@ export function ComparisonSummary({ result }: ComparisonSummaryProps) {
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div className="p-3 rounded-lg bg-muted/30">
           <p className="font-medium mb-1">Scan A (Base)</p>
-          <p className="text-muted text-xs">#{scanA.scans_id} - {scanA.target_str}</p>
+          <p className="text-muted text-xs">#{scanA.scan_id} - {scanA.target_str}</p>
           <p className="text-muted text-xs">{scanA.mode_str || 'Unknown'}</p>
         </div>
         <div className="p-3 rounded-lg bg-muted/30">
           <p className="font-medium mb-1">Scan B (Compare To)</p>
-          <p className="text-muted text-xs">#{scanB.scans_id} - {scanB.target_str}</p>
+          <p className="text-muted text-xs">#{scanB.scan_id} - {scanB.target_str}</p>
           <p className="text-muted text-xs">{scanB.mode_str || 'Unknown'}</p>
         </div>
       </div>
