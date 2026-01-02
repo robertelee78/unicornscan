@@ -8,7 +8,7 @@ import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
 import { searchVendors, macMatchesOuis, isOuiLoaded } from '@/lib/oui'
 import type { Host, IpReport } from '@/types/database'
-import type { HostFilters, SortState, PaginationState, PortHistoryEntry, HostScanEntry } from './types'
+import type { HostFilters, SortState, PaginationState, PortHistoryEntry, AggregatedPortEntry, HostScanEntry } from './types'
 
 const db = getDatabase()
 
@@ -21,6 +21,7 @@ export const hostListKeys = {
   filtered: (filters: HostFilters, sort: SortState, pagination: PaginationState) =>
     [...hostListKeys.all, 'filtered', filters, sort, pagination] as const,
   portHistory: (hostIp: string) => [...hostListKeys.all, 'portHistory', hostIp] as const,
+  aggregatedPorts: (hostIp: string) => [...hostListKeys.all, 'aggregatedPorts', hostIp] as const,
   hostScans: (hostIp: string) => [...hostListKeys.all, 'hostScans', hostIp] as const,
   hostReports: (hostIp: string) => [...hostListKeys.all, 'hostReports', hostIp] as const,
 }
@@ -181,6 +182,105 @@ export function useHostPortHistory(hostIp: string) {
         if (a.scan_time !== b.scan_time) return b.scan_time - a.scan_time
         return a.port - b.port
       })
+    },
+    enabled: !!hostIp,
+    staleTime: 30000,
+  })
+}
+
+// =============================================================================
+// Aggregated Port History Hook
+// =============================================================================
+
+const MAX_HISTORY_ENTRIES = 10
+
+/**
+ * Aggregates port history by port+protocol, showing latest observation
+ * with latest non-null banner (which may be from an older scan).
+ * Limits history to 10 entries per port.
+ */
+export function useAggregatedPortHistory(hostIp: string) {
+  return useQuery({
+    queryKey: hostListKeys.aggregatedPorts(hostIp),
+    queryFn: async (): Promise<AggregatedPortEntry[]> => {
+      // Fetch all raw entries (reuse existing logic)
+      const scans = await db.getScans({ limit: 100 })
+      const entries: PortHistoryEntry[] = []
+
+      for (const scan of scans) {
+        const reports = await db.getIpReportsByHost(scan.scan_id, hostIp)
+        const banners = await db.getBannersForScan(scan.scan_id)
+        for (const report of reports) {
+          entries.push({
+            scan_id: scan.scan_id,
+            scan_time: scan.s_time,
+            port: report.sport,
+            protocol: report.proto === 6 ? 'tcp' : report.proto === 17 ? 'udp' : 'other',
+            ttl: report.ttl,
+            flags: report.type,
+            window_size: report.window_size,
+            eth_hwaddr: report.eth_hwaddr,
+            tstamp: report.tstamp,
+            ipreport_id: report.ipreport_id,
+            banner: banners.get(report.ipreport_id),
+          })
+        }
+      }
+
+      // Sort all entries by timestamp descending (most recent first)
+      entries.sort((a, b) => b.tstamp - a.tstamp)
+
+      // Group by port+protocol
+      const groups = new Map<string, PortHistoryEntry[]>()
+      for (const entry of entries) {
+        const key = `${entry.port}-${entry.protocol}`
+        const group = groups.get(key)
+        if (group) {
+          group.push(entry)
+        } else {
+          groups.set(key, [entry])
+        }
+      }
+
+      // Build aggregated entries
+      const aggregated: AggregatedPortEntry[] = []
+      for (const [, groupEntries] of groups) {
+        // Already sorted by timestamp desc, so first is latest
+        const latest = groupEntries[0]
+
+        // Find latest non-null banner
+        let latestBanner: string | undefined
+        let latestBannerScanId: number | undefined
+        let latestBannerTimestamp: number | undefined
+        for (const entry of groupEntries) {
+          if (entry.banner) {
+            latestBanner = entry.banner
+            latestBannerScanId = entry.scan_id
+            latestBannerTimestamp = entry.tstamp
+            break // First one with banner is the most recent
+          }
+        }
+
+        // Check if banner is from older scan
+        const bannerFromOlderScan = !!(
+          latestBanner &&
+          latestBannerScanId !== latest.scan_id
+        )
+
+        aggregated.push({
+          port: latest.port,
+          protocol: latest.protocol,
+          latest,
+          latestBanner,
+          latestBannerScanId,
+          latestBannerTimestamp,
+          bannerFromOlderScan,
+          history: groupEntries.slice(0, MAX_HISTORY_ENTRIES),
+        })
+      }
+
+      // Sort by port number
+      return aggregated.sort((a, b) => a.port - b.port)
     },
     enabled: !!hostIp,
     staleTime: 30000,
