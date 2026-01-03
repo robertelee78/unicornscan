@@ -3,7 +3,7 @@ AC_PREREQ([2.69])
 dnl
 dnl autoconf initialisation (modernized for autoconf 2.69+)
 dnl
-AC_INIT([unicornscan], [0.4.33], [osace-users@lists.sourceforge.net])
+AC_INIT([unicornscan], [0.4.34], [robert@unicornscan.org])
 AC_CONFIG_HEADERS([src/config.h:src/config.h.in])
 
 dnl Add project-specific definitions at the bottom of config.h
