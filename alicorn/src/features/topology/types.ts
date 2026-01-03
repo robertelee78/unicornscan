@@ -12,6 +12,17 @@ import type { OsFamily } from '@/types/database'
 
 export type NodeType = 'scanner' | 'host' | 'router' | 'unknown'
 
+// How a node's position in the topology was determined
+// - 'inferred': Derived from scan data, CIDR grouping, or heuristics
+// - 'mtr': Discovered via MTR-style incremental TTL probing
+// - 'bgp': Imported from BGP route data
+// - 'static': Manually configured or known fixed position (e.g., scanner)
+export type TopologySourceType = 'inferred' | 'mtr' | 'bgp' | 'static'
+
+// How an edge (connection) was determined
+// Edges don't have 'static' since they represent discovered/inferred connections
+export type EdgeSourceType = 'inferred' | 'mtr' | 'bgp'
+
 export interface TopologyNode {
   id: string           // IP address as unique identifier
   type: NodeType
@@ -28,6 +39,12 @@ export interface TopologyNode {
   // TTL-based distance estimation
   observedTtl?: number
   estimatedHops: number
+
+  // Topology source tracking
+  topologySource: TopologySourceType
+
+  // CIDR group for clustering (computed by grouping algorithm, e.g., "192.168.1.0/24")
+  cidrGroup?: string
 
   // Timestamps
   firstSeen?: number
@@ -50,6 +67,9 @@ export interface TopologyEdge {
   id: string
   source: string | TopologyNode  // D3 will replace string with node reference
   target: string | TopologyNode
+
+  // How this edge was discovered/determined
+  pathSource: EdgeSourceType
 
   // Edge metadata
   hopNumber?: number
