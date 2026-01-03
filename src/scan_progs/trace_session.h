@@ -55,4 +55,12 @@ int trace_session_record_hop(trace_session_t *, uint8_t /* ttl */, uint32_t /* r
 void trace_session_mark_complete(trace_session_t *);
 int trace_session_validate(const trace_session_t *);
 
+/*
+ * convert trace_session to trace_path_report for output modules.
+ * caller must provide buffer (sizeof(trace_path_report_t)).
+ * returns 1 on success, -1 on error.
+ */
+struct trace_path_report_t;	/* forward decl, defined in scan_export.h */
+int trace_session_to_path_report(const trace_session_t *, struct trace_path_report_t *);
+
 #endif

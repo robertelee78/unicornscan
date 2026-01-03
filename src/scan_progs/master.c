@@ -345,9 +345,23 @@ void run_scan(void) {
 
 	/* cleanup traceroute session */
 	if (trace_sess != NULL) {
+		trace_path_report_t path_rpt;
+
 		if (trace_sess->complete) {
 			DBG(M_TRC, "traceroute complete, path discovered");
 		}
+
+		/*
+		 * convert session to path report and push to output modules.
+		 * this sends the complete hop path to database, display, etc.
+		 */
+		if (trace_session_to_path_report(trace_sess, &path_rpt) == 1) {
+			if (path_rpt.hop_count > 0) {
+				push_output_modules((const void *)&path_rpt);
+				DBG(M_TRC, "pushed trace path report: %u hops", path_rpt.hop_count);
+			}
+		}
+
 		trace_session_destroy(trace_sess);
 		trace_sess=NULL;
 	}

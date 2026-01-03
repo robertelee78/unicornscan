@@ -1007,6 +1007,7 @@ static int pgsql_dealwith_rworkunit(uint32_t, const recv_workunit_t *);
 static int pgsql_dealwith_ipreport(const ip_report_t *);
 static int pgsql_dealwith_arpreport(const arp_report_t *);
 static int pgsql_dealwith_wkstats(uint32_t /* magic */, const workunit_stats_t *);
+static int pgsql_dealwith_tracepath(const trace_path_report_t *);
 static void database_walk_func(void *);
 
 /*
@@ -1239,6 +1240,18 @@ static int pgsql_migrate_schema(PGconn *conn, int from_version) {
 			return 0;
 		}
 		VRB(0, "PostgreSQL: schema migration to v9 complete (eth_hwaddr column added)");
+	}
+
+	/* v10: Make uni_hops.ipreport_id nullable for trace paths */
+	if (from_version < 10) {
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v10_hops_nullable_ddl, "make ipreport_id nullable")) {
+			return 0;
+		}
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 10);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 10")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v10 complete (uni_hops.ipreport_id nullable)");
 	}
 
 	return 1;
@@ -1743,6 +1756,7 @@ int send_output(const void *p) {
 		const ip_report_t *ir;
 		const arp_report_t *arrrrr; /* pirate report */
 		const struct workunit_stats_t *wks;
+		const trace_path_report_t *tpr;
 	} d_u;
 
 	d_u.p=p;
@@ -1775,6 +1789,10 @@ int send_output(const void *p) {
 
 		case ARP_REPORT_MAGIC:
 			return pgsql_dealwith_arpreport(d_u.arrrrr);
+			break;
+
+		case TRACE_PATH_MAGIC:
+			return pgsql_dealwith_tracepath(d_u.tpr);
 			break;
 
 		default:
@@ -2298,6 +2316,78 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 
 		free(packet_str); /* not from xfree */
 	}
+
+	return 1;
+}
+
+/*
+ * pgsql_dealwith_tracepath: insert complete traceroute path to uni_hops
+ * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ *
+ * trace_path_report contains ordered hop array with hop_number and rtt_us.
+ * we insert each hop as a row, using NULL for ipreport_id since trace paths
+ * are reported as a batch rather than per-report.
+ */
+static int pgsql_dealwith_tracepath(const trace_path_report_t *t) {
+	struct in_addr ia;
+	char target_addr[64], hop_addr[64];
+	int j=0, inserted=0;
+
+	if (t == NULL) {
+		ERR("null tracepath report");
+		return -1;
+	}
+
+	if (t->magic != TRACE_PATH_MAGIC) {
+		ERR("bad tracepath magic %08x", t->magic);
+		return -1;
+	}
+
+	if (pgsql_disable || pgconn == NULL) {
+		return -1;
+	}
+
+	if (t->hop_count == 0) {
+		DBG(M_MOD, "empty tracepath, nothing to insert");
+		return 1;
+	}
+
+	/* convert target address */
+	ia.s_addr=t->target_addr;
+	inet_ntop(AF_INET, &ia, target_addr, sizeof(target_addr));
+
+	DBG(M_MOD, "inserting tracepath to %s port %u: %u hops", target_addr, t->target_port, t->hop_count);
+
+	/*
+	 * insert each hop in the path.
+	 * ipreport_id is NULL since trace paths are batched.
+	 */
+	for (j=0; j < t->hop_count; j++) {
+		PGresult *res=NULL;
+
+		ia.s_addr=t->hops[j].router_addr;
+		inet_ntop(AF_INET, &ia, hop_addr, sizeof(hop_addr));
+
+		snprintf(querybuf2, sizeof(querybuf2)-1,
+			"INSERT INTO uni_hops (scan_id, target_addr, hop_addr, hop_number, ttl_observed, rtt_us) "
+			"VALUES (%llu, '%s', '%s', %u, %u, %u);",
+			pgscanid, target_addr, hop_addr,
+			t->hops[j].hop_number,
+			t->hops[j].hop_number,	/* ttl_observed = hop_number for trace paths */
+			t->hops[j].rtt_us
+		);
+
+		res=PQexec(pgconn, querybuf2);
+		if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+			inserted++;
+		}
+		else {
+			DBG(M_MOD, "uni_hops insert failed for hop %u: %s", j, PQerrorMessage(pgconn));
+		}
+		PQclear(res);
+	}
+
+	DBG(M_MOD, "inserted %d/%u hops for tracepath to %s", inserted, t->hop_count, target_addr);
 
 	return 1;
 }
