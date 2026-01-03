@@ -372,9 +372,13 @@ int workunit_add(const char *targets, char **estr) {
 
 	switch (mode) {
 		case MODE_TCPSCAN:
-		case MODE_TCPTRACE:
 			lwu_srch.magic=TCP_RECV_MAGIC;
 			send_magic=TCP_SEND_MAGIC;
+			break;
+
+		case MODE_TCPTRACE:
+			lwu_srch.magic=TCP_RECV_MAGIC;
+			send_magic=TCPTRACE_SEND_MAGIC;
 			break;
 
 		case MODE_UDPSCAN:

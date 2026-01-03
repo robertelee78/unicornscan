@@ -351,6 +351,8 @@ void run_scan(void) {
 			DBG(M_TRC, "traceroute complete, path discovered");
 		}
 
+		report_trace_path(trace_sess);
+
 		/*
 		 * convert session to path report and push to output modules.
 		 * this sends the complete hop path to database, display, etc.
@@ -542,31 +544,67 @@ int deal_with_output(void *msg, size_t msg_len) {
 		}
 
 		/* traceroute session bookkeeping */
+		VRB(0, "TRACE CHECK: mode=%u TCPTRACE=%u trace_sess=%p proto=%u type=%u",
+			s->ss->mode, MODE_TCPTRACE, (void*)trace_sess, r_u.i->proto, r_u.i->type);
 		if (s->ss->mode == MODE_TCPTRACE && trace_sess != NULL) {
+			/*
+			 * set target_addr and target_port from first response.
+			 * host_addr is the ultimate target, sport is the target port.
+			 */
+			if (trace_sess->target_addr == 0) {
+				trace_sess->target_addr=r_u.i->host_addr;
+				trace_sess->target_port=r_u.i->sport;
+				DBG(M_TRC, "trace session target set to %08x:%u", r_u.i->host_addr, r_u.i->sport);
+			}
+
 			if (r_u.i->proto == IPPROTO_ICMP && r_u.i->type == ICMP_TIME_EXCEEDED) {
 				/*
 				 * ICMP Time Exceeded from intermediate router.
-				 * response already validated via TCPHASHTRACK on embedded TCP seq.
-				 * record hop using arrival order (curttl counter).
+				 * Extract TTL from source port: we encoded TTL in source port
+				 * when sending (port = TRACE_PORT_BASE + TTL). The embedded TCP
+				 * header in ICMP TE contains our original source port, which
+				 * packet_parse.c stores in r_u.i->dport (reversed from embedded).
 				 */
-				uint8_t hop_ttl=trace_sess->curttl;
+				uint8_t hop_ttl=0;
 
-				DBG(M_TRC, "ICMP TE from router %08x at hop %u", r_u.i->trace_addr, hop_ttl);
+				VRB(0, "TRACE: ICMP TE dport=%u", r_u.i->dport);
 
-				trace_session_record_hop(trace_sess, hop_ttl, r_u.i->trace_addr, 0, TRACE_HOP_RECV);
+				if (r_u.i->dport > TRACE_PORT_BASE) {
+					hop_ttl=(uint8_t)(r_u.i->dport - TRACE_PORT_BASE);
+				}
 
-				if (hop_ttl < trace_sess->maxttl) {
-					trace_sess->curttl++;
+				VRB(0, "TRACE: hop_ttl=%u min=%u max=%u", hop_ttl, trace_sess->minttl, trace_sess->maxttl);
+
+				if (hop_ttl >= trace_sess->minttl && hop_ttl <= trace_sess->maxttl) {
+					DBG(M_TRC, "ICMP TE from router %08x at hop %u (from sport %u)",
+						r_u.i->trace_addr, hop_ttl, r_u.i->dport);
+					trace_session_record_hop(trace_sess, hop_ttl, r_u.i->trace_addr, 0, TRACE_HOP_RECV);
+				}
+				else {
+					DBG(M_TRC, "ICMP TE with invalid hop %u (dport=%u), ignoring",
+						hop_ttl, r_u.i->dport);
 				}
 			}
 			else if (r_u.i->proto == IPPROTO_TCP) {
-				/* TCP response means we reached the target */
-				uint8_t hop_ttl=trace_sess->curttl;
+				/*
+				 * TCP response means we reached the target.
+				 * Extract TTL from our source port (in dport after reversal).
+				 */
+				uint8_t hop_ttl=0;
 
-				DBG(M_TRC, "TCP response from target at hop %u, trace complete", hop_ttl);
+				if (r_u.i->dport > TRACE_PORT_BASE) {
+					hop_ttl=(uint8_t)(r_u.i->dport - TRACE_PORT_BASE);
+				}
 
-				trace_session_record_hop(trace_sess, hop_ttl, r_u.i->host_addr, 0, TRACE_HOP_DEST);
-				trace_session_mark_complete(trace_sess);
+				if (hop_ttl >= trace_sess->minttl && hop_ttl <= trace_sess->maxttl) {
+					DBG(M_TRC, "TCP response from target %08x at hop %u, trace complete",
+						r_u.i->host_addr, hop_ttl);
+					trace_session_record_hop(trace_sess, hop_ttl, r_u.i->host_addr, 0, TRACE_HOP_DEST);
+					trace_session_mark_complete(trace_sess);
+				}
+				else {
+					DBG(M_TRC, "TCP response with unexpected port %u, ignoring", r_u.i->dport);
+				}
 			}
 		}
 	}

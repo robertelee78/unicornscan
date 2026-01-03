@@ -38,6 +38,7 @@
 #include <unilib/standard_dns.h>
 
 #include <scan_progs/master.h>
+#include <scan_progs/trace_session.h>
 
 /*
  * GeoIP support using libmaxminddb (.mmdb format)
@@ -1120,4 +1121,45 @@ static uint64_t get_arpreport_key(uint32_t dhost, uint8_t *dmac) {
 	p_u.arp.dhost=dhost;
 
 	return p_u.key;
+}
+
+/*
+ * Display traceroute path in hop order.
+ * Produces mtr-style output showing each hop discovered.
+ */
+void report_trace_path(const trace_session_t *ts) {
+	struct in_addr ia;
+	char router_str[INET_ADDRSTRLEN];
+	char target_str[INET_ADDRSTRLEN];
+	int j;
+
+	if (ts == NULL) {
+		return;
+	}
+
+	/* display header with target info */
+	ia.s_addr=ts->target_addr;
+	inet_ntop(AF_INET, &ia, target_str, sizeof(target_str));
+	OUT("traceroute to %s:%u, %u hops max", target_str, ts->target_port, ts->maxttl);
+
+	/* display each hop in order */
+	for (j=ts->minttl; j <= ts->maxttl; j++) {
+		if (ts->hops[j].flags & TRACE_HOP_DEST) {
+			ia.s_addr=ts->hops[j].router_addr;
+			inet_ntop(AF_INET, &ia, router_str, sizeof(router_str));
+			OUT("%2d  %s [destination]", j, router_str);
+			break;	/* reached destination, stop */
+		}
+		else if (ts->hops[j].flags & TRACE_HOP_RECV) {
+			ia.s_addr=ts->hops[j].router_addr;
+			inet_ntop(AF_INET, &ia, router_str, sizeof(router_str));
+			OUT("%2d  %s", j, router_str);
+		}
+	}
+
+	if ( ! ts->complete) {
+		OUT("trace incomplete (max TTL reached or no response from target)");
+	}
+
+	return;
 }

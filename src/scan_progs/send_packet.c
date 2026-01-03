@@ -489,6 +489,14 @@ void send_packet(void) {
 				s->ss->mode=MODE_TCPSCAN;
 
 			}
+			else if (*wk_u.magic == TCPTRACE_SEND_MAGIC) {
+
+				open_link(SOCK_IP, &s->ss->target, &s->ss->targetmask);
+
+				DBG(M_WRK, "got tcp traceroute workunit");
+				s->ss->mode=MODE_TCPTRACE;
+
+			}
 			else if (*wk_u.magic == UDP_SEND_MAGIC) {
 
 				open_link(SOCK_IP, &s->ss->target, &s->ss->targetmask);
@@ -772,6 +780,16 @@ static void _send_packet(void) {
 		}
 		else {
 			sl.local_port=(uint16_t)s->ss->src_port;
+		}
+
+		/*
+		 * For traceroute: encode TTL in source port for correlation.
+		 * ICMP Time Exceeded responses include embedded TCP header with
+		 * our source port, allowing receiver to determine which TTL probe
+		 * triggered the response even if responses arrive out of order.
+		 */
+		if (s->ss->mode == MODE_TCPTRACE) {
+			sl.local_port=(uint16_t)(TRACE_PORT_BASE + sl.curttl);
 		}
 
 		if (sl.create_payload != NULL) {
