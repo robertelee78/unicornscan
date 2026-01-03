@@ -155,6 +155,7 @@ int trace_session_to_path_report(const trace_session_t *ts, trace_path_report_t 
 	/*
 	 * iterate through session hops from minttl to maxttl.
 	 * copy hops that have responses (RECV or DEST flags).
+	 * stop when destination is reached to avoid extra hops.
 	 */
 	for (j=ts->minttl; j <= ts->maxttl && hop_idx < TRACE_PATH_MAX_HOPS; j++) {
 		if (ts->hops[j].flags == TRACE_HOP_NONE) {
@@ -167,6 +168,11 @@ int trace_session_to_path_report(const trace_session_t *ts, trace_path_report_t 
 		rpt->hops[hop_idx].flags=ts->hops[j].flags;
 
 		hop_idx++;
+
+		/* stop at destination - don't include hops beyond */
+		if (ts->hops[j].flags & TRACE_HOP_DEST) {
+			break;
+		}
 	}
 
 	rpt->hop_count=hop_idx;

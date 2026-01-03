@@ -1135,6 +1135,7 @@ void report_trace_path(const trace_session_t *ts) {
 	struct in_addr ia;
 	char router_str[INET_ADDRSTRLEN];
 	char target_str[INET_ADDRSTRLEN];
+	trace_path_report_t tpr;
 	int j;
 
 	if (ts == NULL) {
@@ -1163,6 +1164,14 @@ void report_trace_path(const trace_session_t *ts) {
 
 	if ( ! ts->complete) {
 		OUT("trace incomplete (max TTL reached or no response from target)");
+	}
+
+	/*
+	 * push trace path report to output modules (e.g., pgsqldb).
+	 * convert session to path report format first.
+	 */
+	if (trace_session_to_path_report(ts, &tpr) > 0) {
+		push_output_modules((const void *)&tpr);
 	}
 
 	return;
