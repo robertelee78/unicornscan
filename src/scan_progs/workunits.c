@@ -333,8 +333,20 @@ int workunit_add(const char *targets, char **estr) {
 		num_pkts *= s->repeats;
 	}
 
+	/*
+	 * For MODE_TCPTRACE, set TTL defaults (1-30) BEFORE packet counting.
+	 * This must happen here because init_packet() runs in sender process
+	 * after workunits are created. User-specified TTL takes precedence.
+	 */
+	if (mode == MODE_TCPTRACE) {
+		if (s->ss->minttl == 0 && s->ss->maxttl == 0) {
+			s->ss->minttl=1;
+			s->ss->maxttl=30;
+		}
+	}
+
 	if (s->ss->minttl != s->ss->maxttl) {
-		num_pkts *= (s->ss->maxttl - s->ss->minttl);
+		num_pkts *= (s->ss->maxttl - s->ss->minttl + 1);
 	}
 
 	s->num_packets += (num_hosts * num_pkts);
