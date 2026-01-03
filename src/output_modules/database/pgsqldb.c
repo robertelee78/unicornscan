@@ -2109,8 +2109,9 @@ static int pgsql_dealwith_ipreport(const ip_report_t *i) {
 	/*
 	 * v5: Detect intermediate hops when trace_addr != host_addr
 	 * This indicates the response came from a router (ICMP Time Exceeded, etc)
+	 * Skip for MODE_TCPTRACE - trace paths are inserted as batch via pgsql_dealwith_tracepath
 	 */
-	if (i->trace_addr != i->host_addr && i->trace_addr != 0) {
+	if (i->trace_addr != i->host_addr && i->trace_addr != 0 && s->ss->mode != MODE_TCPTRACE) {
 		pgsql_insert_hop(ipreportid, pgscanid, host_addr, trace_addr, i->ttl);
 	}
 
