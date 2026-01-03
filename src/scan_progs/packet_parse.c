@@ -687,7 +687,13 @@ static void decode_tcp (const uint8_t *packet, size_t pk_len, int pk_layer) {
 		if (SEQ_WITHIN(ackseq, eackseq, high)) {
 			DBG(M_PKT, "packet within my %08x-%08x window, with %08x expecting %08x", eackseq, high, ackseq, eackseq);
 		}
-		else if (! GET_SNIFF() && ! GET_IGNORESEQ() && ! (GET_IGNORERSEQ() && t_u.t->rst)) {
+		else if (! GET_SNIFF() && ! GET_IGNORESEQ() && ! (GET_IGNORERSEQ() && t_u.t->rst) && ! GET_LDOCONNECT()) {
+			/*
+			 * In stateless SYN scanning, reject packets that don't match our SYN cookie.
+			 * But in L_DO_CONNECT mode (-msf), we establish real TCP connections with real
+			 * sequence numbers - the connect module's state_tbl tracks these, not the
+			 * stateless SYN cookie. So we let all packets through for connect mode.
+			 */
 			DBG(M_PKT, "REJECTED: not my packet ackseq %08x expecting somewhere around %08x-%08x", ackseq, eackseq, high);
 			return;
 		}
