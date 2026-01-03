@@ -544,8 +544,6 @@ int deal_with_output(void *msg, size_t msg_len) {
 		}
 
 		/* traceroute session bookkeeping */
-		VRB(0, "TRACE CHECK: mode=%u TCPTRACE=%u trace_sess=%p proto=%u type=%u",
-			s->ss->mode, MODE_TCPTRACE, (void*)trace_sess, r_u.i->proto, r_u.i->type);
 		if (s->ss->mode == MODE_TCPTRACE && trace_sess != NULL) {
 			/*
 			 * set target_addr and target_port from first response.
@@ -567,13 +565,9 @@ int deal_with_output(void *msg, size_t msg_len) {
 				 */
 				uint8_t hop_ttl=0;
 
-				VRB(0, "TRACE: ICMP TE dport=%u", r_u.i->dport);
-
 				if (r_u.i->dport > TRACE_PORT_BASE) {
 					hop_ttl=(uint8_t)(r_u.i->dport - TRACE_PORT_BASE);
 				}
-
-				VRB(0, "TRACE: hop_ttl=%u min=%u max=%u", hop_ttl, trace_sess->minttl, trace_sess->maxttl);
 
 				if (hop_ttl >= trace_sess->minttl && hop_ttl <= trace_sess->maxttl) {
 					DBG(M_TRC, "ICMP TE from router %08x at hop %u (from sport %u)",
