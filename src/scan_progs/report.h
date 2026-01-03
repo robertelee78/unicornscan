@@ -19,10 +19,13 @@
 #ifndef _REPORT_H
 # define _REPORT_H
 
+struct trace_session_t;	/* forward declaration */
+
 void report_do(void);
 void report_do_arp(void);	/* compound mode: output arp sorted by IP */
 void report_init(void);
 int report_add(void * /* report_msg */, size_t /* length of msg */);
 void report_destroy(void);
+void report_trace_path(const struct trace_session_t *ts);
 
 #endif

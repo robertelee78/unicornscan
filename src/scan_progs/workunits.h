@@ -26,6 +26,7 @@
 #define   IP_SEND_MAGIC	0x5a5b5c5d
 #define PRI_4SEND_MAGIC 0x6a6b6c6d
 #define PRI_6SEND_MAGIC 0x7a7b7c7d
+#define TCPTRACE_SEND_MAGIC 0x8a8b8c8d	/* TCP traceroute with TTL iteration */
 
 #define  TCP_RECV_MAGIC 0xa1b1c1d1
 #define  UDP_RECV_MAGIC 0xa2b2c2d2

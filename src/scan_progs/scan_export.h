@@ -54,6 +54,14 @@
 #define MODE_IPSCAN			16
 #define MODE_TCPTRACE			32	/* TCP traceroute with TTL iteration	*/
 
+/*
+ * TRACE_PORT_BASE: base source port for traceroute TTL encoding.
+ * For MODE_TCPTRACE, source port = TRACE_PORT_BASE + TTL (1-255).
+ * This allows receiver to extract TTL from ICMP TE responses even
+ * when probes arrive out of order.
+ */
+#define TRACE_PORT_BASE			40960
+
 #define REPORT_BADNETWORK_CKSUM		1
 #define REPORT_BADTRANSPORT_CKSUM	2
 
