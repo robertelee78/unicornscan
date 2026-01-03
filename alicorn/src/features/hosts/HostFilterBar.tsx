@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState, useEffect } from 'react'
-import { Search, X, Building2, HelpCircle, AlertCircle } from 'lucide-react'
+import { Search, X, Building2, HelpCircle, AlertCircle, MessageSquareText } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -111,7 +111,7 @@ export function HostFilterBar({ filters, onChange, parsedSearch: hookParsedSearc
     return validateRegex(localSearch)
   }, [localSearch])
 
-  const hasFilters = localSearch || filters.hasOpenPorts !== null || filters.vendorFilter
+  const hasFilters = localSearch || filters.hasOpenPorts !== null || filters.hasBanner !== null || filters.vendorFilter
 
   const handleSearchChange = (value: string) => {
     setLocalSearch(value)
@@ -124,6 +124,11 @@ export function HostFilterBar({ filters, onChange, parsedSearch: hookParsedSearc
   const handlePortsFilterChange = (value: string) => {
     const hasOpenPorts = value === 'all' ? null : value === 'open'
     onChange({ ...filters, hasOpenPorts })
+  }
+
+  const handleBannerFilterChange = (value: string) => {
+    const hasBanner = value === 'all' ? null : value === 'with'
+    onChange({ ...filters, hasBanner })
   }
 
   const handleClear = () => {
@@ -224,13 +229,29 @@ export function HostFilterBar({ filters, onChange, parsedSearch: hookParsedSearc
         value={filters.hasOpenPorts === null ? 'all' : filters.hasOpenPorts ? 'open' : 'none'}
         onValueChange={handlePortsFilterChange}
       >
-        <SelectTrigger className="w-[180px] h-9">
+        <SelectTrigger className="w-[150px] h-9">
           <SelectValue placeholder="Port status" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All hosts</SelectItem>
           <SelectItem value="open">Has responses</SelectItem>
           <SelectItem value="none">No responses</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Banner filter */}
+      <Select
+        value={filters.hasBanner === null ? 'all' : filters.hasBanner ? 'with' : 'without'}
+        onValueChange={handleBannerFilterChange}
+      >
+        <SelectTrigger className="w-[150px] h-9">
+          <MessageSquareText className="h-4 w-4 mr-2 text-muted" />
+          <SelectValue placeholder="Banners" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All hosts</SelectItem>
+          <SelectItem value="with">Has banners</SelectItem>
+          <SelectItem value="without">No banners</SelectItem>
         </SelectContent>
       </Select>
 

@@ -180,8 +180,8 @@ export function useHostList(
     return parseSearch(filters.search)
   }, [filters.search])
 
-  // Determine which indexes we need based on search type
-  const needsBannerIndex = parsedSearch?.type === 'regex' || parsedSearch?.type === 'text'
+  // Determine which indexes we need based on search type and filters
+  const needsBannerIndex = parsedSearch?.type === 'regex' || parsedSearch?.type === 'text' || filters.hasBanner !== null
   const needsNotesIndex = parsedSearch?.type === 'text'
   const needsPortsIndex = parsedSearch?.type === 'port'
 
@@ -235,6 +235,16 @@ export function useHostList(
       })
     }
 
+    // Apply banner filter
+    if (filters.hasBanner !== null && bannerIndex) {
+      filtered = filtered.filter((h) => {
+        const hostAddr = h.ip_addr ?? h.host_addr
+        const banners = bannerIndex.get(hostAddr) || []
+        const hasBanners = banners.length > 0
+        return filters.hasBanner ? hasBanners : !hasBanners
+      })
+    }
+
     const total = filtered.length
 
     // Apply sorting
@@ -282,7 +292,7 @@ export function useHostList(
     const paged = filtered.slice(start, start + pagination.pageSize)
 
     return { data: paged, total }
-  }, [hosts, parsedSearch, bannerIndex, notesIndex, portsIndex, filters.hasOpenPorts, filters.vendorFilter, sort, pagination])
+  }, [hosts, parsedSearch, bannerIndex, notesIndex, portsIndex, filters.hasOpenPorts, filters.hasBanner, filters.vendorFilter, sort, pagination])
 
   return {
     data: result.data,
