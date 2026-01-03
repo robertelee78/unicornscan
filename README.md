@@ -217,23 +217,25 @@ Each phase can have independent settings for packet rate, repeats, and timeout:
 unicornscan -mA1000:R3:L10+T5000 192.168.1.0/24 -p22,80,443
 
 # Modifiers can appear in any order
-unicornscan -mA:L15:R3+T 192.168.1.0/24 -p80
+unicornscan -mA50:L15:R3+T 192.168.1.0/24 -p80
 
 # Only specify what you need - unset values use global defaults
-unicornscan -mA:R5+T1000 192.168.1.0/24 -p80 -R2 -L5
+unicornscan -mA50:R3:L15+T1000 192.168.1.0/24 -p80 -R2 -L5
 # ARP uses 5 repeats, global timeout; TCP uses 1000 PPS, 2 repeats, 5s timeout
 
-# Practical local network scan: quick ports with reliable ARP discovery
-unicornscan 192.168.1.0/24:q -r1000 -mA5:R5:L25+T
-# ARP at 5 PPS with 5 repeats and 25s timeout (thorough discovery)
-# Then TCP SYN on quick ports at 1000 PPS
+# Practical local network scan: quick ports with reliable ARP discovery, os detection, store to sql
+fantaip -i wlp0s20f3 192.168.1.134/32
+unicornscan 192.168.1.0/24:q -s 192.168.1.134/32 -Ivr1000 -mA50:R3:L15+sf -epgsqldb,osdetect
+# ARP at 50 PPS with 3 repeats and 15s timeout (thorough discovery)
+# Then TCP connect scan on quick ports at 1000 PPS, sending from 192.168.1.134
+# In sf mode we're completing a full 3-way handshake. If you send from the IP your kernel is configured for, it will sent RST's before we can send our payload and receive a response.
 ```
 
 Per-phase options allow fine-tuning each scan phase independently. For example, ARP discovery often benefits from more repeats and longer timeouts to catch slow hosts, while TCP scanning can run at higher rates with fewer repeats.
 
 ### Benefits
 
-- **Eliminates ARP Blocking**: No kernel delays waiting for non-existent hosts
+- **Eliminates ARP Slowness**: No kernel delays waiting for non-existent hosts
 - **Massive Packet Reduction**: Up to 95% fewer packets on sparse networks
 - **Full Rate Scanning**: Maintains target PPS even on large local ranges
 - **Efficient Resource Use**: Only probes ARP-responding hosts in later phases
@@ -349,9 +351,6 @@ See the [Dependencies](#dependencies) section for required packages.
 # Requires: libmaxminddb-dev (Debian) / libmaxminddb-devel (Fedora) / libmaxminddb (Arch)
 # See README.geoip for database sources (GeoLite2, DB-IP, IPLocate.io)
 
-# With SELinux policy
-./configure --enable-selinux
-
 # Local user installation
 ./configure --prefix=$HOME/.local/unicornscan
 make && make install
@@ -386,7 +385,7 @@ This sets the following capabilities on the binaries:
 │  (coordination, workunit distribution, result aggregation)  │
 └────────────────────┬───────────────────┬────────────────────┘
                      │                   │
-         ┌───────────▼───────┐   ┌───────▼───────────┐
+         ┌───────────▼────────┐   ┌──────▼──────────────┐
          │   Sender (unisend) │   │ Listener (unilisten)│
          │                    │   │                     │
          │ • Packet crafting  │   │ • libpcap capture   │
