@@ -1,3 +1,17 @@
+unicornscan (0.4.34-1) unstable; urgency=medium
+
+  * MTR Mode (TCP Traceroute) - Phase 2 Complete
+    - New -mtr flag for TCP traceroute path discovery
+    - Trace session bookkeeping with hop-by-hop ICMP correlation
+    - Database integration: trace paths stored in uni_hops table
+    - MTR-style clean output without packet-level noise
+  * Fix duplicate hop insertions in database
+  * Fix spurious hops 12-30 appearing with destination IP
+  * CIDR-based clustering for topology visualization
+  * "Has Banners" filter on hosts page
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 03 Jan 2026 00:00:00 -0800
+
 unicornscan (0.4.33-1) unstable; urgency=medium
 
   * Alicorn frontend: Add smart unified search to hosts page
