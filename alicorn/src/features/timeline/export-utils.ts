@@ -8,7 +8,7 @@ import type {
   HostTimelineData,
   TimelineExportOptions,
 } from './types'
-import { getChangeTypeLabel, getChangeTypeColor } from './types'
+import { getChangeTypeLabel, getChangeTypeColorHex } from './types'
 import { formatTimestamp } from './timeline-utils'
 
 // =============================================================================
@@ -303,7 +303,7 @@ export function exportTimelineToSVG(
     for (const change of track.changes) {
       if (change.timestamp >= visibleStart && change.timestamp <= visibleEnd) {
         const cx = labelWidth + ((change.timestamp - visibleStart) / duration) * timelineWidth
-        const eventColor = getChangeTypeColor(change.type)
+        const eventColor = getChangeTypeColorHex(change.type)
         lines.push(`<circle cx="${cx}" cy="${y + rowHeight / 2}" r="4" fill="${eventColor}" class="event-marker"><title>${change.description}</title></circle>`)
       }
     }
@@ -320,9 +320,9 @@ export function exportTimelineToSVG(
     { label: 'TCP', color: '#3b82f6' },
     { label: 'UDP', color: '#8b5cf6' },
     { label: 'Active', color: '#22c55e' },
-    { label: 'Appeared', color: getChangeTypeColor('appeared') },
-    { label: 'Disappeared', color: getChangeTypeColor('disappeared') },
-    { label: 'Changed', color: getChangeTypeColor('ttl_changed') },
+    { label: 'Appeared', color: getChangeTypeColorHex('appeared') },
+    { label: 'Disappeared', color: getChangeTypeColorHex('disappeared') },
+    { label: 'Changed', color: getChangeTypeColorHex('ttl_changed') },
   ]
 
   let legendX = labelWidth

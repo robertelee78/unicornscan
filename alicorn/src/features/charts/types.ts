@@ -139,13 +139,13 @@ export const DEFAULT_CHART_CONFIG: ChartConfig = {
 // =============================================================================
 
 export const CHART_COLORS = {
-  total: 'hsl(var(--primary))',
-  tcp: '#22c55e',      // Green
-  udp: '#3b82f6',      // Blue
-  icmp: '#f59e0b',     // Amber
-  other: '#6b7280',    // Gray
-  newPorts: '#10b981', // Emerald
-  removedPorts: '#ef4444', // Red
+  total: 'var(--color-primary)',
+  tcp: 'var(--color-chart-tcp)',
+  udp: 'var(--color-chart-udp)',
+  icmp: 'var(--color-chart-icmp)',
+  other: 'var(--color-chart-other)',
+  newPorts: 'var(--color-chart-new)',
+  removedPorts: 'var(--color-chart-removed)',
 } as const
 
 // =============================================================================
@@ -322,16 +322,16 @@ export function getServiceName(port: number): string {
  * Color scale for heatmap (from light to dark)
  */
 export const HEATMAP_COLORS = [
-  '#f0fdf4',  // Very light green (0)
-  '#dcfce7',  // Light green (0.1)
-  '#bbf7d0',  // (0.2)
-  '#86efac',  // (0.3)
-  '#4ade80',  // (0.4)
-  '#22c55e',  // Medium green (0.5)
-  '#16a34a',  // (0.6)
-  '#15803d',  // (0.7)
-  '#166534',  // (0.8)
-  '#14532d',  // Dark green (0.9-1.0)
+  'var(--color-heatmap-0)',  // Minimal intensity
+  'var(--color-heatmap-1)',  // Very low
+  'var(--color-heatmap-2)',  // Low
+  'var(--color-heatmap-3)',  // Low-mid
+  'var(--color-heatmap-4)',  // Mid
+  'var(--color-heatmap-5)',  // Mid-high
+  'var(--color-heatmap-6)',  // High
+  'var(--color-heatmap-7)',  // Higher
+  'var(--color-heatmap-8)',  // Very high
+  'var(--color-heatmap-9)',  // Maximum intensity
 ] as const
 
 /**

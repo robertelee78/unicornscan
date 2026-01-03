@@ -125,6 +125,11 @@ export interface DatabaseClient {
     ports_found: number
   }>>
 
+  // Host search index data (for smart search feature)
+  getHostBannerIndex(): Promise<Map<string, string[]>>
+  getHostNotesIndex(): Promise<Map<string, string[]>>
+  getHostPortsIndex(): Promise<Map<string, number[]>>
+
   // Dashboard (time-filtered)
   getDashboardStats(options: { since: number | null }): Promise<DashboardStats>
   getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]>
@@ -670,6 +675,170 @@ class RestDatabase implements DatabaseClient {
       target_str: scan.target_str,
       ports_found: scan_port_counts.get(scan.scan_id) || 0,
     }))
+  }
+
+  // ===========================================================================
+  // Host Search Index Methods (for smart search feature)
+  // ===========================================================================
+
+  /**
+   * Get all banners indexed by host address.
+   * Aggregates banner data from uni_ipreportdata (type=1) via uni_ipreport.
+   * Returns Map<host_addr, banner_strings[]> for efficient searching.
+   *
+   * This enables banner search across all hosts without N+1 queries.
+   */
+  async getHostBannerIndex(): Promise<Map<string, string[]>> {
+    // Step 1: Get all banner data with their report IDs
+    const { data: bannerData, error: bannerError } = await this.client
+      .from('uni_ipreportdata')
+      .select('ipreport_id, data')
+      .eq('type', 1)  // type=1 is banner data
+
+    if (bannerError) {
+      // Table might not exist or be empty
+      if (bannerError.code === 'PGRST116' || bannerError.code === '42P01') {
+        return new Map()
+      }
+      throw bannerError
+    }
+
+    if (!bannerData || bannerData.length === 0) {
+      return new Map()
+    }
+
+    // Build set of report IDs that have banners
+    const reportIds = bannerData.map(r => r.ipreport_id)
+
+    // Step 2: Get host addresses for those reports
+    const { data: reportHostData, error: reportError } = await this.client
+      .from('uni_ipreport')
+      .select('ipreport_id, host_addr')
+      .in('ipreport_id', reportIds)
+
+    if (reportError) throw reportError
+
+    // Create lookup: ipreport_id -> host_addr
+    const reportToHost = new Map<number, string>()
+    for (const r of reportHostData || []) {
+      reportToHost.set(r.ipreport_id, r.host_addr)
+    }
+
+    // Aggregate banners by host
+    const hostBanners = new Map<string, string[]>()
+    for (const row of bannerData) {
+      if (row.data) {
+        const processed = processBannerData(row.data)
+        if (processed) {
+          const hostAddr = reportToHost.get(row.ipreport_id)
+          if (hostAddr) {
+            const existing = hostBanners.get(hostAddr)
+            if (existing) {
+              // Avoid duplicates
+              if (!existing.includes(processed)) {
+                existing.push(processed)
+              }
+            } else {
+              hostBanners.set(hostAddr, [processed])
+            }
+          }
+        }
+      }
+    }
+
+    return hostBanners
+  }
+
+  /**
+   * Get all notes indexed by host address.
+   * Aggregates note_text from uni_notes where entity_type='host'.
+   * Returns Map<host_addr, note_texts[]> for efficient searching.
+   *
+   * Note: entity_id for hosts refers to host_id, so we need to join with uni_hosts.
+   */
+  async getHostNotesIndex(): Promise<Map<string, string[]>> {
+    // First get all host notes
+    const { data: notes, error: notesError } = await this.client
+      .from('uni_notes')
+      .select('entity_id, note_text')
+      .eq('entity_type', 'host')
+
+    if (notesError) {
+      // Table might not exist
+      if (notesError.code === 'PGRST116' || notesError.code === '42P01') {
+        return new Map()
+      }
+      throw notesError
+    }
+
+    if (!notes || notes.length === 0) {
+      return new Map()
+    }
+
+    // Get host_id -> host_addr mapping
+    const hostIds = [...new Set(notes.map(n => n.entity_id))]
+    const { data: hosts, error: hostsError } = await this.client
+      .from('uni_hosts')
+      .select('host_id, host_addr')
+      .in('host_id', hostIds)
+
+    if (hostsError) throw hostsError
+
+    // Create lookup: host_id -> host_addr
+    const hostIdToAddr = new Map<number, string>()
+    for (const h of hosts || []) {
+      hostIdToAddr.set(h.host_id, h.host_addr)
+    }
+
+    // Aggregate notes by host address
+    const hostNotes = new Map<string, string[]>()
+    for (const note of notes) {
+      const hostAddr = hostIdToAddr.get(note.entity_id)
+      if (hostAddr && note.note_text) {
+        const existing = hostNotes.get(hostAddr)
+        if (existing) {
+          existing.push(note.note_text)
+        } else {
+          hostNotes.set(hostAddr, [note.note_text])
+        }
+      }
+    }
+
+    return hostNotes
+  }
+
+  /**
+   * Get all responding ports indexed by host address.
+   * Returns Map<host_addr, port_numbers[]> for efficient port search.
+   *
+   * This enables "find hosts with port 22" type queries.
+   */
+  async getHostPortsIndex(): Promise<Map<string, number[]>> {
+    // Get all unique host_addr + sport combinations
+    const { data: reports, error } = await this.client
+      .from('uni_ipreport')
+      .select('host_addr, sport')
+
+    if (error) throw error
+
+    // Aggregate ports by host
+    const hostPorts = new Map<string, Set<number>>()
+    for (const r of reports || []) {
+      const existing = hostPorts.get(r.host_addr)
+      if (existing) {
+        existing.add(r.sport)
+      } else {
+        hostPorts.set(r.host_addr, new Set([r.sport]))
+      }
+    }
+
+    // Convert Sets to Arrays
+    const result = new Map<string, number[]>()
+    for (const [host, ports] of hostPorts) {
+      result.set(host, Array.from(ports).sort((a, b) => a - b))
+    }
+
+    return result
   }
 
   async getDashboardStats(options: { since: number | null }): Promise<DashboardStats> {

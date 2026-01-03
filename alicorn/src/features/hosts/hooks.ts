@@ -9,6 +9,15 @@ import { getDatabase } from '@/lib/database'
 import { searchVendors, macMatchesOuis, isOuiLoaded } from '@/lib/oui'
 import type { Host, IpReport } from '@/types/database'
 import type { HostFilters, SortState, PaginationState, PortHistoryEntry, AggregatedPortEntry, HostScanEntry } from './types'
+import {
+  parseSearch,
+  matchesCIDR,
+  matchesIPPrefix,
+  matchesMAC,
+  matchesBanner,
+  matchesText,
+  type ParsedSearch,
+} from './search-utils'
 
 const db = getDatabase()
 
@@ -24,6 +33,56 @@ export const hostListKeys = {
   aggregatedPorts: (hostIp: string) => [...hostListKeys.all, 'aggregatedPorts', hostIp] as const,
   hostScans: (hostIp: string) => [...hostListKeys.all, 'hostScans', hostIp] as const,
   hostReports: (hostIp: string) => [...hostListKeys.all, 'hostReports', hostIp] as const,
+  // Search index keys (for smart search feature)
+  bannerIndex: () => [...hostListKeys.all, 'bannerIndex'] as const,
+  notesIndex: () => [...hostListKeys.all, 'notesIndex'] as const,
+  portsIndex: () => [...hostListKeys.all, 'portsIndex'] as const,
+}
+
+// =============================================================================
+// Search Index Hooks (for smart search feature)
+// =============================================================================
+
+/**
+ * Hook to fetch all host banners indexed by host address.
+ * Lazy-loaded only when search requires banner matching.
+ */
+export function useHostBannerIndex(enabled = true) {
+  return useQuery({
+    queryKey: hostListKeys.bannerIndex(),
+    queryFn: () => db.getHostBannerIndex(),
+    enabled,
+    staleTime: 60000, // 60 seconds - banners change slowly
+    gcTime: 300000,   // Keep in cache for 5 minutes
+  })
+}
+
+/**
+ * Hook to fetch all host notes indexed by host address.
+ * Lazy-loaded only when search requires notes matching.
+ */
+export function useHostNotesIndex(enabled = true) {
+  return useQuery({
+    queryKey: hostListKeys.notesIndex(),
+    queryFn: () => db.getHostNotesIndex(),
+    enabled,
+    staleTime: 30000, // 30 seconds - notes may change more frequently
+    gcTime: 300000,
+  })
+}
+
+/**
+ * Hook to fetch all host ports indexed by host address.
+ * Required for port number search.
+ */
+export function useHostPortsIndex(enabled = true) {
+  return useQuery({
+    queryKey: hostListKeys.portsIndex(),
+    queryFn: () => db.getHostPortsIndex(),
+    enabled,
+    staleTime: 30000,
+    gcTime: 300000,
+  })
 }
 
 // =============================================================================
@@ -35,6 +94,79 @@ interface UseHostListResult {
   total: number
   isLoading: boolean
   error: Error | null
+  /** Parsed search for UI display (detected type, etc.) */
+  parsedSearch: ParsedSearch | null
+}
+
+/**
+ * Check if a host matches the parsed search query.
+ * Handles all search types: text, port, cidr, ip-prefix, mac, regex
+ */
+function hostMatchesSearch(
+  host: Host,
+  search: ParsedSearch,
+  bannerIndex: Map<string, string[]> | undefined,
+  notesIndex: Map<string, string[]> | undefined,
+  portsIndex: Map<string, number[]> | undefined
+): boolean {
+  const hostAddr = host.ip_addr ?? host.host_addr
+
+  switch (search.type) {
+    case 'port': {
+      // Match hosts that have this port
+      if (!portsIndex || !search.port) return false
+      const hostPorts = portsIndex.get(hostAddr)
+      return hostPorts ? hostPorts.includes(search.port) : false
+    }
+
+    case 'cidr':
+      // Match hosts within CIDR range
+      if (!search.cidr) return false
+      return matchesCIDR(hostAddr, search.cidr)
+
+    case 'ip-prefix':
+      // Match hosts with IP starting with prefix
+      return matchesIPPrefix(hostAddr, search.value)
+
+    case 'mac': {
+      // Match hosts with matching MAC address
+      const mac = host.current_mac || host.mac_addr
+      return matchesMAC(mac, search.value)
+    }
+
+    case 'regex': {
+      // Apply regex to banners only
+      if (!bannerIndex) return false
+      const banners = bannerIndex.get(hostAddr) || []
+      return banners.some(b => matchesBanner(b, search))
+    }
+
+    case 'text':
+    default:
+      // Search across multiple fields: IP, hostname, MAC, banners, notes, OS
+      // IP address
+      if (matchesText(hostAddr, search)) return true
+      // Hostname
+      if (matchesText(host.hostname, search)) return true
+      // MAC address (current or legacy)
+      if (matchesText(host.current_mac || host.mac_addr, search)) return true
+      // OS info
+      if (matchesText(host.os_name, search)) return true
+      if (matchesText(host.os_family, search)) return true
+      if (matchesText(host.os_guess, search)) return true
+      if (matchesText(host.device_type, search)) return true
+      // Banners (if loaded)
+      if (bannerIndex) {
+        const hostBanners = bannerIndex.get(hostAddr) || []
+        if (hostBanners.some(b => matchesBanner(b, search))) return true
+      }
+      // Notes (if loaded)
+      if (notesIndex) {
+        const hostNotes = notesIndex.get(hostAddr) || []
+        if (hostNotes.some(n => matchesText(n, search))) return true
+      }
+      return false
+  }
 }
 
 export function useHostList(
@@ -42,28 +174,46 @@ export function useHostList(
   sort: SortState,
   pagination: PaginationState
 ): UseHostListResult {
-  const { data, isLoading, error } = useQuery({
+  // Parse the search string to determine type
+  const parsedSearch = useMemo(() => {
+    if (!filters.search.trim()) return null
+    return parseSearch(filters.search)
+  }, [filters.search])
+
+  // Determine which indexes we need based on search type
+  const needsBannerIndex = parsedSearch?.type === 'regex' || parsedSearch?.type === 'text'
+  const needsNotesIndex = parsedSearch?.type === 'text'
+  const needsPortsIndex = parsedSearch?.type === 'port'
+
+  // Fetch hosts
+  const { data: hosts, isLoading: hostsLoading, error: hostsError } = useQuery({
     queryKey: hostListKeys.filtered(filters, sort, pagination),
     queryFn: async () => {
-      // Get all hosts (we'll filter client-side until we add server-side filtering)
       const hosts = await db.getHosts({ limit: 1000 })
       return hosts
     },
     staleTime: 30000,
   })
 
+  // Fetch search indexes (lazy - only when needed)
+  const { data: bannerIndex, isLoading: bannersLoading } = useHostBannerIndex(needsBannerIndex)
+  const { data: notesIndex, isLoading: notesLoading } = useHostNotesIndex(needsNotesIndex)
+  const { data: portsIndex, isLoading: portsLoading } = useHostPortsIndex(needsPortsIndex)
+
+  // Combined loading state
+  const isLoading = hostsLoading ||
+    (needsBannerIndex && bannersLoading) ||
+    (needsNotesIndex && notesLoading) ||
+    (needsPortsIndex && portsLoading)
+
   // Apply filters, sort, and pagination client-side
   const result = useMemo(() => {
-    let filtered = [...(data || [])]
+    let filtered = [...(hosts || [])]
 
-    // Apply search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
-      filtered = filtered.filter(
-        (h) =>
-          (h.ip_addr ?? h.host_addr).toLowerCase().includes(searchLower) ||
-          (h.hostname?.toLowerCase().includes(searchLower) ?? false) ||
-          (h.mac_addr?.toLowerCase().includes(searchLower) ?? false)
+    // Apply smart search filter
+    if (parsedSearch) {
+      filtered = filtered.filter((h) =>
+        hostMatchesSearch(h, parsedSearch, bannerIndex, notesIndex, portsIndex)
       )
     }
 
@@ -77,7 +227,6 @@ export function useHostList(
 
     // Apply vendor filter (requires OUI data to be loaded)
     if (filters.vendorFilter && isOuiLoaded()) {
-      // Get all matching OUI prefixes for the vendor query
       const matches = searchVendors(filters.vendorFilter, 1000)
       const ouiPrefixes = matches.map((m) => m.oui)
       filtered = filtered.filter((h) => {
@@ -133,13 +282,14 @@ export function useHostList(
     const paged = filtered.slice(start, start + pagination.pageSize)
 
     return { data: paged, total }
-  }, [data, filters, sort, pagination])
+  }, [hosts, parsedSearch, bannerIndex, notesIndex, portsIndex, filters.hasOpenPorts, filters.vendorFilter, sort, pagination])
 
   return {
     data: result.data,
     total: result.total,
     isLoading,
-    error: error as Error | null,
+    error: hostsError as Error | null,
+    parsedSearch,
   }
 }
 

@@ -564,9 +564,9 @@ export function inferOsFromTtl(ttl: number): { osFamily: OsFamily; estimatedHops
  */
 export function getOsFamilyColor(osFamily: OsFamily): string {
   switch (osFamily) {
-    case 'linux': return '#22c55e'    // Green (Tux)
-    case 'windows': return '#3b82f6'  // Blue (Windows blue)
-    case 'router': return '#f59e0b'   // Amber (network infrastructure)
-    case 'unknown': return '#6b7280'  // Gray
+    case 'linux': return 'var(--color-topo-host-linux)'      // Green (Tux)
+    case 'windows': return 'var(--color-topo-host-windows)'  // Blue (Windows blue)
+    case 'router': return 'var(--color-topo-router)'         // Amber (network infrastructure)
+    case 'unknown': return 'var(--color-topo-host)'          // Gray
   }
 }

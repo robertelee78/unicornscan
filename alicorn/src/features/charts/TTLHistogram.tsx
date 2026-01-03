@@ -25,10 +25,10 @@ import type { TTLDistributionData } from './types'
 // =============================================================================
 
 const OS_COLORS = {
-  linux: '#f97316',   // Orange - Linux/Unix
-  windows: '#3b82f6', // Blue - Windows
-  router: '#22c55e',  // Green - Network devices
-  unknown: '#6b7280', // Gray - Unknown
+  linux: 'var(--color-os-linux)',     // Orange - Linux/Unix
+  windows: 'var(--color-os-windows)', // Blue - Windows
+  router: 'var(--color-os-router)',   // Green - Network devices
+  unknown: 'var(--color-os-unknown)', // Gray - Unknown
 }
 
 // =============================================================================

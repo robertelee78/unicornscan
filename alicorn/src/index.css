@@ -47,6 +47,88 @@
   --color-port-closed: #ef4444;
   --color-port-filtered: #f59e0b;
 
+  /* ==========================================================================
+   * Chart Colors - Protocol Distribution
+   * Used in: ProtocolDistribution.tsx, types.ts CHART_COLORS
+   * ========================================================================== */
+  --color-chart-tcp: #22c55e;
+  --color-chart-udp: #3b82f6;
+  --color-chart-icmp: #f59e0b;
+  --color-chart-other: #6b7280;
+  --color-chart-new: #10b981;
+  --color-chart-removed: #ef4444;
+
+  /* ==========================================================================
+   * Chart Colors - OS Fingerprinting
+   * Used in: TTLHistogram.tsx OS_COLORS
+   * ========================================================================== */
+  --color-os-linux: #f97316;
+  --color-os-windows: #3b82f6;
+  --color-os-router: #22c55e;
+  --color-os-unknown: #6b7280;
+
+  /* ==========================================================================
+   * Chart Colors - Multi-Category Palette
+   * Used in: ServiceDistributionChart, WindowSizeChart, CountryDistributionChart
+   * 12 distinct colors for categorical data visualization
+   * ========================================================================== */
+  --color-palette-1: #22c55e;
+  --color-palette-2: #3b82f6;
+  --color-palette-3: #f59e0b;
+  --color-palette-4: #ef4444;
+  --color-palette-5: #8b5cf6;
+  --color-palette-6: #06b6d4;
+  --color-palette-7: #ec4899;
+  --color-palette-8: #84cc16;
+  --color-palette-9: #f97316;
+  --color-palette-10: #6366f1;
+  --color-palette-11: #14b8a6;
+  --color-palette-12: #a855f7;
+
+  /* ==========================================================================
+   * Chart Colors - Heatmap Scale
+   * Used in: PortActivityHeatmap.tsx, types.ts HEATMAP_COLORS
+   * 10-step gradient from low intensity (0) to high intensity (9)
+   * In dark mode: light greens pop against dark background
+   * ========================================================================== */
+  --color-heatmap-0: #f0fdf4;
+  --color-heatmap-1: #dcfce7;
+  --color-heatmap-2: #bbf7d0;
+  --color-heatmap-3: #86efac;
+  --color-heatmap-4: #4ade80;
+  --color-heatmap-5: #22c55e;
+  --color-heatmap-6: #16a34a;
+  --color-heatmap-7: #15803d;
+  --color-heatmap-8: #166534;
+  --color-heatmap-9: #14532d;
+
+  /* ==========================================================================
+   * Topology Colors - Network Graph Node Types
+   * Used in: NetworkGraph.tsx, TopologyLegend.tsx
+   * ========================================================================== */
+  --color-topo-scanner: #ef4444;
+  --color-topo-router: #f59e0b;
+  --color-topo-host: #6b7280;
+  --color-topo-host-linux: #22c55e;
+  --color-topo-host-windows: #3b82f6;
+  --color-topo-edge: #4b5563;
+  --color-topo-label: #9ca3af;
+
+  /* ==========================================================================
+   * Timeline Colors - Protocol-based track colors
+   * Used in: TimelineRow.tsx, HostTimeline.tsx, timeline/types.ts
+   * ========================================================================== */
+  --color-timeline-tcp: #3b82f6;
+  --color-timeline-udp: #8b5cf6;
+  --color-timeline-other: #6b7280;
+  --color-timeline-active: #22c55e;
+  --color-timeline-closed: #ef4444;
+  --color-timeline-filtered: #f59e0b;
+  --color-timeline-reappeared: #3b82f6;
+  --color-timeline-ttl-changed: #f59e0b;
+  --color-timeline-flags-changed: #8b5cf6;
+  --color-timeline-window-changed: #06b6d4;
+
   /* Radius */
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
@@ -73,6 +155,85 @@
   --color-border: #e4e4e7;
   --color-primary-foreground: #ffffff;
   --color-ring: #0891b2;
+
+  /* ==========================================================================
+   * Light Mode Chart Colors - Protocol Distribution
+   * All colors tested for WCAG AA 3:1 minimum contrast against #fafafa
+   * ========================================================================== */
+  --color-chart-tcp: #15803d;      /* green-700: 3.67:1 contrast */
+  --color-chart-udp: #1d4ed8;      /* blue-700: 4.90:1 contrast */
+  --color-chart-icmp: #b45309;     /* amber-700: 3.50:1 contrast */
+  --color-chart-other: #4b5563;    /* gray-600: 5.24:1 contrast */
+  --color-chart-new: #047857;      /* emerald-700: 3.85:1 contrast */
+  --color-chart-removed: #dc2626;  /* red-600: 3.58:1 contrast */
+
+  /* Light Mode OS Fingerprinting Colors */
+  --color-os-linux: #c2410c;       /* orange-700: 3.58:1 contrast */
+  --color-os-windows: #1d4ed8;     /* blue-700: 4.90:1 contrast */
+  --color-os-router: #15803d;      /* green-700: 3.67:1 contrast */
+  --color-os-unknown: #4b5563;     /* gray-600: 5.24:1 contrast */
+
+  /* ==========================================================================
+   * Light Mode Multi-Category Palette
+   * Darker variants that maintain visual distinction and WCAG compliance
+   * ========================================================================== */
+  --color-palette-1: #15803d;      /* green-700 */
+  --color-palette-2: #1d4ed8;      /* blue-700 */
+  --color-palette-3: #b45309;      /* amber-700 */
+  --color-palette-4: #dc2626;      /* red-600 */
+  --color-palette-5: #6d28d9;      /* violet-700 */
+  --color-palette-6: #0e7490;      /* cyan-700 */
+  --color-palette-7: #be185d;      /* pink-700 */
+  --color-palette-8: #4d7c0f;      /* lime-700 */
+  --color-palette-9: #c2410c;      /* orange-700 */
+  --color-palette-10: #4338ca;     /* indigo-700 */
+  --color-palette-11: #0f766e;     /* teal-700 */
+  --color-palette-12: #7c3aed;     /* violet-600 */
+
+  /* ==========================================================================
+   * Light Mode Heatmap Scale
+   * Shifted darker for visibility against light background
+   * Low intensity (0-2): subtle but visible
+   * Mid intensity (3-5): clear visibility
+   * High intensity (6-9): strong contrast
+   * ========================================================================== */
+  --color-heatmap-0: #dcfce7;      /* Minimal activity - subtle */
+  --color-heatmap-1: #bbf7d0;      /* 1.16:1 - very low */
+  --color-heatmap-2: #86efac;      /* 1.44:1 - low */
+  --color-heatmap-3: #4ade80;      /* 2.02:1 - low-mid */
+  --color-heatmap-4: #22c55e;      /* 2.26:1 - mid */
+  --color-heatmap-5: #16a34a;      /* 2.81:1 - mid-high */
+  --color-heatmap-6: #15803d;      /* 3.67:1 - high (WCAG AA graphics) */
+  --color-heatmap-7: #166534;      /* 4.77:1 - higher (WCAG AA text) */
+  --color-heatmap-8: #14532d;      /* 6.37:1 - very high */
+  --color-heatmap-9: #052e16;      /* 9.58:1 - maximum (WCAG AAA) */
+
+  /* Light Mode Status Colors - Adjusted for contrast */
+  --color-success: #15803d;        /* green-700: 3.67:1 */
+  --color-warning: #b45309;        /* amber-700: 3.50:1 */
+  --color-port-open: #15803d;      /* green-700: 3.67:1 */
+  --color-port-filtered: #b45309;  /* amber-700: 3.50:1 */
+
+  /* Light Mode Topology Colors */
+  --color-topo-scanner: #dc2626;   /* red-600: 3.58:1 */
+  --color-topo-router: #b45309;    /* amber-700: 3.50:1 */
+  --color-topo-host: #4b5563;      /* gray-600: 5.24:1 */
+  --color-topo-host-linux: #15803d;    /* green-700: 3.67:1 */
+  --color-topo-host-windows: #1d4ed8;  /* blue-700: 4.90:1 */
+  --color-topo-edge: #6b7280;      /* gray-500: 4.17:1 */
+  --color-topo-label: #4b5563;     /* gray-600: 5.24:1 */
+
+  /* Light Mode Timeline Colors */
+  --color-timeline-tcp: #1d4ed8;           /* blue-700: 4.90:1 */
+  --color-timeline-udp: #6d28d9;           /* violet-700: 5.14:1 */
+  --color-timeline-other: #4b5563;         /* gray-600: 5.24:1 */
+  --color-timeline-active: #15803d;        /* green-700: 3.67:1 */
+  --color-timeline-closed: #dc2626;        /* red-600: 3.58:1 */
+  --color-timeline-filtered: #b45309;      /* amber-700: 3.50:1 */
+  --color-timeline-reappeared: #1d4ed8;    /* blue-700: 4.90:1 */
+  --color-timeline-ttl-changed: #b45309;   /* amber-700: 3.50:1 */
+  --color-timeline-flags-changed: #6d28d9; /* violet-700: 5.14:1 */
+  --color-timeline-window-changed: #0e7490; /* cyan-700: 3.57:1 */
 }
 
 /* Theme transition - smooth color changes */

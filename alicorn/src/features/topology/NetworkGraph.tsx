@@ -62,8 +62,8 @@ function getNodeRadius(
  * OPTE-style: categorical coloring by characteristic
  */
 function getNodeColor(node: TopologyNode): string {
-  if (node.type === 'scanner') return '#ef4444' // Red - scanner is the origin
-  if (node.type === 'router') return '#f59e0b'  // Amber - network infrastructure
+  if (node.type === 'scanner') return 'var(--color-topo-scanner)' // Red - scanner is the origin
+  if (node.type === 'router') return 'var(--color-topo-router)'   // Amber - network infrastructure
   return getOsFamilyColor(node.osFamily)
 }
 
@@ -178,7 +178,7 @@ export function NetworkGraph({
       .data(edges)
       .join('line')
       .attr('class', 'edge')
-      .attr('stroke', '#4b5563')
+      .attr('stroke', 'var(--color-topo-edge)')
       .attr('stroke-opacity', 0.4)
       .attr('stroke-width', d => d.hopNumber ? 2 : 1)
 
@@ -233,7 +233,7 @@ export function NetworkGraph({
         .attr('text-anchor', 'middle')
         .attr('dy', d => getNodeRadius(d, config.minNodeRadius, config.maxNodeRadius, maxPorts) + 12)
         .attr('font-size', '10px')
-        .attr('fill', '#9ca3af')
+        .attr('fill', 'var(--color-topo-label)')
         .attr('pointer-events', 'none')
         .text(d => d.label)
     }

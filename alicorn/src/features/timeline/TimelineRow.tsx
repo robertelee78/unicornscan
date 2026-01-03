@@ -43,9 +43,9 @@ interface TimelineRowProps {
 // =============================================================================
 
 const PROTOCOL_COLORS = {
-  tcp: '#3b82f6',   // blue
-  udp: '#8b5cf6',   // purple
-  other: '#6b7280', // gray
+  tcp: 'var(--color-timeline-tcp)',     // blue
+  udp: 'var(--color-timeline-udp)',     // purple
+  other: 'var(--color-timeline-other)', // gray
 }
 
 // =============================================================================

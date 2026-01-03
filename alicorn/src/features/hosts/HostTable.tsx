@@ -1,9 +1,9 @@
 /**
- * Host list table with sortable columns and expandable port details
+ * Host list table with sortable columns, expandable port details, and search highlighting
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, Fragment, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronDown, ChevronRight, Clock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -18,17 +18,20 @@ import { ensureOuiLoaded, getVendorSync } from '@/lib/oui'
 import { decodeTcpFlags } from '@/types/database'
 import { TcpFlagsDisplay, truncateBanner, bannerNeedsExpansion } from '@/features/ports'
 import { useAggregatedPortHistory } from './hooks'
+import { HighlightText, textMatchesSearch, getMatchedFields, MATCHED_FIELD_LABELS } from './HighlightText'
 import type { Host } from '@/types/database'
-import type { SortState, SortField, AggregatedPortEntry, PortHistoryEntry } from './types'
+import type { SortState, SortField, AggregatedPortEntry, PortHistoryEntry, ParsedSearch } from './types'
 
 interface HostTableProps {
   hosts: Host[]
   sort: SortState
   onSort: (field: SortField) => void
   isLoading: boolean
+  /** Parsed search for highlighting matches */
+  parsedSearch?: ParsedSearch | null
 }
 
-export function HostTable({ hosts, sort, onSort, isLoading }: HostTableProps) {
+export function HostTable({ hosts, sort, onSort, isLoading, parsedSearch }: HostTableProps) {
   // Load OUI data for vendor lookup
   useEffect(() => {
     ensureOuiLoaded()
@@ -124,6 +127,7 @@ export function HostTable({ hosts, sort, onSort, isLoading }: HostTableProps) {
                 host={host}
                 isExpanded={isExpanded}
                 onToggleExpand={() => toggleHostExpanded(hostIp)}
+                parsedSearch={parsedSearch}
               />
             )
           })}
@@ -168,9 +172,10 @@ interface HostRowProps {
   host: Host
   isExpanded: boolean
   onToggleExpand: () => void
+  parsedSearch?: ParsedSearch | null
 }
 
-function HostRow({ host, isExpanded, onToggleExpand }: HostRowProps) {
+function HostRow({ host, isExpanded, onToggleExpand, parsedSearch }: HostRowProps) {
   // port_count is the canonical field (responding ports)
   const portCount = host.port_count ?? 0
   const ipAddr = host.host_addr ?? host.ip_addr
@@ -180,35 +185,72 @@ function HostRow({ host, isExpanded, onToggleExpand }: HostRowProps) {
   const hasMultipleMacs = allMacs.length > 1
   const vendor = getVendorSync(macAddr)
 
+  // Calculate which fields match for text/regex searches
+  const matchInfo = useMemo(() => {
+    if (!parsedSearch || (parsedSearch.type !== 'text' && parsedSearch.type !== 'regex')) {
+      return undefined
+    }
+    return {
+      ip: textMatchesSearch(ipAddr, parsedSearch),
+      hostname: textMatchesSearch(host.hostname, parsedSearch),
+      mac: textMatchesSearch(macAddr, parsedSearch),
+      os: textMatchesSearch(host.os_name || host.os_family || host.os_guess, parsedSearch),
+      // Note: banner/notes matching requires loaded indices, shown as matched if host is in results
+    }
+  }, [parsedSearch, ipAddr, host.hostname, macAddr, host.os_name, host.os_family, host.os_guess])
+
+  // Get matched fields for indicator
+  const matchedFields = useMemo(() => {
+    if (!parsedSearch) return []
+    return getMatchedFields(parsedSearch.type, matchInfo)
+  }, [parsedSearch, matchInfo])
+
   return (
     <Fragment>
       <tr className="border-b border-border/50 hover:bg-muted/30">
-        {/* Expand toggle */}
+        {/* Expand toggle with match indicator */}
         <td className="py-3 pr-2 w-6">
-          {portCount > 0 ? (
-            <button
-              onClick={onToggleExpand}
-              className="text-muted hover:text-foreground transition-colors"
-              aria-label={isExpanded ? 'Collapse ports' : 'Expand ports'}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {portCount > 0 ? (
+              <button
+                onClick={onToggleExpand}
+                className="text-muted hover:text-foreground transition-colors"
+                aria-label={isExpanded ? 'Collapse ports' : 'Expand ports'}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            ) : null}
+            {/* Match indicator for search */}
+            {matchedFields.length > 0 && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p className="text-xs">
+                      Matched: {matchedFields.map(f => MATCHED_FIELD_LABELS[f]).join(', ')}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </td>
         <td className="py-3 pr-4">
           <Link
             to={`/hosts/${encodeURIComponent(ipAddr)}`}
             className="text-primary hover:underline"
           >
-            {ipAddr}
+            <HighlightText text={ipAddr} search={parsedSearch ?? null} />
           </Link>
         </td>
         <td className="py-3 pr-4 text-muted">
-          {host.hostname || '—'}
+          <HighlightText text={host.hostname} search={parsedSearch ?? null} />
         </td>
         <td className="py-3 pr-4 text-xs">
           {macAddr ? (
@@ -260,7 +302,10 @@ function HostRow({ host, isExpanded, onToggleExpand }: HostRowProps) {
         <td className="py-3 pr-4">
           {(host.os_name || host.os_family || host.os_guess) ? (
             <Badge variant="outline" className="text-xs">
-              {host.os_name || host.os_family || host.os_guess}
+              <HighlightText
+                text={host.os_name || host.os_family || host.os_guess}
+                search={parsedSearch ?? null}
+              />
             </Badge>
           ) : (
             <span className="text-muted">—</span>
