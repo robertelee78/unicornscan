@@ -814,15 +814,15 @@ int load_phase_settings(int phase_index) {
 
 	/*
 	 * Apply phase-specific send/recv options.
-	 * Preserve flags from -s option - these must persist across phases
-	 * so the phantom IP is used for all phases:
+	 * Preserve flags that must persist across phases:
 	 * - S_SRC_OVERRIDE: tells drone_setup to keep user's source address
+	 * - S_DEFAULT_PAYLOAD: enables default TCP payload for banner grabbing
 	 * - L_USE_PROMISC: enables promiscuous mode to see phantom IP responses
 	 */
 	{
-		uint16_t preserve_override = s->send_opts & S_SRC_OVERRIDE;
+		uint16_t preserve_send = s->send_opts & (S_SRC_OVERRIDE | S_DEFAULT_PAYLOAD);
 		uint16_t preserve_promisc = s->recv_opts & L_USE_PROMISC;
-		s->send_opts = phase->send_opts | preserve_override;
+		s->send_opts = phase->send_opts | preserve_send;
 		s->recv_opts = phase->recv_opts | preserve_promisc;
 	}
 
