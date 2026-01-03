@@ -18,6 +18,8 @@ export interface HostFilters {
   search: string
   /** Filter by whether host has responding ports */
   hasOpenPorts: boolean | null
+  /** Filter by whether host has captured banners */
+  hasBanner: boolean | null
   /** Filter by OUI vendor name */
   vendorFilter: string
 }
@@ -51,6 +53,7 @@ export interface PaginationState {
 export const DEFAULT_FILTERS: HostFilters = {
   search: '',
   hasOpenPorts: null,
+  hasBanner: null,
   vendorFilter: '',
 }
 
