@@ -35,7 +35,7 @@ export function RawDataTab({ scan, reports }: RawDataTabProps) {
     reports: reports.map((r) => ({
       ipreport_id: r.ipreport_id,
       host_addr: r.host_addr,
-      dport: r.dport,
+      dport: r.sport,
       proto: r.proto,
       ttl: r.ttl,
       flags: r.flags,
@@ -46,7 +46,7 @@ export function RawDataTab({ scan, reports }: RawDataTabProps) {
     summary: {
       total_reports: reports.length,
       unique_hosts: [...new Set(reports.map((r) => r.host_addr))].length,
-      unique_ports: [...new Set(reports.map((r) => r.dport))].length,
+      unique_ports: [...new Set(reports.map((r) => r.sport))].length,
     },
   }
 

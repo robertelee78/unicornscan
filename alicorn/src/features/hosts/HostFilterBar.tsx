@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { Search, X } from 'lucide-react'
+import { Search, X, Building2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { HostFilters } from './types'
+import { DEFAULT_FILTERS } from './types'
 
 interface HostFilterBarProps {
   filters: HostFilters
@@ -21,10 +22,14 @@ interface HostFilterBarProps {
 }
 
 export function HostFilterBar({ filters, onChange }: HostFilterBarProps) {
-  const hasFilters = filters.search || filters.hasOpenPorts !== null
+  const hasFilters = filters.search || filters.hasOpenPorts !== null || filters.vendorFilter
 
   const handleSearchChange = (value: string) => {
     onChange({ ...filters, search: value })
+  }
+
+  const handleVendorFilterChange = (value: string) => {
+    onChange({ ...filters, vendorFilter: value })
   }
 
   const handlePortsFilterChange = (value: string) => {
@@ -33,7 +38,7 @@ export function HostFilterBar({ filters, onChange }: HostFilterBarProps) {
   }
 
   const handleClear = () => {
-    onChange({ search: '', hasOpenPorts: null })
+    onChange(DEFAULT_FILTERS)
   }
 
   return (
@@ -45,6 +50,17 @@ export function HostFilterBar({ filters, onChange }: HostFilterBarProps) {
           placeholder="Search IP, hostname, or MAC..."
           value={filters.search}
           onChange={(e) => handleSearchChange(e.target.value)}
+          className="pl-9 h-9"
+        />
+      </div>
+
+      {/* Vendor filter */}
+      <div className="relative min-w-[160px] max-w-[200px]">
+        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+        <Input
+          placeholder="Filter by vendor..."
+          value={filters.vendorFilter}
+          onChange={(e) => handleVendorFilterChange(e.target.value)}
           className="pl-9 h-9"
         />
       </div>
