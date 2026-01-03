@@ -1,3 +1,12 @@
+unicornscan (0.4.32-1) unstable; urgency=medium
+
+  * Fix banner capture in compound mode (-mA+sf)
+    - S_DEFAULT_PAYLOAD flag was not preserved across phase transitions
+    - Default TCP payload now available in phase 2 for banner grabbing
+    - Compound scans now properly capture SSH, FTP, and other banners
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 22:30:00 -0800
+
 unicornscan (0.4.31-1) unstable; urgency=medium
 
   * Fix banner capture in TCP connect mode (-msf)

@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.31
+Version:        0.4.32
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -84,6 +84,11 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %dir %{_localstatedir}/unicornscan
 
 %changelog
+* Thu Jan 02 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.32-1
+- Fix banner capture in compound mode (-mA+sf)
+- S_DEFAULT_PAYLOAD flag now preserved across phase transitions
+- Compound scans now properly capture SSH, FTP, and other banners
+
 * Thu Jan 02 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.31-1
 - Fix banner capture in TCP connect mode (-msf)
 - SYN cookie validation was incorrectly rejecting PSH+ACK packets
