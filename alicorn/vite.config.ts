@@ -45,7 +45,7 @@ export default defineConfig({
           postgrest: ['@supabase/postgrest-js'],
           // Data fetching
           query: ['@tanstack/react-query'],
-        },
+                  },
       },
     },
     // Increase chunk size warning limit (after splitting, chunks should be smaller)

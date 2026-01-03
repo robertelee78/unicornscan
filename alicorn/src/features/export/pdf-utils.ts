@@ -239,12 +239,12 @@ function drawPieChart(
 
 function calculateSummaryStats(reports: IpReport[]): PDFSummaryStats {
   const hosts = new Set(reports.map((r) => r.host_addr))
-  const ports = new Set(reports.map((r) => r.dport))
+  const ports = new Set(reports.map((r) => r.sport))
 
   // Port frequency
   const portCounts: Record<number, number> = {}
   for (const report of reports) {
-    portCounts[report.dport] = (portCounts[report.dport] || 0) + 1
+    portCounts[report.sport] = (portCounts[report.sport] || 0) + 1
   }
 
   const topPorts = Object.entries(portCounts)
@@ -428,7 +428,7 @@ export function exportBulkScansToPDF(
 
   const allReports = data.scans.flatMap((s) => s.reports)
   const totalHosts = new Set(allReports.map((r) => r.host_addr)).size
-  const totalPorts = new Set(allReports.map((r) => `${r.dport}/${r.proto}`)).size
+  const totalPorts = new Set(allReports.map((r) => `${r.sport}/${r.proto}`)).size
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
@@ -639,7 +639,7 @@ function addReportsTable(
   const tableData = reports.map((r) => {
     const base = [
       r.host_addr,
-      r.dport,
+      r.sport,
       getProtocolName(r.proto),
     ]
 

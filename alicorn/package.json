@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "build:oui": "npx tsx scripts/build-oui-json.ts"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

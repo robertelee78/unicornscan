@@ -151,7 +151,7 @@ function scanToJSON(scan: Scan, hostCount: number, portCount: number, depth: Met
 function reportToJSON(report: IpReport, depth: MetadataDepth, service?: string): ReportJSONBasic | ReportJSONStandard | ReportJSONFull {
   const basic: ReportJSONBasic = {
     hostIp: report.host_addr,
-    port: report.dport,
+    port: report.sport,
     protocol: getProtocolName(report.proto),
   }
 
@@ -226,7 +226,7 @@ export function exportScanToJSON(
   depth: MetadataDepth
 ): string {
   const hostCount = new Set(data.reports.map((r) => r.host_addr)).size
-  const portCount = new Set(data.reports.map((r) => `${r.dport}/${r.proto}`)).size
+  const portCount = new Set(data.reports.map((r) => `${r.sport}/${r.proto}`)).size
 
   const output = {
     _metadata: createMetadata(depth),
@@ -270,7 +270,7 @@ export function exportBulkScansToJSON(
     },
     scans: data.scans.map((scanData) => {
       const hostCount = new Set(scanData.reports.map((r) => r.host_addr)).size
-      const portCount = new Set(scanData.reports.map((r) => `${r.dport}/${r.proto}`)).size
+      const portCount = new Set(scanData.reports.map((r) => `${r.sport}/${r.proto}`)).size
 
       return {
         scan: scanToJSON(scanData.scan, hostCount, portCount, depth),
@@ -360,12 +360,12 @@ function groupReportsByHost(
 function createBulkSummary(data: BulkExportData): Record<string, unknown> {
   const allReports = data.scans.flatMap((s) => s.reports)
   const allHosts = new Set(allReports.map((r) => r.host_addr))
-  const allPorts = new Set(allReports.map((r) => `${r.dport}/${r.proto}`))
+  const allPorts = new Set(allReports.map((r) => `${r.sport}/${r.proto}`))
 
   // Count ports by frequency
   const portCounts: Record<string, number> = {}
   for (const report of allReports) {
-    const key = `${report.dport}/${getProtocolName(report.proto)}`
+    const key = `${report.sport}/${getProtocolName(report.proto)}`
     portCounts[key] = (portCounts[key] || 0) + 1
   }
 

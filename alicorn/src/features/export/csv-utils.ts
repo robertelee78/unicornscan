@@ -106,7 +106,7 @@ export function reportToCSVRow(report: IpReport, service?: string): ReportCSVRow
     scan_id: report.scan_id,
     report_id: report.ipreport_id,
     host_ip: report.host_addr,
-    port: report.dport,
+    port: report.sport,
     protocol: getProtocolName(report.proto),
     ttl: report.ttl,
     flags: report.type,  // TCP flags are in type field, flags is for CRC errors
@@ -149,7 +149,7 @@ export function exportScanToCSV(
 
   // Scan metadata section
   const hostCount = new Set(data.reports.map((r) => r.host_addr)).size
-  const portCount = new Set(data.reports.map((r) => `${r.dport}/${r.proto}`)).size
+  const portCount = new Set(data.reports.map((r) => `${r.sport}/${r.proto}`)).size
   const scanRow = scanToCSVRow(data.scan, hostCount, portCount)
 
   sections.push('# Scan Metadata')
@@ -207,7 +207,7 @@ export function exportBulkScansToCSV(
   sections.push('# Scan Summary')
   const scanRows = data.scans.map((s) => {
     const hostCount = new Set(s.reports.map((r) => r.host_addr)).size
-    const portCount = new Set(s.reports.map((r) => `${r.dport}/${r.proto}`)).size
+    const portCount = new Set(s.reports.map((r) => `${r.sport}/${r.proto}`)).size
     return scanToCSVRow(s.scan, hostCount, portCount)
   })
   sections.push(objectsToCSV(scanRows, SCAN_FIELDS[depth]))
