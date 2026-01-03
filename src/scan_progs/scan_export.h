@@ -52,6 +52,7 @@
 #define MODE_ARPSCAN			4
 #define MODE_ICMPSCAN			8
 #define MODE_IPSCAN			16
+#define MODE_TCPTRACE			32	/* TCP traceroute with TTL iteration	*/
 
 #define REPORT_BADNETWORK_CKSUM		1
 #define REPORT_BADTRANSPORT_CKSUM	2

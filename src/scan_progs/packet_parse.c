@@ -315,6 +315,7 @@ void parse_packet(uint8_t *notused, const struct pcap_pkthdr *phdr, const uint8_
 			break;
 
 		case MODE_TCPSCAN:
+		case MODE_TCPTRACE:
 		case MODE_UDPSCAN:
 		case MODE_ICMPSCAN:
 		case MODE_IPSCAN:

@@ -404,7 +404,7 @@ void send_packet(void) {
 
 				DBG(M_WRK, "got priority send workunit");
 
-				if (s->ss->mode != MODE_TCPSCAN) {
+				if (s->ss->mode != MODE_TCPSCAN && s->ss->mode != MODE_TCPTRACE) {
 					ERR("pri workunit outside of tcp mode");
 					continue;
 				}
@@ -516,7 +516,7 @@ void send_packet(void) {
 			init_packet(); /* setup tcpoptions, ip chars etc */
 			init_tslot(s->pps, s->delay_type_exp);
 
-			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				uint8_t *psrc=NULL;
 
 				psrc=wk_u.cr;
@@ -549,7 +549,7 @@ void send_packet(void) {
 			assert(tmpchr != NULL);
 			strncpy(s->vi[0]->myaddr_s, tmpchr, sizeof(s->vi[0]->myaddr_s) - 1);
 
-			if (s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				if (s->ss->port_str[0] == 'q' || s->ss->port_str[0] == 'Q') {
 					if (s->ss->mode == MODE_UDPSCAN) {
 						parse_pstr(s->udpquickports, NULL);
@@ -587,7 +587,7 @@ void send_packet(void) {
 			fnew.next=NULL;
 			add_loop_logic((const fl_t *)&fnew);
 
-			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				/* port */
 				fnew.init=&init_nextport;
 				fnew.c_t=CTVOID;
@@ -759,7 +759,7 @@ static void _send_packet(void) {
 
 	target_u.ss=&sl.curhost;
 
-	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 		rport=(uint16_t)sl.curport;
 
 		if (s->ss->src_port == -1) {
@@ -806,7 +806,7 @@ static void _send_packet(void) {
 		}
 	}
 
-	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 		/****************************************************************
 		 *			BUILD IP HEADER				*
 		 ****************************************************************/
@@ -818,7 +818,7 @@ static void _send_packet(void) {
 						(uint16_t)prng_get32()		/* IPID */,
 						s->ss->ip_off,
 						sl.curttl,
-						s->ss->mode == MODE_TCPSCAN ? IPPROTO_TCP : IPPROTO_UDP,
+						(s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) ? IPPROTO_TCP : IPPROTO_UDP,
 						n_chksum,
 						myaddr_u.sin->sin_addr.s_addr,
 						target_u.sin->sin_addr.s_addr,
@@ -861,7 +861,7 @@ static void _send_packet(void) {
 					(uint16_t)sl.payload_size
 		);
 	}
-	else if (s->ss->mode == MODE_TCPSCAN) {
+	else if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 		uint32_t seq=0;
 
 		/****************************************************************
@@ -913,7 +913,7 @@ static void _send_packet(void) {
 
 		snprintf(myhost, sizeof(myhost) -1, "%s", cidr_saddrstr((const struct sockaddr *)myaddr_u.s));
 
-		if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+		if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 			DBG(M_SND, "sending to `%s:%d' from `%s:%u'",
 				cidr_saddrstr((const struct sockaddr *)&sl.curhost),
 				sl.curport,

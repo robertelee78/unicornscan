@@ -543,6 +543,7 @@ static char *get_pcapfilterstr(void) {
 			break;
 
 		case MODE_TCPSCAN:
+		case MODE_TCPTRACE:
 			if (GET_WATCHERRORS()) {
 				snprintf(base_filter, sizeof(base_filter) -1, "%s %s", TCP_PFILTER, TCP_EFILTER);
 			}
@@ -560,7 +561,7 @@ static char *get_pcapfilterstr(void) {
 			break;
 	}
 
-	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 		/*
 		 * Use listen_addr/mask from the workunit for filtering. This is the address
 		 * we're sending packets FROM, which is where responses will be destined TO.
@@ -586,7 +587,7 @@ static char *get_pcapfilterstr(void) {
 		}
 	}
 
-	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN) {
+	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
 		/* XXX multicast */
 		if (s->extra_pcapfilter != NULL && strlen(s->extra_pcapfilter)) {
 			snprintf(pfilter, sizeof(pfilter) -1, "%s and (%s and %s)", addr_filter, base_filter, s->extra_pcapfilter);
