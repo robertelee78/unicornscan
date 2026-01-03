@@ -37,6 +37,7 @@
 #include <scan_progs/workunits.h>
 #include <scan_progs/report.h>
 #include <scan_progs/phase_filter.h>
+#include <scan_progs/trace_session.h>
 #include <unilib/drone.h>
 #include <unilib/qfifo.h>
 #include <unilib/chtbl.h>
@@ -58,6 +59,7 @@
 static int master_state=0;
 
 static unsigned int send_workunits_complete=0, listen_workunits_complete=0;
+static trace_session_t *trace_sess=NULL;	/* traceroute session bookkeeping */
 static int listener_stats=0;
 static int lwu_mixed=0;  /* moved from dispatch_work_units() for phase reset */
 
@@ -261,6 +263,16 @@ void run_scan(void) {
 
 	DBG(M_MST, "scan iteration %u of %u with %d senders and %d listeners", s->cur_iter, s->scan_iter, s->senders, s->listeners);
 
+	/* initialize traceroute session for MODE_TCPTRACE */
+	if (s->ss->mode == MODE_TCPTRACE) {
+		/* XXX target_addr and port extracted from first workunit would be better */
+		trace_sess=trace_session_create(0, 0, s->ss->minttl, s->ss->maxttl);
+		if (trace_sess == NULL) {
+			ERR("cant create trace session");
+		}
+		DBG(M_TRC, "traceroute session created ttl %u-%u", s->ss->minttl, s->ss->maxttl);
+	}
+
 	for (master_state=MASTER_START; (s->senders + s->listeners) > 0 ;) {
 
 		/* if we are not waiting for the senders to finish, we can dispatch work */
@@ -330,6 +342,15 @@ void run_scan(void) {
 			master_read_drones();
 		}
 	} while (s->listeners != listener_stats);
+
+	/* cleanup traceroute session */
+	if (trace_sess != NULL) {
+		if (trace_sess->complete) {
+			DBG(M_TRC, "traceroute complete, path discovered");
+		}
+		trace_session_destroy(trace_sess);
+		trace_sess=NULL;
+	}
 
 	return;
 }
@@ -504,6 +525,30 @@ int deal_with_output(void *msg, size_t msg_len) {
 
 		if (r_u.i->proto == IPPROTO_TCP && GET_DOCONNECT()) {
 			connect_do(s->pri_work, (const ip_report_t *)r_u.i);
+		}
+
+		/* traceroute session bookkeeping */
+		if (s->ss->mode == MODE_TCPTRACE && trace_sess != NULL) {
+			if (r_u.i->proto == IPPROTO_ICMP && r_u.i->type == ICMP_TIME_EXCEEDED) {
+				/* ICMP Time Exceeded from intermediate router */
+				uint8_t curttl=trace_sess->curttl;
+
+				DBG(M_TRC, "ICMP TE from router %08x at ttl %u", r_u.i->trace_addr, curttl);
+
+				trace_session_record_hop(trace_sess, curttl, r_u.i->trace_addr, 0, TRACE_HOP_RECV);
+
+				/* advance to next TTL */
+				if (curttl < trace_sess->maxttl) {
+					trace_sess->curttl++;
+				}
+			}
+			else if (r_u.i->proto == IPPROTO_TCP) {
+				/* TCP response means we reached the target */
+				DBG(M_TRC, "TCP response from target, trace complete");
+
+				trace_session_record_hop(trace_sess, trace_sess->curttl, r_u.i->host_addr, 0, TRACE_HOP_DEST);
+				trace_session_mark_complete(trace_sess);
+			}
 		}
 	}
 	else if (*r_u.magic == ARP_REPORT_MAGIC) {
