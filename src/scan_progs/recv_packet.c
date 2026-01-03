@@ -543,13 +543,20 @@ static char *get_pcapfilterstr(void) {
 			break;
 
 		case MODE_TCPSCAN:
-		case MODE_TCPTRACE:
 			if (GET_WATCHERRORS()) {
 				snprintf(base_filter, sizeof(base_filter) -1, "%s %s", TCP_PFILTER, TCP_EFILTER);
 			}
 			else {
 				snprintf(base_filter, sizeof(base_filter) -1, "%s", TCP_PFILTER);
 			}
+			break;
+
+		case MODE_TCPTRACE:
+			/*
+			 * traceroute mode ALWAYS needs ICMP for Time Exceeded (type 11)
+			 * responses from intermediate routers, plus TCP for final destination
+			 */
+			snprintf(base_filter, sizeof(base_filter) -1, "%s %s", TCP_PFILTER, TCP_EFILTER);
 			break;
 
 		case MODE_ARPSCAN:

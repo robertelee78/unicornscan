@@ -84,6 +84,18 @@ void init_packet(void) {
 	l_tstamp=prng_get32();
 	r_tstamp=0;
 
+	/*
+	 * traceroute mode needs TTL range 1-30 by default, not a fixed TTL.
+	 * set this BEFORE fingerprint defaults which would set minttl=maxttl.
+	 * user-specified TTL takes precedence (checked by minttl/maxttl == 0).
+	 */
+	if (s->ss->mode == MODE_TCPTRACE) {
+		if (s->ss->minttl == 0 && s->ss->maxttl == 0) {
+			s->ss->minttl=1;
+			s->ss->maxttl=30;
+		}
+	}
+
 	switch (s->ss->fingerprint) {
 		case 0:
 			/* Cisco IOS 12.1 on a 2600 router type device, from tcpdump */

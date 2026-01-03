@@ -1,4 +1,9 @@
 
+# Environment files (contain credentials)
+.env
+*.env
+alicorn/.env
+
 # Build artifacts
 *.o
 *.lo

@@ -1,7 +1,7 @@
 #ifndef VERSION
 
-#define VERSION "0.4.24"
-#define BUGURL "robert@unicornscan.org"
+#define VERSION "0.4.22"
+#define BUGURL "osace-users@lists.sourceforge.net"
 
 #ifdef WITH_SELINUX
 #define _B_SE " SELinux"
