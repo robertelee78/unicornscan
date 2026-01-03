@@ -533,6 +533,31 @@ int scan_parsemode(const char *str, uint8_t *mode, uint16_t *flags, uint16_t *sf
 			*flags=TH_SYN;
 		}
 	}
+	else if (*walk == 't' && *(walk + 1) == 'r') {
+		/* TCP traceroute mode: send TCP SYN with incrementing TTL */
+		*mode=MODE_TCPTRACE;
+		*mf |= M_PROC_ERRORS;	/* process ICMP time exceeded	*/
+		*lf |= L_WATCH_ERRORS;	/* include icmp in pcap filter	*/
+		walk += 2;
+
+		/* check to see if the user specified TCP flags with tr mode */
+		if (strlen(walk) > 0 && !isdigit(*walk) && *walk != ':') {
+			ret=decode_tcpflags(walk);
+			if (ret < 0) {
+				ERR("bad tcp flags `%s'", str);
+				return -1;
+			}
+			*flags=(uint16_t)ret;
+
+			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
+				;
+			}
+		}
+		else {
+			/* Default to SYN for tr mode (traceroute) */
+			*flags=TH_SYN;
+		}
+	}
 	else {
 		ERR("unknown scanning mode `%c'", str[1]);
 		return -1;
@@ -651,6 +676,31 @@ static int scan_parsemode_ext(const char *str, uint8_t *mode, uint16_t *flags, u
 		}
 		else {
 			/* Default to SYN for sf mode (TCP connect scan) */
+			*flags=TH_SYN;
+		}
+	}
+	else if (*walk == 't' && *(walk + 1) == 'r') {
+		/* TCP traceroute mode: send TCP SYN with incrementing TTL */
+		*mode=MODE_TCPTRACE;
+		*mf |= M_PROC_ERRORS;	/* process ICMP time exceeded	*/
+		*lf |= L_WATCH_ERRORS;	/* include icmp in pcap filter	*/
+		walk += 2;
+
+		/* check to see if the user specified TCP flags with tr mode */
+		if (strlen(walk) > 0 && !isdigit(*walk) && *walk != ':') {
+			ret=decode_tcpflags(walk);
+			if (ret < 0) {
+				ERR("bad tcp flags `%s'", str);
+				return -1;
+			}
+			*flags=(uint16_t)ret;
+
+			for (;*walk != '\0' && ! isdigit(*walk) && *walk != ':'; walk++) {
+				;
+			}
+		}
+		else {
+			/* Default to SYN for tr mode (traceroute) */
 			*flags=TH_SYN;
 		}
 	}
@@ -781,6 +831,10 @@ char *strscanmode(int mode) {
 
 		case MODE_IPSCAN:
 			strcpy(modestr, "IPscan");
+			break;
+
+		case MODE_TCPTRACE:
+			strcpy(modestr, "TCPtrace");
 			break;
 
 		default:

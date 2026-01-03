@@ -305,6 +305,7 @@ int workunit_add(const char *targets, char **estr) {
 
 		switch (mode) {
 			case MODE_TCPSCAN:
+		case MODE_TCPTRACE:
 				port_str=xstrdup(s->tcpquickports);
 				break;
 
@@ -339,7 +340,7 @@ int workunit_add(const char *targets, char **estr) {
 	s->num_packets += (num_hosts * num_pkts);
 	s->num_secs += ((num_hosts * num_pkts) / pps) + s->ss->recv_timeout;
 
-	if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN) {
+	if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN || mode == MODE_TCPTRACE) {
 		VRB(0, "adding %s/%u mode `%s' ports `%s' pps %u",
 			cidr_saddrstr((const struct sockaddr *)&netid),
 			mask_cidr,
@@ -359,6 +360,7 @@ int workunit_add(const char *targets, char **estr) {
 
 	switch (mode) {
 		case MODE_TCPSCAN:
+		case MODE_TCPTRACE:
 			lwu_srch.magic=TCP_RECV_MAGIC;
 			send_magic=TCP_SEND_MAGIC;
 			break;
@@ -1113,7 +1115,7 @@ uint32_t calculate_phase_estimate(int phase_idx, double num_hosts, const char *t
 		/* ARP: 1 request per host */
 		num_pkts=1;
 	}
-	else if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN) {
+	else if (mode == MODE_TCPSCAN || mode == MODE_UDPSCAN || mode == MODE_TCPTRACE) {
 		/* TCP/UDP: parse port string to get port count */
 		const char *port_str=NULL;
 

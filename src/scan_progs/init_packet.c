@@ -92,7 +92,7 @@ void init_packet(void) {
 			}
 			s->ss->ip_off=0;
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				s->ss->window_size=4128;
 				s->ss->tcpoptions_len=4;
 				s->ss->tcpoptions[0]=0x02;
@@ -113,7 +113,7 @@ void init_packet(void) {
 			/*
 			 * openbsd 3.0-3.4 from the p0f fp file
 			 */
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				s->ss->window_size=16384;
 				s->ss->tcpoptions_len=24;
 				/* M*  ( size 4 ) */
@@ -145,7 +145,7 @@ void init_packet(void) {
 			}
 
 			/* windows xp or something from the p0f fp file */
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				mtu=htons(s->vi[0]->mtu - 40);
 				s->ss->window_size=32767;
 				s->ss->tcpoptions_len=8;
@@ -167,7 +167,7 @@ void init_packet(void) {
 				s->ss->ip_off=0;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				mtu=htons(s->vi[0]->mtu - 40);
 				s->ss->window_size=12345;
 				s->ss->tcpoptions_len=0;
@@ -190,7 +190,7 @@ Y.Y.Y.Y:6175 - FreeBSD 4.7-5.1 (or MacOS X 10.2-10.3) (2) [high throughput] (up:
   -> X.X.X.X:80 (distance 0, link: ethernet/modem)
 */
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				if (s->ss->tos == 0) {
 					s->ss->tos=0x10; /* its telnet! */
 				}
@@ -233,7 +233,7 @@ Y.Y.Y.Y:15303 - NMAP OS detection probe (3) *
 				s->ss->ip_off=0;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				s->ss->window_size=3072;
 				s->ss->tcpoptions_len=20;
 				/* W 10 ( size 3 ) */
@@ -271,7 +271,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->ip_off=IP_DF;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				s->ss->tcpoptions_len=20;
 				mtu=htons(s->vi[0]->mtu - 64);
 				s->ss->window_size=(s->vi[0]->mtu - 64) * 4;
@@ -319,7 +319,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->ip_off=IP_DF;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				uint32_t hash_w=0;
 
 				s->ss->window_size=(s->vi[0]->mtu - 32) * 8;
@@ -369,7 +369,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->ip_off=IP_DF;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				s->ss->window_size=64240;  /* MSS(1460) * 44 */
 				s->ss->tcpoptions_len=12;
 				/* MSS (size 4) */
@@ -401,7 +401,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->ip_off=IP_DF;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				mtu=htons(s->vi[0]->mtu - 40);
 				s->ss->window_size=(s->vi[0]->mtu - 40) * 20;
 				s->ss->tcpoptions_len=20;
@@ -435,7 +435,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->ip_off=IP_DF;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				s->ss->window_size=65535;
 				s->ss->tcpoptions_len=24;
 				/* MSS (size 4) */
@@ -473,7 +473,7 @@ Y.Y.Y.Y:50194 - Linux 2.4/2.6 (up: 7524 hrs)
 				s->ss->ip_off=IP_DF;
 			}
 
-			if (s->ss->mode == MODE_TCPSCAN) {
+			if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 				mtu=htons(s->vi[0]->mtu - 40);
 				s->ss->window_size=(s->vi[0]->mtu - 40) * 10;
 				s->ss->tcpoptions_len=20;

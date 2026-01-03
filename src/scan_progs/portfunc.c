@@ -225,7 +225,7 @@ char *getservname(uint16_t port) {
 	if (s->ss->mode == MODE_UDPSCAN) {
 		proto=17;
 	}
-	else if (s->ss->mode == MODE_TCPSCAN) {
+	else if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_TCPTRACE) {
 		proto=6;
 	}
 	else {
