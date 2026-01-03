@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
 import { parseTimestamp } from '@/lib/utils'
+import { getCIDRGroup, parseCIDRTarget, determineIPGroup } from '@/lib/cidr'
 import { inferOsFromTtl } from '@/types/database'
 import type { Host, Hop, IpReport } from '@/types/database'
 import type { TopologyData, TopologyNode, TopologyEdge, TopologyFilters } from './types'
@@ -31,12 +32,19 @@ export const topologyKeys = {
 /**
  * Build topology graph from hosts, hops, and IP reports
  * Follows unicornscan philosophy: show actual discovered data
+ *
+ * @param hosts - Host records from database
+ * @param hops - Hop records from MTR discovery
+ * @param reports - IP reports from scans
+ * @param scannerAddr - Scanner's IP address (center node)
+ * @param scannedCidrs - Array of normalized CIDR targets from scans for intelligent grouping
  */
 function buildTopologyData(
   hosts: Host[],
   hops: Hop[],
   reports: IpReport[],
-  scannerAddr?: string
+  scannerAddr?: string,
+  scannedCidrs: string[] = []
 ): TopologyData {
   const nodeMap = new Map<string, TopologyNode>()
   const edges: TopologyEdge[] = []
@@ -51,6 +59,8 @@ function buildTopologyData(
       portCount: 0,
       connectionCount: 0,
       estimatedHops: 0,
+      topologySource: 'static',
+      // Scanner doesn't get CIDR-grouped
     })
   }
 
@@ -68,6 +78,9 @@ function buildTopologyData(
       ? inferOsFromTtl(avgTtl)
       : { osFamily: 'unknown' as const, estimatedHops: 0 }
 
+    // Determine CIDR group based on scanned targets
+    const cidrGroup = determineIPGroup(hostIp, scannedCidrs) ?? undefined
+
     nodeMap.set(hostIp, {
       id: hostIp,
       type: 'host',
@@ -78,6 +91,8 @@ function buildTopologyData(
       connectionCount: 0,
       observedTtl: avgTtl,
       estimatedHops,
+      topologySource: 'inferred',
+      cidrGroup,
       firstSeen: parseTimestamp(host.first_seen),
       lastSeen: parseTimestamp(host.last_seen),
     })
@@ -96,6 +111,7 @@ function buildTopologyData(
         connectionCount: 0,
         observedTtl: hop.ttl_observed,
         estimatedHops: hop.hop_number || 1,
+        topologySource: 'mtr',
       })
     }
 
@@ -105,6 +121,7 @@ function buildTopologyData(
       id: edgeId,
       source: hop.hop_addr,
       target: hop.target_addr,
+      pathSource: 'mtr',
       hopNumber: hop.hop_number || undefined,
       rttUs: hop.rtt_us || undefined,
     })
@@ -127,6 +144,7 @@ function buildTopologyData(
         id: edgeId,
         source: scannerAddr,
         target: hostIp,
+        pathSource: 'inferred',
       })
       const scannerNode = nodeMap.get(scannerAddr)
       const hostNode = nodeMap.get(hostIp)
@@ -211,13 +229,23 @@ export function useTopologyForScan(scan_id: number) {
     // Get scanner address from the first report's send_addr
     const scannerAddr = reportsQuery.data[0]?.send_addr
 
+    // Parse scan target for CIDR grouping
+    const scannedCidrs: string[] = []
+    if (scanQuery.data?.target_str) {
+      const normalized = parseCIDRTarget(scanQuery.data.target_str)
+      if (normalized) {
+        scannedCidrs.push(normalized)
+      }
+    }
+
     return buildTopologyData(
       filteredHosts,
       hopsQuery.data,
       reportsQuery.data,
-      scannerAddr
+      scannerAddr,
+      scannedCidrs
     )
-  }, [hostsQuery.data, hopsQuery.data, reportsQuery.data])
+  }, [hostsQuery.data, hopsQuery.data, reportsQuery.data, scanQuery.data])
 
   return {
     data: topologyData,
@@ -237,6 +265,13 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
     staleTime: 60000,
   })
 
+  // Fetch all scan summaries to get target_str values for CIDR grouping
+  const scansQuery = useQuery({
+    queryKey: [...topologyKeys.global(filters), 'scans'],
+    queryFn: () => db.getScanSummaries({ limit: 1000 }),
+    staleTime: 60000,
+  })
+
   // For global view, we'd need to aggregate hops from all scans
   // This is a simplified version - just show all hosts
   const topologyData = useMemo(() => {
@@ -252,13 +287,26 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
       hosts = hosts.filter(h => parseTimestamp(h.last_seen) >= filters.since!)
     }
 
-    return buildTopologyData(hosts, [], [])
-  }, [hostsQuery.data, filters])
+    // Collect all scanned CIDRs from all scans for intelligent grouping
+    const scannedCidrs: string[] = []
+    if (scansQuery.data) {
+      for (const scan of scansQuery.data) {
+        if (scan.target_str) {
+          const normalized = parseCIDRTarget(scan.target_str)
+          if (normalized) {
+            scannedCidrs.push(normalized)
+          }
+        }
+      }
+    }
+
+    return buildTopologyData(hosts, [], [], undefined, scannedCidrs)
+  }, [hostsQuery.data, scansQuery.data, filters])
 
   return {
     data: topologyData,
-    isLoading: hostsQuery.isLoading,
-    error: hostsQuery.error,
+    isLoading: hostsQuery.isLoading || scansQuery.isLoading,
+    error: hostsQuery.error || scansQuery.error,
   }
 }
 
@@ -268,9 +316,13 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
 
 /**
  * Aggregate nodes by subnet for large datasets
- * Groups nodes into /24 subnets for manageable visualization
+ * Groups nodes into subnets for manageable visualization
+ * @param prefixLength - CIDR prefix length (default 24 for /24 subnets)
  */
-export function aggregateBySubnet(data: TopologyData): TopologyData {
+export function aggregateBySubnet(
+  data: TopologyData,
+  prefixLength: number = 24
+): TopologyData {
   if (!data.needsAggregation) return data
 
   const subnetMap = new Map<string, TopologyNode>()
@@ -281,10 +333,12 @@ export function aggregateBySubnet(data: TopologyData): TopologyData {
       continue
     }
 
-    // Get /24 subnet
+    // Skip non-IPv4 addresses (IPv6 support coming later)
     const parts = node.id.split('.')
     if (parts.length !== 4) continue
-    const subnet = `${parts[0]}.${parts[1]}.${parts[2]}.0/24`
+
+    // Get subnet using CIDR utilities
+    const subnet = getCIDRGroup(node.id, prefixLength)
 
     const existing = subnetMap.get(subnet)
     if (existing) {
@@ -300,6 +354,7 @@ export function aggregateBySubnet(data: TopologyData): TopologyData {
         portCount: node.portCount,
         connectionCount: 1,
         estimatedHops: node.estimatedHops,
+        topologySource: 'inferred',
       })
     }
   }
