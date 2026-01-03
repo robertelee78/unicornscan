@@ -530,23 +530,28 @@ int deal_with_output(void *msg, size_t msg_len) {
 		/* traceroute session bookkeeping */
 		if (s->ss->mode == MODE_TCPTRACE && trace_sess != NULL) {
 			if (r_u.i->proto == IPPROTO_ICMP && r_u.i->type == ICMP_TIME_EXCEEDED) {
-				/* ICMP Time Exceeded from intermediate router */
-				uint8_t curttl=trace_sess->curttl;
+				/*
+				 * ICMP Time Exceeded from intermediate router.
+				 * response already validated via TCPHASHTRACK on embedded TCP seq.
+				 * record hop using arrival order (curttl counter).
+				 */
+				uint8_t hop_ttl=trace_sess->curttl;
 
-				DBG(M_TRC, "ICMP TE from router %08x at ttl %u", r_u.i->trace_addr, curttl);
+				DBG(M_TRC, "ICMP TE from router %08x at hop %u", r_u.i->trace_addr, hop_ttl);
 
-				trace_session_record_hop(trace_sess, curttl, r_u.i->trace_addr, 0, TRACE_HOP_RECV);
+				trace_session_record_hop(trace_sess, hop_ttl, r_u.i->trace_addr, 0, TRACE_HOP_RECV);
 
-				/* advance to next TTL */
-				if (curttl < trace_sess->maxttl) {
+				if (hop_ttl < trace_sess->maxttl) {
 					trace_sess->curttl++;
 				}
 			}
 			else if (r_u.i->proto == IPPROTO_TCP) {
 				/* TCP response means we reached the target */
-				DBG(M_TRC, "TCP response from target, trace complete");
+				uint8_t hop_ttl=trace_sess->curttl;
 
-				trace_session_record_hop(trace_sess, trace_sess->curttl, r_u.i->host_addr, 0, TRACE_HOP_DEST);
+				DBG(M_TRC, "TCP response from target at hop %u, trace complete", hop_ttl);
+
+				trace_session_record_hop(trace_sess, hop_ttl, r_u.i->host_addr, 0, TRACE_HOP_DEST);
 				trace_session_mark_complete(trace_sess);
 			}
 		}
