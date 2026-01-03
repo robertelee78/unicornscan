@@ -26,7 +26,10 @@
  * This schema is auto-created when connecting to a fresh database.
  * Uses IF NOT EXISTS to be safe with existing databases.
  *
- * Schema version: 9
+ * Schema version: 10
+ * - v10: Made uni_hops.ipreport_id nullable for trace_path_report
+ *        trace_path_report sends complete paths without per-hop ip_reports
+ *        Enables MODE_TCPTRACE to store hop data in batch
  * - v9: Added eth_hwaddr to uni_ipreport for local network MAC capture
  *       TCP/UDP/ICMP responses from L2-reachable hosts now include source MAC
  *       Extends v8 MAC<->IP history with IP scan data (not just ARP scans)
@@ -62,7 +65,7 @@
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
  */
-#define PGSQL_SCHEMA_VERSION 9
+#define PGSQL_SCHEMA_VERSION 10
 
 /*
  * Schema version tracking table - created first
@@ -814,7 +817,7 @@ static const char *pgsql_schema_migration_v5_ddl =
 	/* uni_hops: Traceroute hop data */
 	"CREATE TABLE IF NOT EXISTS uni_hops (\n"
 	"    hop_id       BIGINT NOT NULL DEFAULT nextval('uni_hops_id_seq'),\n"
-	"    ipreport_id  BIGINT NOT NULL,\n"
+	"    ipreport_id  BIGINT,\n"	/* nullable for trace_path_report (v10) */
 	"    scan_id     BIGINT NOT NULL,\n"
 	"    target_addr  INET NOT NULL,\n"
 	"    hop_addr     INET NOT NULL,\n"
@@ -1493,6 +1496,26 @@ static const char *pgsql_schema_v8_update_v_hosts_ddl =
  */
 static const char *pgsql_schema_v9_add_eth_hwaddr_ddl =
 	"ALTER TABLE uni_ipreport ADD COLUMN IF NOT EXISTS eth_hwaddr MACADDR;\n";
+
+/*
+ * Schema v10 migration - make uni_hops.ipreport_id nullable for trace paths
+ * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ *
+ * trace_path_report sends complete paths without individual ip_reports,
+ * so we need ipreport_id to be nullable for those records.
+ */
+static const char *pgsql_schema_v10_hops_nullable_ddl =
+	/* drop the FK constraint first */
+	"ALTER TABLE uni_hops DROP CONSTRAINT IF EXISTS uni_hops_ipreport_fk;\n"
+	/* make column nullable */
+	"ALTER TABLE uni_hops ALTER COLUMN ipreport_id DROP NOT NULL;\n"
+	/* recreate FK constraint (now allows NULL values) */
+	"DO $$ BEGIN\n"
+	"    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uni_hops_ipreport_fk') THEN\n"
+	"        ALTER TABLE uni_hops ADD CONSTRAINT uni_hops_ipreport_fk\n"
+	"            FOREIGN KEY(ipreport_id) REFERENCES uni_ipreport(ipreport_id) ON DELETE CASCADE;\n"
+	"    END IF;\n"
+	"END $$;\n";
 
 /*
  * Record schema version

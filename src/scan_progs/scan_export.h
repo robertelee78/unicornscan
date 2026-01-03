@@ -65,6 +65,34 @@
 
 #define IP_REPORT_MAGIC			0xd2d19ff2
 #define ARP_REPORT_MAGIC		0xd9d82aca
+#define TRACE_PATH_MAGIC		0x54525054	/* "TRPT" - trace path report	*/
+
+#define TRACE_PATH_MAX_HOPS		64		/* max hops in path report	*/
+
+/*
+ * trace_path_hop_t: single hop in a traceroute path
+ * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ */
+typedef struct _PACKED_ trace_path_hop_t {
+	uint32_t router_addr;		/* router that responded (ICMP TE source)	*/
+	uint8_t hop_number;		/* position in path (1, 2, 3...)		*/
+	uint32_t rtt_us;		/* round-trip time in microseconds (0=unknown)	*/
+	uint8_t flags;			/* TRACE_HOP_RECV, TRACE_HOP_DEST, etc		*/
+} trace_path_hop_t;
+
+/*
+ * trace_path_report_t: complete traceroute path for output modules
+ * sent when MODE_TCPTRACE session completes
+ * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ */
+typedef struct _PACKED_ trace_path_report_t {
+	uint32_t magic;			/* TRACE_PATH_MAGIC				*/
+	uint32_t target_addr;		/* destination IP we traced to			*/
+	uint16_t target_port;		/* destination port used for probes		*/
+	uint8_t hop_count;		/* number of valid hops in array		*/
+	uint8_t complete;		/* 1 if reached target, 0 if max TTL hit	*/
+	trace_path_hop_t hops[TRACE_PATH_MAX_HOPS];
+} trace_path_report_t;
 
 typedef struct output_data_t {
 	uint8_t type;

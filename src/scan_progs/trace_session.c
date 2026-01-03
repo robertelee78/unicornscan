@@ -19,6 +19,7 @@
 #include <config.h>
 
 #include <scan_progs/scanopts.h>
+#include <scan_progs/scan_export.h>
 #include <settings.h>
 #include <scan_progs/trace_session.h>
 
@@ -122,6 +123,55 @@ int trace_session_validate(const trace_session_t *ts) {
 	if (ts->magic != TRACE_SESSION_MAGIC) {
 		return -1;
 	}
+
+	return 1;
+}
+
+/*
+ * convert trace_session to trace_path_report for output modules.
+ * iterates through session hops, copying those with TRACE_HOP_RECV or TRACE_HOP_DEST.
+ */
+int trace_session_to_path_report(const trace_session_t *ts, trace_path_report_t *rpt) {
+	int j=0;
+	uint8_t hop_idx=0;
+
+	if (ts == NULL || rpt == NULL) {
+		ERR("null pointer");
+		return -1;
+	}
+
+	if (ts->magic != TRACE_SESSION_MAGIC) {
+		ERR("trace session magic bad %08x", ts->magic);
+		return -1;
+	}
+
+	memset(rpt, 0, sizeof(trace_path_report_t));
+
+	rpt->magic=TRACE_PATH_MAGIC;
+	rpt->target_addr=ts->target_addr;
+	rpt->target_port=ts->target_port;
+	rpt->complete=ts->complete;
+
+	/*
+	 * iterate through session hops from minttl to maxttl.
+	 * copy hops that have responses (RECV or DEST flags).
+	 */
+	for (j=ts->minttl; j <= ts->maxttl && hop_idx < TRACE_PATH_MAX_HOPS; j++) {
+		if (ts->hops[j].flags == TRACE_HOP_NONE) {
+			continue;
+		}
+
+		rpt->hops[hop_idx].router_addr=ts->hops[j].router_addr;
+		rpt->hops[hop_idx].hop_number=(uint8_t)j;
+		rpt->hops[hop_idx].rtt_us=ts->hops[j].rtt_us;
+		rpt->hops[hop_idx].flags=ts->hops[j].flags;
+
+		hop_idx++;
+	}
+
+	rpt->hop_count=hop_idx;
+
+	DBG(M_TRC, "converted session to path report: %u hops, complete=%u", hop_idx, ts->complete);
 
 	return 1;
 }
