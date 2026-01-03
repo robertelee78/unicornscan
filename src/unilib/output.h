@@ -63,6 +63,8 @@ void _display(int, const char *, int, const char *, ...) _PRINTF45_;
 #define M_PYLSTR	"payload"
 #define M_INT	131072	/* interface stuff	*/
 #define M_INTSTR	"interface"
+#define M_TRC	262144	/* traceroute		*/
+#define M_TRCSTR	"trace"
 
 #define M_ALL 0x7fffffff
 
