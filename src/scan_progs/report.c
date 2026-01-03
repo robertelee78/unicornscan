@@ -475,7 +475,11 @@ static int do_report_nodefunc(uint64_t rkey, void *ptr, void *cbdata) {
 
 	push_output_modules((const void *)r_u.ptr); /* display it somehow */
 
-	if ( ! GET_REPORTQUIET()) {
+	/*
+	 * Suppress per-packet display in traceroute mode.
+	 * report_trace_path() handles consolidated path output.
+	 */
+	if ( ! GET_REPORTQUIET() && s->ss->mode != MODE_TCPTRACE) {
 		display_report(r_u.ptr);
 	}
 
