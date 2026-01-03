@@ -72,7 +72,7 @@ export function TopPorts({ ports, isLoading }: TopPortsProps) {
                     <span className="font-mono text-muted">{port.count}</span>
                   </div>
                 </div>
-                <div className="h-2 bg-surface-light rounded-full overflow-hidden">
+                <div className="h-2 bg-border rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
                     style={{ width: `${(port.count / maxCount) * 100}%` }}

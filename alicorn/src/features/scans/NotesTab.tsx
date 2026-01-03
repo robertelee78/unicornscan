@@ -8,6 +8,7 @@ import { Plus, MessageSquare, Trash2, Loader2, Undo2, Redo2, Check } from 'lucid
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatTimestamp } from '@/lib/utils'
+import { useDebounce } from '@/hooks'
 import { useCreateNote, useUpdateNote, useDeleteNote } from './detail-hooks'
 import type { Note, NoteEntityType } from '@/types/database'
 
@@ -26,26 +27,6 @@ interface NotesTabProps {
 interface HistoryState {
   past: string[]
   future: string[]
-}
-
-// =============================================================================
-// Debounce hook
-// =============================================================================
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value)
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-
-    return () => {
-      clearTimeout(handler)
-    }
-  }, [value, delay])
-
-  return debouncedValue
 }
 
 // =============================================================================

@@ -32,7 +32,7 @@ export function Hosts() {
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
 
-  const { data: hosts, total, isLoading, error } = useHostList(filters, sort, pagination)
+  const { data: hosts, total, isLoading, error, parsedSearch } = useHostList(filters, sort, pagination)
 
   // Export functionality
   const exportDialog = useExportDialog()
@@ -91,7 +91,7 @@ export function Hosts() {
               disabled={hosts.length === 0}
             />
           </div>
-          <HostFilterBar filters={filters} onChange={handleFilterChange} />
+          <HostFilterBar filters={filters} onChange={handleFilterChange} parsedSearch={parsedSearch} />
         </CardHeader>
         <CardContent className="space-y-4">
           <HostTable
@@ -99,6 +99,7 @@ export function Hosts() {
             sort={sort}
             onSort={handleSort}
             isLoading={isLoading}
+            parsedSearch={parsedSearch}
           />
           <Pagination
             pagination={pagination}

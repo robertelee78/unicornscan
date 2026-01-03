@@ -3,10 +3,36 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
+// Re-export search types from search-utils for convenience
+export type { SearchType, ParsedSearch, CIDRInfo } from './search-utils'
+
+// =============================================================================
+// Filter Types
+// =============================================================================
+
+/**
+ * Host filtering options for the hosts list
+ */
 export interface HostFilters {
+  /** Raw search string from user input */
   search: string
+  /** Filter by whether host has responding ports */
   hasOpenPorts: boolean | null
+  /** Filter by OUI vendor name */
   vendorFilter: string
+}
+
+/**
+ * Extended host data for search matching
+ * Used when search requires additional data beyond basic host fields
+ */
+export interface HostSearchData {
+  /** All banners collected for this host (aggregated from all scans) */
+  banners: string[]
+  /** All notes attached to this host */
+  notes: string[]
+  /** All responding ports (aggregated from all scans) */
+  ports: number[]
 }
 
 export type SortField = 'host_addr' | 'hostname' | 'port_count' | 'scan_count' | 'last_seen' | 'first_seen'

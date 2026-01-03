@@ -275,31 +275,31 @@ function TimelineLegend() {
   return (
     <div className="pt-4 border-t flex flex-wrap justify-center gap-4 text-xs">
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-tcp)' }} />
         <span className="text-muted-foreground">TCP</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8b5cf6' }} />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-udp)' }} />
         <span className="text-muted-foreground">UDP</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full bg-emerald-500" />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-active)' }} />
         <span className="text-muted-foreground">Active</span>
       </div>
       <div className="border-l pl-4 flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22c55e' }} />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-active)' }} />
         <span className="text-muted-foreground">Appeared</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-closed)' }} />
         <span className="text-muted-foreground">Disappeared</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-tcp)' }} />
         <span className="text-muted-foreground">Reappeared</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
+        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--color-timeline-filtered)' }} />
         <span className="text-muted-foreground">Changed</span>
       </div>
     </div>

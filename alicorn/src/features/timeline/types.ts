@@ -271,22 +271,43 @@ export interface TimelineExportOptions {
 // =============================================================================
 
 /**
- * Get display color for change type
+ * Get display color for change type (CSS variable for UI)
  */
 export function getChangeTypeColor(type: ChangeType): string {
   switch (type) {
     case 'appeared':
-      return '#22c55e' // green
+      return 'var(--color-timeline-active)'         // green
     case 'disappeared':
-      return '#ef4444' // red
+      return 'var(--color-timeline-closed)'         // red
     case 'reappeared':
-      return '#3b82f6' // blue
+      return 'var(--color-timeline-reappeared)'     // blue
     case 'ttl_changed':
-      return '#f59e0b' // amber
+      return 'var(--color-timeline-ttl-changed)'    // amber
     case 'flags_changed':
-      return '#8b5cf6' // purple
+      return 'var(--color-timeline-flags-changed)'  // purple
     case 'window_changed':
-      return '#06b6d4' // cyan
+      return 'var(--color-timeline-window-changed)' // cyan
+  }
+}
+
+/**
+ * Get static hex color for change type (for SVG/PDF export)
+ * Uses dark mode values since exports are standalone files
+ */
+export function getChangeTypeColorHex(type: ChangeType): string {
+  switch (type) {
+    case 'appeared':
+      return '#22c55e'   // green-500
+    case 'disappeared':
+      return '#ef4444'   // red-500
+    case 'reappeared':
+      return '#3b82f6'   // blue-500
+    case 'ttl_changed':
+      return '#f59e0b'   // amber-500
+    case 'flags_changed':
+      return '#8b5cf6'   // violet-500
+    case 'window_changed':
+      return '#06b6d4'   // cyan-500
   }
 }
 

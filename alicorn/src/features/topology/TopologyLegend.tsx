@@ -13,9 +13,9 @@ import type { NodeType } from './types'
 // =============================================================================
 
 const NODE_TYPES: { type: NodeType; label: string; color: string }[] = [
-  { type: 'scanner', label: 'Scanner', color: '#ef4444' },
-  { type: 'host', label: 'Host', color: '#6b7280' },
-  { type: 'router', label: 'Router/Hop', color: '#f59e0b' },
+  { type: 'scanner', label: 'Scanner', color: 'var(--color-topo-scanner)' },
+  { type: 'host', label: 'Host', color: 'var(--color-topo-host)' },
+  { type: 'router', label: 'Router/Hop', color: 'var(--color-topo-router)' },
 ]
 
 const OS_FAMILIES: { family: OsFamily; label: string }[] = [

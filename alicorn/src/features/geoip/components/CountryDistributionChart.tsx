@@ -23,16 +23,16 @@ import type { GeoIPCountryStats } from '@/types/database'
 // =============================================================================
 
 const COUNTRY_COLORS = [
-  '#22c55e', // Green
-  '#3b82f6', // Blue
-  '#f59e0b', // Amber
-  '#ef4444', // Red
-  '#8b5cf6', // Violet
-  '#06b6d4', // Cyan
-  '#ec4899', // Pink
-  '#84cc16', // Lime
-  '#f97316', // Orange
-  '#6366f1', // Indigo
+  'var(--color-palette-1)',   // Green
+  'var(--color-palette-2)',   // Blue
+  'var(--color-palette-3)',   // Amber
+  'var(--color-palette-4)',   // Red
+  'var(--color-palette-5)',   // Violet
+  'var(--color-palette-6)',   // Cyan
+  'var(--color-palette-7)',   // Pink
+  'var(--color-palette-8)',   // Lime
+  'var(--color-palette-9)',   // Orange
+  'var(--color-palette-10)',  // Indigo
 ]
 
 // =============================================================================

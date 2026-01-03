@@ -161,37 +161,37 @@ export const DEFAULT_GEOIP_QUERY_OPTIONS: GeoIPQueryOptions = {
 export const IP_TYPE_CONFIG: Record<IpType, { label: string; color: string; description: string }> = {
   residential: {
     label: 'Residential',
-    color: '#22c55e',  // Green
+    color: 'var(--color-palette-1)',  // Green
     description: 'Home/consumer ISP connection',
   },
   datacenter: {
     label: 'Datacenter',
-    color: '#3b82f6',  // Blue
+    color: 'var(--color-palette-2)',  // Blue
     description: 'Cloud provider or hosting facility',
   },
   vpn: {
     label: 'VPN',
-    color: '#f59e0b',  // Amber
+    color: 'var(--color-palette-3)',  // Amber
     description: 'Virtual Private Network endpoint',
   },
   proxy: {
     label: 'Proxy',
-    color: '#ef4444',  // Red
+    color: 'var(--color-palette-4)',  // Red
     description: 'Proxy server or relay',
   },
   tor: {
     label: 'Tor',
-    color: '#8b5cf6',  // Purple
+    color: 'var(--color-palette-5)',  // Purple
     description: 'Tor exit node',
   },
   mobile: {
     label: 'Mobile',
-    color: '#06b6d4',  // Cyan
+    color: 'var(--color-palette-6)',  // Cyan
     description: 'Mobile carrier network',
   },
   unknown: {
     label: 'Unknown',
-    color: '#6b7280',  // Gray
+    color: 'var(--color-chart-other)',  // Gray
     description: 'IP type could not be determined',
   },
 }
