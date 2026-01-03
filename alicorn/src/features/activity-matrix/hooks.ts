@@ -311,7 +311,7 @@ export function useCellDiff(
       const currentReports = await db.getIpReportsByHost(scan_id, hostIp)
       const currentPorts = new Set<PortKey>()
       for (const report of currentReports) {
-        currentPorts.add(makePortKey(report.dport, report.proto))
+        currentPorts.add(makePortKey(report.sport, report.proto))
       }
 
       // Get ports for baseline scan
@@ -319,7 +319,7 @@ export function useCellDiff(
       if (baselineScansId) {
         const baselineReports = await db.getIpReportsByHost(baselineScansId, hostIp)
         for (const report of baselineReports) {
-          baselinePorts.add(makePortKey(report.dport, report.proto))
+          baselinePorts.add(makePortKey(report.sport, report.proto))
         }
       }
 
@@ -437,13 +437,13 @@ function processReports(
 
     // Apply port range filter
     if (filters.portRange) {
-      if (report.dport < filters.portRange.min || report.dport > filters.portRange.max) {
+      if (report.sport < filters.portRange.min || report.sport > filters.portRange.max) {
         continue
       }
     }
 
     // Add to host's port set
-    const portKey = makePortKey(report.dport, report.proto)
+    const portKey = makePortKey(report.sport, report.proto)
     if (!hostPorts.has(report.host_addr)) {
       hostPorts.set(report.host_addr, new Set())
     }

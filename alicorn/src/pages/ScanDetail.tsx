@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useScan, useIpReports } from '@/hooks'
+import { useScan, useIpReports, useBanners } from '@/hooks'
 import {
   ScanDetailHeader,
   Tabs,
@@ -47,6 +47,7 @@ export function ScanDetail() {
   // Fetch scan data
   const { data: scan, isLoading: scanLoading, error: scanError } = useScan(scan_id)
   const { data: reports = [], isLoading: reportsLoading } = useIpReports(scan_id)
+  const { data: banners } = useBanners(scan_id)
   const { data: arpReports = [], isLoading: arpLoading } = useArpReports(scan_id)
   const { data: notes = [], isLoading: notesLoading } = useScanNotes(scan_id)
 
@@ -187,7 +188,7 @@ export function ScanDetail() {
 
           <div className="pt-4">
             {activeTab === 'results' && (
-              <ResultsTab reports={reports} isLoading={reportsLoading} />
+              <ResultsTab reports={reports} banners={banners} isLoading={reportsLoading} />
             )}
 
             {activeTab === 'hosts' && (

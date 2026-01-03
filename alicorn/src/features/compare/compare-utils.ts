@@ -27,7 +27,7 @@ function getProtocolName(proto: number): string {
 
 function reportToPortInfo(report: IpReport): PortInfo {
   return {
-    port: report.dport,
+    port: report.sport,
     protocol: getProtocolName(report.proto),
     ttl: report.ttl,
     flags: report.subtype,

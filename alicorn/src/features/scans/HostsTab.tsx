@@ -123,7 +123,7 @@ function HostCard({ group }: HostCardProps) {
                 return (
                   <tr key={report.ipreport_id} className="border-b border-border/50">
                     <td className="py-1.5 pr-4">
-                      <Badge variant="open">{formatPort(report.dport)}</Badge>
+                      <Badge variant="open">{formatPort(report.sport)}</Badge>
                     </td>
                     <td className="py-1.5 pr-4 uppercase">
                       {getProtocolName(report.proto)}

@@ -33,7 +33,7 @@ export function reportToObservation(report: IpReport, scan: Scan): PortObservati
   return {
     scan_id: scan.scan_id,
     timestamp: scan.s_time,
-    port: report.dport,
+    port: report.sport,
     protocol,
     ttl: report.ttl,
     flags: report.type,  // TCP flags are in type field (not flags which is CRC errors)
