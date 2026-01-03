@@ -1,3 +1,21 @@
+unicornscan (0.4.30-1) unstable; urgency=medium
+
+  * Fix OS detection for iOS/macOS 15+ devices
+    - Added signatures for modern Apple devices (iOS 15+, macOS 12+)
+    - Correct TCP option layout: mss,nop,ws,nop,nop,ts,sok,eol
+    - Correct quirks: DF, ID-, TS2+ (not ID+ as in older versions)
+    - Window scale values 5-8 covered for modern Apple TCP stacks
+
+  * Fix OS detection for Linux embedded/IoT devices
+    - Added signatures for Raspberry Pi, routers, embedded systems
+    - Fixed window 29200, option layout mss,nop,nop,sok,nop,ws
+
+  * Add deduplication for unknown fingerprint logging
+    - Hash-based tracking prevents duplicate log spam
+    - Each unique fingerprint prints only once per session
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 02 Jan 2026 15:55:00 -0800
+
 unicornscan (0.4.29-1) unstable; urgency=medium
 
   * Fix Dashboard "Hosts Discovered = 0" bug

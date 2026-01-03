@@ -124,4 +124,7 @@ void p0f3_cleanup_sigs(void);
 /* Get number of loaded signatures */
 int p0f3_get_sig_count(p0f3_sig_type_t type);
 
+/* Dump unknown fingerprint for debugging */
+void p0f3_dump_unknown(p0f3_pkt_t *pkt);
+
 #endif /* P0F3_PARSE_H */

@@ -36,14 +36,7 @@
 static int p0f3_loaded = 0;            /* Have we loaded signatures? */
 static int p0f3_sig_count = 0;         /* Number of signatures loaded */
 
-/* Default p0f fingerprint file paths to try */
-static const char *p0f_fp_paths[] = {
-	"/etc/p0f/p0f.fp",
-	"/usr/share/p0f/p0f.fp",
-	"/usr/local/share/p0f/p0f.fp",
-	"/opt/p0f/p0f.fp",
-	NULL
-};
+/* P0F v3 uses embedded signatures - no external file needed */
 
 static void osd_add_fp(fps_t *);
 static int  osd_tcpopt_match(const tcpopt_t *, const tcpopt_t *);
@@ -66,25 +59,22 @@ fps_t *head=NULL;
 
 /* Initialize p0f v3 fingerprint database (lazy loading) */
 static int p0f3_init_sigs(void) {
-	int i;
 	int ret;
 
 	if (p0f3_loaded) {
 		return p0f3_sig_count;  /* Already loaded */
 	}
 
-	/* Try each possible fingerprint file location */
-	for (i = 0; p0f_fp_paths[i] != NULL; i++) {
-		ret = p0f3_load_sigs(p0f_fp_paths[i]);
-		if (ret > 0) {
-			p0f3_loaded = 1;
-			p0f3_sig_count = ret;
-			DBG(M_MOD, "Loaded %d p0f signatures from %s", ret, p0f_fp_paths[i]);
-			return ret;
-		}
+	/* Load embedded signatures (p0f3_load_sigs ignores filename, uses embedded) */
+	ret = p0f3_load_sigs(NULL);
+	if (ret > 0) {
+		p0f3_loaded = 1;
+		p0f3_sig_count = ret;
+		VRB(1, "Loaded %d embedded p0f v3 signatures for OS detection", ret);
+		return ret;
 	}
 
-	DBG(M_MOD, "No p0f fingerprint file found, using built-in detection only");
+	DBG(M_MOD, "Failed to load p0f signatures");
 	p0f3_loaded = 1;  /* Mark as checked so we don't retry */
 	return 0;
 }
@@ -320,6 +310,9 @@ static const char *do_osdetect_p0f3(const uint8_t *data, size_t dlen, int is_syn
 	if (result != NULL) {
 		DBG(M_MOD, "p0f3 match: TTL=%d Win=%d MSS=%d WS=%d -> %s",
 			pkt.ttl, pkt.win, pkt.mss, pkt.win_scale, result);
+	} else if (osd.dump_unknown && is_synack) {
+		/* Dump unknown fingerprint if dumpunknown is enabled */
+		p0f3_dump_unknown(&pkt);
 	}
 
 	return result;

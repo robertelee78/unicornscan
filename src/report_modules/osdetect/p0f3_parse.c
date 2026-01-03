@@ -106,9 +106,15 @@ static const embedded_sig_t embedded_response_sigs[] = {
 	{ "Mac OS X", "10.x", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 0, -1, "mss,nop,ws,nop,nop,ts", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 	{ "Mac OS X", "10.x", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 0, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 
-	/* iOS / macOS modern */
-	{ "iOS/macOS", "modern", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 5, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
-	{ "iOS/macOS", "modern", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 6, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
+	/* iOS / macOS modern (iOS 15+, macOS 12+) - with EOL and ID- quirk */
+	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 5, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 6, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 7, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 8, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+
+	/* iOS / macOS older (iOS 14 and earlier, macOS 11 and earlier) */
+	{ "iOS/macOS", "14-", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 5, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
+	{ "iOS/macOS", "14-", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 6, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 
 	/* Solaris 10/11 */
 	{ "Solaris", "10+", 64, 1, P0F3_WIN_TYPE_MSS, 37, 0, -1, "mss", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
@@ -134,9 +140,14 @@ static const embedded_sig_t embedded_response_sigs[] = {
 	{ "Android", "4.x+", 64, 1, P0F3_WIN_TYPE_MSS, 10, -1, -1, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF },
 	{ "Android", "4.x+", 64, 1, P0F3_WIN_TYPE_MSS, 10, -1, -1, "mss,nop,nop,ts,nop,ws", P0F3_QUIRK_DF },
 
+	/* Linux embedded/IoT (Raspberry Pi, routers, etc.) - smaller window */
+	{ "Linux", "embedded", 64, 1, P0F3_WIN_TYPE_NORMAL, 29200, 3, -1, "mss,nop,nop,sok,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS },
+	{ "Linux", "embedded", 64, 1, P0F3_WIN_TYPE_NORMAL, 29200, 7, -1, "mss,nop,nop,sok,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS },
+
 	/* Generic Linux (catch-all) */
 	{ "Linux", "", 64, 1, P0F3_WIN_TYPE_ANY, 0, -1, -1, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF },
 	{ "Linux", "", 64, 1, P0F3_WIN_TYPE_ANY, 0, -1, -1, "mss,nop,nop,ts,nop,ws", P0F3_QUIRK_DF },
+	{ "Linux", "", 64, 1, P0F3_WIN_TYPE_ANY, 0, -1, -1, "mss,nop,nop,sok,nop,ws", P0F3_QUIRK_DF },
 
 	/* Generic Windows (catch-all) */
 	{ "Windows", "", 128, 1, P0F3_WIN_TYPE_ANY, 0, -1, -1, "mss,nop,ws,nop,nop,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
@@ -382,4 +393,93 @@ void p0f3_cleanup_sigs(void) {
 int p0f3_get_sig_count(p0f3_sig_type_t type) {
 	if (type == P0F3_SIG_TCP_RESPONSE) return tcp_response_count;
 	return 0;
+}
+
+/* Track seen fingerprints to avoid duplicate logging */
+#define MAX_SEEN_FPS 64
+static uint32_t seen_fp_hashes[MAX_SEEN_FPS];
+static int seen_fp_count = 0;
+
+/* Simple hash for fingerprint deduplication */
+static uint32_t fp_hash(p0f3_pkt_t *pkt) {
+	uint32_t h = 0;
+	int i;
+	h = pkt->ttl ^ (pkt->win << 8) ^ (pkt->win_scale << 16) ^ pkt->quirks;
+	for (i = 0; i < pkt->opt_cnt && i < P0F3_MAX_OPTS; i++) {
+		h ^= (pkt->opts[i].type << (i * 3));
+	}
+	return h;
+}
+
+/* Dump unknown fingerprint for debugging (once per unique fingerprint) */
+void p0f3_dump_unknown(p0f3_pkt_t *pkt) {
+	char opts_str[256];
+	char quirks_str[256];
+	int i, pos = 0, qpos = 0;
+	uint32_t h;
+	const char *opt_names[] = {
+		[P0F3_OPT_EOL] = "eol",
+		[P0F3_OPT_NOP] = "nop",
+		[P0F3_OPT_MSS] = "mss",
+		[P0F3_OPT_WS] = "ws",
+		[P0F3_OPT_SOK] = "sok",
+		[P0F3_OPT_SACK] = "sack",
+		[P0F3_OPT_TS] = "ts"
+	};
+
+	/* Check if we've already seen this fingerprint */
+	h = fp_hash(pkt);
+	for (i = 0; i < seen_fp_count; i++) {
+		if (seen_fp_hashes[i] == h) return;  /* Already logged */
+	}
+	/* Record this fingerprint */
+	if (seen_fp_count < MAX_SEEN_FPS) {
+		seen_fp_hashes[seen_fp_count++] = h;
+	}
+
+	/* Build options string */
+	opts_str[0] = '\0';
+	for (i = 0; i < pkt->opt_cnt && i < P0F3_MAX_OPTS; i++) {
+		int t = pkt->opts[i].type;
+		const char *name = (t >= 0 && t <= 8 && opt_names[t]) ? opt_names[t] : "?";
+		if (i > 0) pos += snprintf(opts_str + pos, sizeof(opts_str) - pos, ",");
+		pos += snprintf(opts_str + pos, sizeof(opts_str) - pos, "%s", name);
+	}
+
+	/* Build quirks string */
+	quirks_str[0] = '\0';
+	if (pkt->quirks & P0F3_QUIRK_DF) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "DF,");
+	if (pkt->quirks & P0F3_QUIRK_ID_PLUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "ID+,");
+	if (pkt->quirks & P0F3_QUIRK_ID_MINUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "ID-,");
+	if (pkt->quirks & P0F3_QUIRK_ECN) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "ECN,");
+	if (pkt->quirks & P0F3_QUIRK_SEQ_MINUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "SEQ-,");
+	if (pkt->quirks & P0F3_QUIRK_ACK_PLUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "ACK+,");
+	if (pkt->quirks & P0F3_QUIRK_ACK_MINUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "ACK-,");
+	if (pkt->quirks & P0F3_QUIRK_URG_PLUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "URG+,");
+	if (pkt->quirks & P0F3_QUIRK_PUSH) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "PUSH,");
+	if (pkt->quirks & P0F3_QUIRK_TS1_MINUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "TS1-,");
+	if (pkt->quirks & P0F3_QUIRK_TS2_PLUS) qpos += snprintf(quirks_str + qpos, sizeof(quirks_str) - qpos, "TS2+,");
+	if (qpos > 0) quirks_str[qpos - 1] = '\0';  /* Remove trailing comma */
+	if (quirks_str[0] == '\0') snprintf(quirks_str, sizeof(quirks_str), "none");
+
+	/* Output in a format suitable for adding as a signature */
+	VRB(0, "Unknown p0f fingerprint: ver=%d ttl=%d olen=%d mss=%d win=%d,ws=%d opts=[%s] quirks=[%s]",
+		pkt->ip_ver,
+		pkt->ttl,
+		pkt->ip_opt_len,
+		pkt->mss,
+		pkt->win,
+		pkt->win_scale,
+		opts_str,
+		quirks_str);
+
+	/* Output in C signature format for easy copy-paste */
+	VRB(0, "  Signature: { \"Unknown\", \"\", %d, %d, P0F3_WIN_TYPE_NORMAL, %d, %d, %d, \"%s\", 0x%04x },",
+		pkt->ttl,
+		(pkt->quirks & P0F3_QUIRK_DF) ? 1 : 0,
+		pkt->win,
+		pkt->win_scale,
+		pkt->mss,
+		opts_str,
+		pkt->quirks);
 }
