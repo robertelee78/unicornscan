@@ -2399,7 +2399,7 @@ static int pgsql_dealwith_tracepath(const trace_path_report_t *t) {
 			inserted++;
 		}
 		else {
-			DBG(M_MOD, "uni_hops insert failed for hop %u: %s", j, PQerrorMessage(pgconn));
+			ERR("uni_hops insert failed for hop %u: %s", j, PQerrorMessage(pgconn));
 		}
 		PQclear(res);
 	}
