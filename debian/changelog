@@ -1,3 +1,12 @@
+unicornscan (0.4.36-1) unstable; urgency=medium
+
+  * Fix topology edges: chain pattern instead of star pattern for traceroute
+  * Add OS fingerprints for Xerox printers and Signify/Philips Hue
+  * Update AUTHORS and improve modules.conf install handling
+  * Code cleanup: remove unused imports from test files
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 03 Jan 2026 21:00:00 -0800
+
 unicornscan (0.4.35-1) unstable; urgency=medium
 
   * Fix MODE_TCPTRACE display in Alicorn - now shows "tr" instead of "?"
