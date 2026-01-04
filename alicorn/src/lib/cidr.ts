@@ -137,19 +137,82 @@ export function isValidIPv4(ip: string): boolean {
 }
 
 /**
+ * Extract just the prefix length from a scan target string
+ * Works even when target is a hostname (can't resolve to IP)
+ *
+ * Examples:
+ * - "192.168.1.0/24:80"    -> 24
+ * - "www.google.com/24:80" -> 24
+ * - "192.168.1.1"          -> 32 (implied single host)
+ * - "www.google.com"       -> 32 (implied single host)
+ * - "/255.255.255.0"       -> 24 (netmask notation)
+ *
+ * Returns null if prefix cannot be determined
+ */
+export function extractPrefixFromTarget(target: string): number | null {
+  if (!target) return null
+
+  // Strip port/mode suffix
+  let trimmed = target.trim()
+  const colonIdx = trimmed.indexOf(':')
+  if (colonIdx !== -1) {
+    const slashIdx = trimmed.indexOf('/')
+    if (slashIdx !== -1 && colonIdx > slashIdx) {
+      trimmed = trimmed.substring(0, colonIdx)
+    } else if (slashIdx === -1) {
+      trimmed = trimmed.substring(0, colonIdx)
+    }
+  }
+
+  if (trimmed.includes('/')) {
+    const suffix = trimmed.split('/')[1]
+
+    if (suffix.includes('.')) {
+      // Netmask notation: extract prefix from mask
+      if (!isValidIPv4(suffix)) return null
+      const maskNum = ipToNumber(suffix)
+      return countLeadingOnes(maskNum)
+    } else {
+      // Prefix length notation
+      const prefix = parseInt(suffix, 10)
+      if (isNaN(prefix) || prefix < 0 || prefix > 32) return null
+      return prefix
+    }
+  }
+
+  // No slash means single host (/32)
+  return 32
+}
+
+/**
  * Parse a scan target string into normalized CIDR notation
  * Handles various formats unicornscan accepts:
  * - "192.168.1.0/24"    -> "192.168.1.0/24"
+ * - "192.168.1.0/24:80" -> "192.168.1.0/24" (strips port suffix)
  * - "192.168.1.1"       -> "192.168.1.1/32" (single host)
  * - "192.168.1.0/255.255.255.0" -> "192.168.1.0/24" (netmask notation)
+ * - "www.google.com/24:80" -> null (hostnames not resolvable here)
  *
  * Returns null if target cannot be parsed as valid CIDR
  */
 export function parseCIDRTarget(target: string): string | null {
   if (!target) return null
 
-  // Trim whitespace
-  const trimmed = target.trim()
+  // Trim whitespace and strip port/mode suffix (e.g., ":22,80" or ":q")
+  let trimmed = target.trim()
+  const colonIdx = trimmed.indexOf(':')
+  if (colonIdx !== -1) {
+    // Check if colon is in the IP part (IPv6 future) or after the CIDR
+    // For now, strip everything after the first colon that comes after a slash or at the end
+    const slashIdx = trimmed.indexOf('/')
+    if (slashIdx !== -1 && colonIdx > slashIdx) {
+      // Colon is after the slash - it's a port suffix, strip it
+      trimmed = trimmed.substring(0, colonIdx)
+    } else if (slashIdx === -1) {
+      // No slash, colon is port suffix on plain IP
+      trimmed = trimmed.substring(0, colonIdx)
+    }
+  }
 
   // Handle CIDR notation: "192.168.1.0/24"
   if (trimmed.includes('/')) {
