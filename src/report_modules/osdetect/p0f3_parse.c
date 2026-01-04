@@ -79,6 +79,11 @@ static const embedded_sig_t embedded_response_sigs[] = {
 	{ "Windows", "7+", 128, 1, P0F3_WIN_TYPE_NORMAL, 8192, 8, -1, "mss,nop,ws,nop,nop,ts", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 	{ "Windows", "7+", 128, 1, P0F3_WIN_TYPE_NORMAL, 8192, 8, -1, "mss,nop,ws,nop,nop,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 
+	/* Windows 10/11 with privacy features (IP ID randomization disabled/zero) */
+	/* Often seen behind VPN/tunnel (MSS 1412 indicates ~48 byte overhead) */
+	{ "Windows", "10/11", 128, 1, P0F3_WIN_TYPE_NORMAL, 65535, 8, -1, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+	{ "Windows", "10/11", 128, 1, P0F3_WIN_TYPE_NORMAL, 65535, 8, 1412, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+
 	/* FreeBSD 9.x+ */
 	{ "FreeBSD", "9.x+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 6, -1, "mss,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 	{ "FreeBSD", "9.x+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 6, -1, "mss,nop,ws,sok,ts", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
