@@ -5,7 +5,15 @@ all:
 
 install: all
 	mkdir -p $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
-	# modules.conf contains credentials - use restrictive permissions (600)
+	# Create unicornscan group for shared config access (skip if DESTDIR is set - package build)
+	@if [ -z "$(DESTDIR)" ]; then \
+		if ! getent group unicornscan >/dev/null 2>&1; then \
+			groupadd unicornscan 2>/dev/null && \
+			echo "Created 'unicornscan' group" || \
+			echo "Note: Could not create unicornscan group (may need root)"; \
+		fi; \
+	fi
+	# modules.conf contains credentials - use restrictive permissions
 	# Don't overwrite existing to preserve user's database password
 	@CONF_TARGET="$(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf"; \
 	if [ ! -f "$$CONF_TARGET" ]; then \
@@ -54,6 +62,29 @@ install: all
 					echo "Keeping existing modules.conf"; \
 					;; \
 			esac; \
+		fi; \
+	fi
+	# Set modules.conf ownership to root:unicornscan with 660 permissions
+	# This allows users in the unicornscan group to read/write the config
+	@CONF_TARGET="$(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf"; \
+	if [ -z "$(DESTDIR)" ] && getent group unicornscan >/dev/null 2>&1; then \
+		chown root:unicornscan "$$CONF_TARGET" 2>/dev/null || true; \
+		chmod 660 "$$CONF_TARGET" 2>/dev/null || true; \
+	fi
+	# Auto-add sudo user to unicornscan group (skip if DESTDIR is set - package build)
+	@if [ -z "$(DESTDIR)" ]; then \
+		if [ -n "$$SUDO_UID" ]; then \
+			SUDO_USER_NAME=$$(getent passwd "$$SUDO_UID" | cut -d: -f1); \
+			if [ -n "$$SUDO_USER_NAME" ]; then \
+				if ! id -nG "$$SUDO_USER_NAME" 2>/dev/null | grep -qw unicornscan; then \
+					usermod -aG unicornscan "$$SUDO_USER_NAME" 2>/dev/null && \
+					echo "Added '$$SUDO_USER_NAME' to 'unicornscan' group (re-login to activate)" || true; \
+				fi; \
+			fi; \
+		else \
+			if [ "$$(id -u)" = "0" ]; then \
+				echo "Note: Run 'usermod -aG unicornscan <username>' to grant config access"; \
+			fi; \
 		fi; \
 	fi
 	# Other config files - use 644 (not executable)

@@ -6,16 +6,44 @@ set -e
 
 case "$1" in
     configure)
+        # Create unicornscan group for shared config access
+        if ! getent group unicornscan >/dev/null 2>&1; then
+            groupadd --system unicornscan 2>/dev/null && echo "Created 'unicornscan' group" || true
+        fi
+
+        # Set modules.conf ownership to root:unicornscan with 660 permissions
+        # This allows users in the unicornscan group to read/write the config
+        if [ -f /etc/unicornscan/modules.conf ]; then
+            chown root:unicornscan /etc/unicornscan/modules.conf 2>/dev/null || true
+            chmod 660 /etc/unicornscan/modules.conf 2>/dev/null || true
+        fi
+
+        # Auto-add sudo user to unicornscan group
+        if [ -n "$SUDO_UID" ]; then
+            SUDO_USER_NAME=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+            if [ -n "$SUDO_USER_NAME" ]; then
+                if ! id -nG "$SUDO_USER_NAME" 2>/dev/null | grep -qw unicornscan; then
+                    usermod -aG unicornscan "$SUDO_USER_NAME" 2>/dev/null && \
+                    echo "Added '$SUDO_USER_NAME' to 'unicornscan' group (re-login to activate)" || true
+                fi
+            fi
+        else
+            echo "Note: Run 'usermod -aG unicornscan <username>' to grant config access"
+        fi
+
         # Set up capabilities for non-root scanning (optional)
         if command -v setcap &> /dev/null; then
             setcap cap_net_raw,cap_net_admin+ep /usr/bin/unicornscan 2>/dev/null || true
         fi
 
-        # Notify about web UI
+        # Notify about web UI and GeoIP setup
         echo ""
         echo "╔════════════════════════════════════════════════════════════════╗"
         echo "║              Unicornscan installed successfully!               ║"
         echo "╠════════════════════════════════════════════════════════════════╣"
+        echo "║                                                                ║"
+        echo "║  OPTIONAL: Enable GeoIP country lookups:                       ║"
+        echo "║    sudo unicornscan-geoip-update                               ║"
         echo "║                                                                ║"
         echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
         echo "║                                                                ║"

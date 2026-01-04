@@ -16,6 +16,7 @@ BuildRequires:  libtool-ltdl-devel
 BuildRequires:  libpcap-devel
 BuildRequires:  libdnet-devel
 BuildRequires:  postgresql-devel
+BuildRequires:  libmaxminddb-devel
 BuildRequires:  flex
 BuildRequires:  bison
 BuildRequires:  gcc
@@ -25,6 +26,7 @@ Requires:       libpcap
 Requires:       libdnet
 Requires:       libtool-ltdl
 Requires:       libcap
+Recommends:     libmaxminddb
 
 %description
 Unicornscan is an asynchronous network scanner designed for
@@ -59,7 +61,35 @@ make install DESTDIR=%{buildroot}
 # Create var directory
 mkdir -p %{buildroot}%{_localstatedir}/unicornscan
 
+# Install GeoIP update script
+install -m 755 scripts/unicornscan-geoip-update %{buildroot}%{_bindir}/
+
 %post
+# Create unicornscan group for shared config access
+if ! getent group unicornscan >/dev/null 2>&1; then
+    groupadd -r unicornscan 2>/dev/null && echo "Created 'unicornscan' group" || :
+fi
+
+# Set modules.conf ownership to root:unicornscan with 660 permissions
+# This allows users in the unicornscan group to read/write the config
+if [ -f %{_sysconfdir}/unicornscan/modules.conf ]; then
+    chown root:unicornscan %{_sysconfdir}/unicornscan/modules.conf 2>/dev/null || :
+    chmod 660 %{_sysconfdir}/unicornscan/modules.conf 2>/dev/null || :
+fi
+
+# Auto-add sudo user to unicornscan group
+if [ -n "$SUDO_UID" ]; then
+    SUDO_USER_NAME=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+    if [ -n "$SUDO_USER_NAME" ]; then
+        if ! id -nG "$SUDO_USER_NAME" 2>/dev/null | grep -qw unicornscan; then
+            usermod -aG unicornscan "$SUDO_USER_NAME" 2>/dev/null && \
+            echo "Added '$SUDO_USER_NAME' to 'unicornscan' group (re-login to activate)" || :
+        fi
+    fi
+else
+    echo "Note: Run 'usermod -aG unicornscan <username>' to grant config access"
+fi
+
 # Set Linux capabilities to allow running without root
 # Fails gracefully if capabilities aren't supported (SELinux, containers, etc.)
 setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_bindir}/unicornscan 2>/dev/null || :
@@ -69,6 +99,14 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 # Note: Non-root users use XDG_RUNTIME_DIR for sockets (e.g., /run/user/$UID/unicornscan/)
 # The /var/unicornscan directory is only used when running as root
 
+# Display post-install message
+echo ""
+echo "Unicornscan installed successfully!"
+echo ""
+echo "OPTIONAL: Enable GeoIP country lookups:"
+echo "  sudo unicornscan-geoip-update"
+echo ""
+
 %files
 %license LICENSE
 %doc README
@@ -77,6 +115,7 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 %{_bindir}/fantaip
 %{_bindir}/unicfgtst
 %{_bindir}/us
+%{_bindir}/unicornscan-geoip-update
 %{_libdir}/unicornscan/
 %{_libexecdir}/unicornscan/
 %config(noreplace) %{_sysconfdir}/unicornscan/
