@@ -1,15 +1,20 @@
 ---
 name: release
-version: 1.0.0
+version: 1.1.0
 description: Create unicornscan releases with proper version bumping across all files
 category: project
-tags: [release, versioning, unicornscan]
+tags: [release, versioning, unicornscan, github]
 author: Robert E. Lee
+user_invocable: true
 ---
 
 # Unicornscan Release Skill
 
 Create releases for unicornscan with proper version management.
+
+## CRITICAL: DO NOT BUILD PACKAGES LOCALLY
+
+GitHub Actions (`.github/workflows/release.yml`) builds all packages automatically when a release is created. Never waste time building deb/rpm locally.
 
 ## Version Files Checklist
 
@@ -45,58 +50,74 @@ git tag --sort=-v:refname | head -1
 
 ### Step 2: Update ALL Version Files
 ```bash
+VERSION="X.Y.Z"
+PREV_VERSION="X.Y.W"
+
 # Update configure.ac
-sed -i 's/\[0\.4\.33\]/[0.4.34]/' configure.ac
+sed -i "s/\[$PREV_VERSION\]/[$VERSION]/" configure.ac
 
 # Update rpm spec
-sed -i 's/Version:.*0\.4\.33/Version:        0.4.34/' rpm/unicornscan.spec
+sed -i "s/Version:.*$PREV_VERSION/Version:        $VERSION/" rpm/unicornscan.spec
 
-# Prepend to debian/changelog (use editor or script)
+# Prepend to debian/changelog (manually or script)
 ```
 
 ### Step 3: Commit Version Bump
 ```bash
 git add configure.ac rpm/unicornscan.spec debian/changelog
-git commit -m "Bump package versions to X.Y.Z"
+git commit -m "Bump package versions to $VERSION"
+git push origin main
 ```
 
-### Step 4: Create Tag and Release
+### Step 4: Create Release (GitHub Actions builds packages)
 ```bash
-git tag vX.Y.Z
-git push && git push --tags
+gh release create v$VERSION --title "v$VERSION" --generate-notes
 
-gh release create vX.Y.Z \
-  --title "vX.Y.Z - Release Title" \
-  --generate-notes
+# Verify build started
+gh run list --limit 1
+
+# When complete, verify assets
+gh release view v$VERSION
 ```
+
+## Redo an Existing Release
+
+If you need to re-release the same version:
+
+```bash
+VERSION="X.Y.Z"
+
+# 1. Delete existing release and tag
+gh release delete v$VERSION --yes
+git push origin --delete v$VERSION
+git tag -d v$VERSION
+
+# 2. Push any pending commits
+git push origin main
+
+# 3. Create new release
+gh release create v$VERSION --title "v$VERSION" --generate-notes
+
+# 4. Verify
+gh run list --limit 1
+gh release view v$VERSION
+```
+
+## Packages Built Automatically
+
+- Rocky 9 RPM
+- Fedora 40 RPM
+- Fedora 41 RPM
+- Debian Bookworm deb
+- Debian Bullseye deb
+- Ubuntu 22.04 deb
+- Ubuntu 24.04 deb
 
 ## Common Mistakes to Avoid
 
-1. **Forgetting configure.ac** - This is the PRIMARY version source
+1. **Forgetting configure.ac** - This is the PRIMARY version source, DEBs get version from here
 2. **Wrong email in configure.ac** - Must be `robert@unicornscan.org`
 3. **Creating tag before version bump commit** - Tag points to wrong commit
 4. **Not pushing before tagging** - Tag and release out of sync
-
-## Quick Release Command
-
-For a complete release, run these in order:
-
-```bash
-VERSION="0.4.34"
-PREV_VERSION="0.4.33"
-
-# 1. Update all version files
-sed -i "s/\[$PREV_VERSION\]/[$VERSION]/" configure.ac
-sed -i "s/Version:.*$PREV_VERSION/Version:        $VERSION/" rpm/unicornscan.spec
-# (manually update debian/changelog)
-
-# 2. Commit
-git add configure.ac rpm/unicornscan.spec debian/changelog
-git commit -m "Bump package versions to $VERSION"
-
-# 3. Push, tag, release
-git push
-git tag v$VERSION
-git push --tags
-gh release create v$VERSION --generate-notes
-```
+5. **Building packages locally** - Let GitHub Actions do it
+6. **Creating v0.4.25-2, v0.4.25-3** - Just redo v0.4.25 instead
