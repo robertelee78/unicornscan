@@ -340,8 +340,20 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
     staleTime: 60000,
   })
 
-  // For global view, we'd need to aggregate hops from all scans
-  // This is a simplified version - just show all hosts
+  // Fetch all hops across all scans for traceroute path visualization
+  const hopsQuery = useQuery({
+    queryKey: [...topologyKeys.global(filters), 'hops'],
+    queryFn: () => db.getAllHops(),
+    staleTime: 60000,
+  })
+
+  // Fetch scanner addresses to show scanner nodes in the graph
+  const scannersQuery = useQuery({
+    queryKey: [...topologyKeys.global(filters), 'scanners'],
+    queryFn: () => db.getScannerAddresses(),
+    staleTime: 60000,
+  })
+
   const topologyData = useMemo(() => {
     if (!hostsQuery.data) return null
 
@@ -368,13 +380,20 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
       }
     }
 
-    return buildTopologyData(hosts, [], [], undefined, scannedCidrs)
-  }, [hostsQuery.data, scansQuery.data, filters])
+    // Get hops data (empty array if still loading)
+    const hops = hopsQuery.data ?? []
+
+    // Use first scanner address for now (most installations have one scanner)
+    // Multiple scanner nodes will still appear if they're in the hops data
+    const scannerAddr = scannersQuery.data?.[0]
+
+    return buildTopologyData(hosts, hops, [], scannerAddr, scannedCidrs)
+  }, [hostsQuery.data, scansQuery.data, hopsQuery.data, scannersQuery.data, filters])
 
   return {
     data: topologyData,
-    isLoading: hostsQuery.isLoading || scansQuery.isLoading,
-    error: hostsQuery.error || scansQuery.error,
+    isLoading: hostsQuery.isLoading || scansQuery.isLoading || hopsQuery.isLoading,
+    error: hostsQuery.error || scansQuery.error || hopsQuery.error,
   }
 }
 

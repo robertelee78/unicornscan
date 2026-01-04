@@ -50,8 +50,10 @@ function getNodeRadius(
   maxRadius: number,
   maxPorts: number
 ): number {
-  if (node.type === 'scanner') return maxRadius * 1.2 // Scanner is prominent
-  if (node.type === 'router') return (minRadius + maxRadius) / 2 // Fixed size for routers
+  // Scanner nodes: same size as minimum (distinguished by color, not size)
+  if (node.type === 'scanner') return minRadius
+  // Router nodes: small diamonds - they're waypoints, not destinations
+  if (node.type === 'router') return minRadius * 0.7
   if (maxPorts === 0) return minRadius
 
   const ratio = Math.min(node.portCount / maxPorts, 1)
@@ -225,6 +227,19 @@ export function NetworkGraph({
     const nodeGroup = container.append('g').attr('class', 'nodes')
     const labelGroup = container.append('g').attr('class', 'labels')
 
+    // Helper: check if IP is in private range (RFC 1918)
+    function isPrivateIP(ip: string): boolean {
+      const parts = ip.split('.').map(Number)
+      if (parts.length !== 4) return false
+      // 10.0.0.0/8
+      if (parts[0] === 10) return true
+      // 172.16.0.0/12
+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+      // 192.168.0.0/16
+      if (parts[0] === 192 && parts[1] === 168) return true
+      return false
+    }
+
     // Prepare simulation data (D3 mutates nodes for position)
     // cidrGroup is already computed by hooks.ts using intelligent scan-based grouping
     const nodes: SimulationNode[] = data.nodes.map(n => ({ ...n }))
@@ -233,6 +248,41 @@ export function NetworkGraph({
       source: e.source as string,
       target: e.target as string,
     }))
+
+    // Layout matching user's sketch:
+    // [Local Cluster] -- Scanner(red) -- o--o--o--o -- [Remote Cluster]
+    //                                   router chain
+    const localClusterX = config.width * 0.15   // Local network cluster center
+    const scannerX = config.width * 0.27        // Scanner at right edge of local cluster
+    const pathStartX = config.width * 0.32      // Router chain starts here
+    const pathEndX = config.width * 0.58        // Router chain ends here
+    const remoteClusterX = config.width * 0.75  // Remote targets cluster center
+    const centerY = config.height / 2
+    const clusterSpread = config.height * 0.25
+
+    for (const node of nodes) {
+      if (node.type === 'scanner') {
+        // Scanner at right edge of local cluster - where path begins
+        node.x = scannerX
+        node.y = centerY
+      } else if (node.type === 'host') {
+        if (isPrivateIP(node.id)) {
+          // Local network hosts - clustered on the left
+          node.x = localClusterX + (Math.random() - 0.5) * 80
+          node.y = centerY + (Math.random() - 0.5) * clusterSpread
+        } else if (node.isTracerouteTarget && !node.cidrGroup) {
+          // Traceroute targets without a cluster: position at end of router chain
+          // They're the endpoint of the path, should be where the chain terminates
+          node.x = pathEndX + 30 + (Math.random() - 0.5) * 20
+          node.y = centerY + (Math.random() - 0.5) * 40
+        } else {
+          // Remote targets with clusters - clustered on the right
+          node.x = remoteClusterX + (Math.random() - 0.5) * 120
+          node.y = centerY + (Math.random() - 0.5) * clusterSpread
+        }
+      }
+      // Routers will be positioned later based on hop number
+    }
 
     // Collect unique CIDR groups for cluster visualization
     const cidrGroups = new Set<string>()
@@ -347,13 +397,32 @@ export function NetworkGraph({
       .attr('text-anchor', 'middle')
       .text(d => `${d.cidr} (Inferred)`)
 
+    // PIN router positions along a straight horizontal line from scanner to targets
+    // This creates the "connect the dots" path the user wants
+    const maxHops = Math.max(...nodes.filter(n => n.type === 'router').map(n => n.estimatedHops || 1), 1)
+
+    for (const node of nodes) {
+      if (node.type === 'router' && node.estimatedHops) {
+        // Position routers along horizontal line based on hop number
+        // pathStartX and pathEndX defined above (32% to 58% of width)
+        const hopRatio = node.estimatedHops / (maxHops + 1)
+
+        // PIN the position (fx, fy) so simulation doesn't move them
+        node.x = pathStartX + (pathEndX - pathStartX) * hopRatio
+        node.y = centerY
+        node.fx = node.x  // Fix X position
+        node.fy = node.y  // Fix Y position
+      }
+    }
+
     // Create force simulation
-    // OPTE philosophy: let the data find its natural structure
+    // Routers are PINNED (fx/fy set above) so they won't move
+    // Only hosts and scanner participate in force simulation
     const simulation = d3.forceSimulation<SimulationNode>(nodes)
       .force('link', d3.forceLink<SimulationNode, SimulationLink>(edges)
         .id(d => d.id)
         .distance(config.linkDistance)
-        .strength(0.5))
+        .strength(0.3))
       .force('charge', d3.forceManyBody()
         .strength(config.chargeStrength)
         .distanceMax(300))
@@ -366,11 +435,11 @@ export function NetworkGraph({
 
     simulationRef.current = simulation
 
-    // Pin scanner node to center if present
+    // Pin scanner at right edge of local cluster (where path to routers begins)
     const scannerNode = nodes.find(n => n.type === 'scanner')
     if (scannerNode) {
-      scannerNode.fx = config.width / 2
-      scannerNode.fy = config.height / 2
+      scannerNode.fx = scannerX
+      scannerNode.fy = centerY
     }
 
     // Draw edges with pathSource-based styling
