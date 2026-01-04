@@ -64,8 +64,18 @@
  * - v3: Added RLS (Row Level Security) for enhanced security
  *       Changed views to SECURITY INVOKER to fix SECURITY DEFINER warnings
  * - v2: Added JSONB columns for extensible metadata (scan_metadata, extra_data)
+ *
+ * v11: Add GeoIP country data to v_hosts view
+ *      - country_code: 2-letter ISO country code
+ *      - country_name: Full country name
+ *      Uses most recent GeoIP lookup for the host
+ *
+ * v12: Add application settings table for frontend configuration
+ *      - uni_app_settings: Key-value store for app configuration
+ *      - Used by unicornscan-geoip-update to auto-configure database paths
+ *      - Allows Alicorn to read GeoIP config from database instead of localStorage
  */
-#define PGSQL_SCHEMA_VERSION 10
+#define PGSQL_SCHEMA_VERSION 13
 
 /*
  * Schema version tracking table - created first
@@ -448,13 +458,14 @@ static const char *pgsql_schema_rls_policies_ddl =
  */
 static const char *pgsql_schema_views_ddl =
 	/* v_open_ports: Human-readable port scan results */
+	/* Note: sport = source port of response packet = target's service port */
 	"CREATE OR REPLACE VIEW v_open_ports WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    s.scan_id,\n"
 	"    to_timestamp(s.s_time) AS scan_time,\n"
 	"    s.profile,\n"
 	"    i.host_addr,\n"
-	"    i.dport AS port,\n"
+	"    i.sport AS port,\n"
 	"    CASE i.proto\n"
 	"        WHEN 6 THEN 'TCP'\n"
 	"        WHEN 17 THEN 'UDP'\n"
@@ -466,9 +477,10 @@ static const char *pgsql_schema_views_ddl =
 	"    i.extra_data\n"
 	"FROM uni_scan s\n"
 	"JOIN uni_ipreport i ON s.scan_id = i.scan_id\n"
-	"ORDER BY s.s_time DESC, i.host_addr, i.dport;\n"
+	"ORDER BY s.s_time DESC, i.host_addr, i.sport;\n"
 	"\n"
 	/* v_scan_summary: Aggregate statistics per scan */
+	/* Note: sport = source port of response packet = target's service port */
 	"CREATE OR REPLACE VIEW v_scan_summary WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    s.scan_id,\n"
@@ -480,7 +492,7 @@ static const char *pgsql_schema_views_ddl =
 	"    s.num_packets AS packets_sent,\n"
 	"    COUNT(DISTINCT i.host_addr) AS hosts_responded,\n"
 	"    COUNT(i.ipreport_id) AS total_responses,\n"
-	"    COUNT(DISTINCT i.dport) AS unique_ports,\n"
+	"    COUNT(DISTINCT i.sport) AS unique_ports,\n"
 	"    s.scan_metadata\n"
 	"FROM uni_scan s\n"
 	"LEFT JOIN uni_ipreport i ON s.scan_id = i.scan_id\n"
@@ -494,20 +506,21 @@ static const char *pgsql_schema_views_ddl =
 	"LIMIT 50;\n"
 	"\n"
 	/* v_host_history: All results for a given host across all scans */
+	/* Note: sport = target's service port, dport = scanner's ephemeral port */
 	"CREATE OR REPLACE VIEW v_host_history WITH (security_invoker = true) AS\n"
 	"SELECT\n"
 	"    i.host_addr,\n"
 	"    s.scan_id,\n"
 	"    to_timestamp(s.s_time) AS scan_time,\n"
 	"    s.profile,\n"
-	"    i.dport AS port,\n"
+	"    i.sport AS port,\n"
 	"    i.proto,\n"
 	"    i.ttl,\n"
-	"    i.sport AS source_port,\n"
+	"    i.dport AS scanner_port,\n"
 	"    i.extra_data\n"
 	"FROM uni_ipreport i\n"
 	"JOIN uni_scan s ON i.scan_id = s.scan_id\n"
-	"ORDER BY i.host_addr, s.s_time DESC, i.dport;\n"
+	"ORDER BY i.host_addr, s.s_time DESC, i.sport;\n"
 	"\n"
 	/* v_arp_results: Human-readable ARP scan results */
 	"CREATE OR REPLACE VIEW v_arp_results WITH (security_invoker = true) AS\n"
@@ -1110,7 +1123,7 @@ static const char *pgsql_schema_v5_views_ddl =
 	"    h.first_seen,\n"
 	"    h.last_seen,\n"
 	"    COALESCE((SELECT COUNT(DISTINCT hs.scan_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id), 0)::int4 AS scan_count,\n"
-	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT i.sport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
 	"    COALESCE((SELECT COUNT(*) FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr), 0)::int4 AS mac_count,\n"
 	"    (SELECT os.os_family FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_family,\n"
 	"    (SELECT os.os_name FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_name,\n"
@@ -1480,7 +1493,7 @@ static const char *pgsql_schema_v8_update_v_hosts_ddl =
 	"    h.first_seen,\n"
 	"    h.last_seen,\n"
 	"    COALESCE((SELECT COUNT(DISTINCT hs.scan_id) FROM uni_host_scans hs WHERE hs.host_id = h.host_id), 0)::int4 AS scan_count,\n"
-	"    COALESCE((SELECT COUNT(DISTINCT i.dport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT i.sport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
 	"    COALESCE((SELECT COUNT(*) FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr), 0)::int4 AS mac_count,\n"
 	"    (SELECT os.os_family FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_family,\n"
 	"    (SELECT os.os_name FROM uni_os_fingerprints os WHERE os.host_addr = h.host_addr ORDER BY os.detected_at DESC LIMIT 1) AS os_name,\n"
@@ -1516,6 +1529,110 @@ static const char *pgsql_schema_v10_hops_nullable_ddl =
 	"            FOREIGN KEY(ipreport_id) REFERENCES uni_ipreport(ipreport_id) ON DELETE CASCADE;\n"
 	"    END IF;\n"
 	"END $$;\n";
+
+/*
+ * Schema v11 migration - add GeoIP country data to v_hosts view
+ * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ *
+ * This adds country_code and country_name fields from uni_geoip to v_hosts,
+ * using the most recent GeoIP lookup for each host IP.
+ * Note: Must match existing view structure (GROUP BY for multiple rows per IP).
+ */
+static const char *pgsql_schema_v11_update_v_hosts_ddl =
+	"DROP VIEW IF EXISTS v_hosts;\n"
+	"CREATE VIEW v_hosts WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    (SELECT h2.host_id FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1) AS host_id,\n"
+	"    host_addr,\n"
+	"    (SELECT h2.mac_addr FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1) AS mac_addr,\n"
+	"    COALESCE(\n"
+	"        (SELECT h2.mac_addr FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1),\n"
+	"        (SELECT mh.mac_addr FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr ORDER BY mh.last_seen DESC LIMIT 1)\n"
+	"    ) AS current_mac,\n"
+	"    (SELECT array_agg(DISTINCT h2.mac_addr) FILTER (WHERE h2.mac_addr IS NOT NULL) FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr) AS mac_addrs,\n"
+	"    (SELECT h2.hostname FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr AND h2.hostname IS NOT NULL ORDER BY h2.last_seen DESC LIMIT 1) AS hostname,\n"
+	"    MIN(first_seen) AS first_seen,\n"
+	"    MAX(last_seen) AS last_seen,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT hs.scan_id) FROM uni_host_scans hs JOIN uni_hosts h2 ON hs.host_id = h2.host_id WHERE h2.host_addr = h.host_addr), 0)::int4 AS scan_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT i.sport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT macs.mac) FROM (\n"
+	"        SELECT mac_addr AS mac FROM uni_hosts WHERE host_addr = h.host_addr AND mac_addr IS NOT NULL\n"
+	"        UNION SELECT mac_addr AS mac FROM uni_mac_ip_history WHERE host_addr = h.host_addr\n"
+	"    ) macs), 0)::int4 AS mac_count,\n"
+	"    (SELECT osf.os_family FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS os_family,\n"
+	"    (SELECT osf.os_name FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS os_name,\n"
+	"    (SELECT osf.os_version FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS os_version,\n"
+	"    (SELECT osf.device_type FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS device_type,\n"
+	"    (SELECT g.country_code FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS country_code,\n"
+	"    (SELECT g.country_name FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS country_name,\n"
+	"    (SELECT h2.extra_data FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1) AS extra_data\n"
+	"FROM uni_hosts h\n"
+	"GROUP BY host_addr\n"
+	"ORDER BY MAX(last_seen) DESC;\n";
+
+/*
+ * Schema v12 migration - add application settings table
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
+ *
+ * This table stores application configuration as JSONB key-value pairs.
+ * Used by unicornscan-geoip-update to auto-configure GeoIP database paths.
+ * Alicorn reads config from here instead of localStorage for persistence.
+ */
+static const char *pgsql_schema_v12_app_settings_ddl =
+	"CREATE TABLE IF NOT EXISTS uni_app_settings (\n"
+	"    key VARCHAR(128) PRIMARY KEY,\n"
+	"    value JSONB NOT NULL,\n"
+	"    updated_at TIMESTAMPTZ DEFAULT NOW()\n"
+	");\n"
+	/* RLS for security */
+	"ALTER TABLE uni_app_settings ENABLE ROW LEVEL SECURITY;\n"
+	"DROP POLICY IF EXISTS uni_app_settings_select_policy ON uni_app_settings;\n"
+	"CREATE POLICY uni_app_settings_select_policy ON uni_app_settings FOR SELECT USING (true);\n"
+	"DROP POLICY IF EXISTS uni_app_settings_all_policy ON uni_app_settings;\n"
+	"CREATE POLICY uni_app_settings_all_policy ON uni_app_settings FOR ALL USING (true);\n";
+
+/*
+ * Schema v13 migration - add full GeoIP data to v_hosts view
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
+ *
+ * Extends v_hosts with city, region, ASN, and organization from uni_geoip.
+ * Uses the most recent GeoIP lookup for each host IP.
+ */
+static const char *pgsql_schema_v13_update_v_hosts_ddl =
+	"DROP VIEW IF EXISTS v_hosts;\n"
+	"CREATE VIEW v_hosts WITH (security_invoker = true) AS\n"
+	"SELECT\n"
+	"    (SELECT h2.host_id FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1) AS host_id,\n"
+	"    host_addr,\n"
+	"    (SELECT h2.mac_addr FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1) AS mac_addr,\n"
+	"    COALESCE(\n"
+	"        (SELECT h2.mac_addr FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1),\n"
+	"        (SELECT mh.mac_addr FROM uni_mac_ip_history mh WHERE mh.host_addr = h.host_addr ORDER BY mh.last_seen DESC LIMIT 1)\n"
+	"    ) AS current_mac,\n"
+	"    (SELECT array_agg(DISTINCT h2.mac_addr) FILTER (WHERE h2.mac_addr IS NOT NULL) FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr) AS mac_addrs,\n"
+	"    (SELECT h2.hostname FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr AND h2.hostname IS NOT NULL ORDER BY h2.last_seen DESC LIMIT 1) AS hostname,\n"
+	"    MIN(first_seen) AS first_seen,\n"
+	"    MAX(last_seen) AS last_seen,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT hs.scan_id) FROM uni_host_scans hs JOIN uni_hosts h2 ON hs.host_id = h2.host_id WHERE h2.host_addr = h.host_addr), 0)::int4 AS scan_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT i.sport) FROM uni_ipreport i WHERE i.host_addr = h.host_addr), 0)::int4 AS port_count,\n"
+	"    COALESCE((SELECT COUNT(DISTINCT macs.mac) FROM (\n"
+	"        SELECT mac_addr AS mac FROM uni_hosts WHERE host_addr = h.host_addr AND mac_addr IS NOT NULL\n"
+	"        UNION SELECT mac_addr AS mac FROM uni_mac_ip_history WHERE host_addr = h.host_addr\n"
+	"    ) macs), 0)::int4 AS mac_count,\n"
+	"    (SELECT osf.os_family FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS os_family,\n"
+	"    (SELECT osf.os_name FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS os_name,\n"
+	"    (SELECT osf.os_version FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS os_version,\n"
+	"    (SELECT osf.device_type FROM uni_os_fingerprints osf WHERE osf.host_addr = h.host_addr ORDER BY osf.detected_at DESC LIMIT 1) AS device_type,\n"
+	"    (SELECT g.country_code FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS country_code,\n"
+	"    (SELECT g.country_name FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS country_name,\n"
+	"    (SELECT g.region_name FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS region_name,\n"
+	"    (SELECT g.city FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS city,\n"
+	"    (SELECT g.asn FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS asn,\n"
+	"    (SELECT g.as_org FROM uni_geoip g WHERE g.host_ip = h.host_addr ORDER BY g.lookup_time DESC LIMIT 1) AS as_org,\n"
+	"    (SELECT h2.extra_data FROM uni_hosts h2 WHERE h2.host_addr = h.host_addr ORDER BY h2.last_seen DESC LIMIT 1) AS extra_data\n"
+	"FROM uni_hosts h\n"
+	"GROUP BY host_addr\n"
+	"ORDER BY MAX(last_seen) DESC;\n";
 
 /*
  * Record schema version

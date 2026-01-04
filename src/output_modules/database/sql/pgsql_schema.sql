@@ -1,4 +1,12 @@
--- Unicornscan PostgreSQL Schema v9
+-- Unicornscan PostgreSQL Schema v12
+-- v12: Added uni_app_settings table for frontend configuration
+--     Key-value store for app configuration (JSONB)
+--     Used by unicornscan-geoip-update to auto-configure GeoIP database paths
+--     Allows Alicorn to read config from database instead of localStorage
+-- v11: Added GeoIP country data to v_hosts view
+--     country_code and country_name fields from uni_geoip
+-- v10: Made uni_hops.ipreport_id nullable for trace_path_report
+--     Enables MODE_TCPTRACE to store hop data in batch
 -- v9: Added eth_hwaddr to uni_ipreport for local network MAC capture
 --     TCP/UDP/ICMP responses from L2-reachable hosts now include source MAC
 --     Extends v8 MAC<->IP history with IP scan data (not just ARP scans)
@@ -924,6 +932,7 @@ create policy "Allow full access to saved_filters"
 -- Note: Requires PostgreSQL 15+
 
 -- v_open_ports: Human-readable port scan results
+-- Note: sport = source port of response packet = target's service port
 create or replace view v_open_ports
 with (security_invoker = true) as
 select
@@ -931,7 +940,7 @@ select
     to_timestamp(s.s_time) as scan_time,
     s.profile,
     i.host_addr,
-    i.dport as port,
+    i.sport as port,
     case i.proto
         when 6 then 'TCP'
         when 17 then 'UDP'
@@ -943,9 +952,10 @@ select
     i.extra_data
 from uni_scan s
 join uni_ipreport i on s.scan_id = i.scan_id
-order by s.s_time desc, i.host_addr, i.dport;
+order by s.s_time desc, i.host_addr, i.sport;
 
 -- v_scan_summary: Aggregate statistics per scan
+-- Note: sport = source port of response packet = target's service port
 create or replace view v_scan_summary
 with (security_invoker = true) as
 select
@@ -958,7 +968,7 @@ select
     s.num_packets as packets_sent,
     count(distinct i.host_addr) as hosts_responded,
     count(i.ipreport_id) as total_responses,
-    count(distinct i.dport) as unique_ports,
+    count(distinct i.sport) as unique_ports,
     s.scan_metadata
 from uni_scan s
 left join uni_ipreport i on s.scan_id = i.scan_id
@@ -973,6 +983,8 @@ order by started desc
 limit 50;
 
 -- v_host_history: All results for a given host across all scans
+-- Note: sport = source port of response packet = target's service port
+--       dport = destination port of response = scanner's ephemeral port
 create or replace view v_host_history
 with (security_invoker = true) as
 select
@@ -980,14 +992,14 @@ select
     s.scan_id,
     to_timestamp(s.s_time) as scan_time,
     s.profile,
-    i.dport as port,
+    i.sport as port,
     i.proto,
     i.ttl,
-    i.sport as source_port,
+    i.dport as scanner_port,
     i.extra_data
 from uni_ipreport i
 join uni_scan s on i.scan_id = s.scan_id
-order by i.host_addr, s.s_time desc, i.dport;
+order by i.host_addr, s.s_time desc, i.sport;
 
 -- v_arp_results: Human-readable ARP scan results
 create or replace view v_arp_results
@@ -1101,8 +1113,10 @@ select
         0
     )::int4 as scan_count,
     -- Calculate port_count from uni_ipreport since C code doesn't update uni_hosts.port_count
+    -- Note: sport = source port of response packet = target's service port (80, 22, etc.)
+    --       dport = destination port of response = scanner's ephemeral port (inflated count)
     coalesce(
-        (select count(distinct i.dport) from uni_ipreport i where i.host_addr = h.host_addr),
+        (select count(distinct i.sport) from uni_ipreport i where i.host_addr = h.host_addr),
         0
     )::int4 as port_count,
     -- v8: Count of MAC addresses associated with this IP over time (from history + uni_hosts)
@@ -1536,5 +1550,18 @@ from uni_geoip g
 group by g.scan_id, g.country_code, g.country_name
 order by host_count desc;
 
+-- v12: Application settings table for frontend configuration
+drop table if exists "uni_app_settings";
+create table "uni_app_settings" (
+    "key"           varchar(128) primary key,
+    "value"         jsonb not null,
+    "updated_at"    timestamptz default now()
+);
+
+-- RLS for uni_app_settings
+alter table uni_app_settings enable row level security;
+create policy uni_app_settings_select_policy on uni_app_settings for select using (true);
+create policy uni_app_settings_all_policy on uni_app_settings for all using (true);
+
 -- Record schema version
-insert into uni_schema_version (version) values (10);
+insert into uni_schema_version (version) values (12);
