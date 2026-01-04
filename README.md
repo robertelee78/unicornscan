@@ -155,6 +155,7 @@ unicornscan -W 9 target.com:80   # Emulate Linux 5/6
 | `-mTSFPUA` | Custom TCP | Any combination of flags |
 | `-mU` | UDP | Protocol-aware UDP scanning |
 | `-mA` | ARP | Layer 2 host discovery |
+| `-mtr` | TCP Traceroute | Map network path to target (see below) |
 
 ### TCP Flag Modifiers
 
@@ -243,6 +244,72 @@ Per-phase options allow fine-tuning each scan phase independently. For example, 
 ### Requirements
 
 Compound modes with ARP require targets on the local network (same L2 broadcast domain). Remote targets are rejected with an error message.
+
+## TCP Traceroute Mode (-mtr)
+
+Map network paths to remote targets using TCP-based traceroute. Unlike traditional ICMP traceroute, TCP packets traverse firewalls that allow the target port.
+
+### Why TCP Traceroute?
+
+| Method | Packet Type | Firewall Behavior |
+|--------|-------------|-------------------|
+| Traditional (`traceroute`) | ICMP Echo | Often filtered |
+| TCP Traceroute (`-mtr`) | TCP SYN to specific port | Allowed if port is open |
+
+### Basic Usage
+
+```bash
+us -mtr <target>:<port> [options]
+```
+
+### Workflow: Mapping Remote Networks
+
+**Step 1: Scan the remote network**
+```bash
+us -mT 142.250.73.0/24:80,443 -r500 -epgsqldb
+```
+This discovers responding hosts, clustered by CIDR in the topology view.
+
+**Step 2: Traceroute to one responding host**
+```bash
+us -mtr 142.250.73.159/32:80 -r100 -epgsqldb
+```
+Maps the path from your scanner to the remote network. Since 142.250.73.159 is within 142.250.73.0/24, this path represents the entire remote subnet.
+
+**Step 3: View in Topology**
+Navigate to http://localhost:31337/topology to see:
+- Your local network (scanner node)
+- Intermediate routers (hop nodes)
+- Remote network cluster (target nodes)
+
+### Output Example
+
+```
+traceroute to 142.250.73.159:80, 30 hops max
+ 1  192.168.1.1
+ 2  216.243.48.1
+ 3  172.16.101.125
+ 4  216.243.24.105
+ 5  174.127.151.13
+ 6  65.50.198.62
+ 7  174.127.151.10
+ 8  216.243.15.225
+ 9  142.251.70.99
+10  142.251.224.251
+11  142.250.73.159 [destination]
+```
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-e <ttl>` | Starting TTL | 1 |
+| `-t <ttl>` | Maximum TTL | 30 |
+| `-r <pps>` | Packets per second | 300 |
+
+### Database Storage
+
+Hop data is stored in the `uni_hops` table and visualized in the Alicorn topology graph, showing network paths as connected edges between nodes.
 
 ## OS Fingerprinting
 
