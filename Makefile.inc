@@ -21,7 +21,7 @@ TARGETNAME=unicornscan
 
 COPTS=-g -O2 -O2
 CDEFS=  $(DEFS) -DLIBDIR=\"${exec_prefix}/lib\" -DSYSCONFDIR=\"${prefix}/etc\" -DLIBEXECDIR=\"${exec_prefix}/libexec\" -DLOCALSTATEDIR=\"${prefix}/var\" -DPROGNAME=\"unicornscan\"
-CINCS=  -I/usr/include/x86_64-linux-gnu  -I$(BUILD_DIR)/src -I$(BUILD_DIR)/libs/fake/include -I$(BUILD_DIR)/ext_src
+CINCS=  -I/usr/include/x86_64-linux-gnu -I/usr/include/postgresql -I$(BUILD_DIR)/src -I$(BUILD_DIR)/libs/fake/include -I$(BUILD_DIR)/ext_src
 LDFLAGS=    -lmaxminddb  -luext -lltdl -lpcap  -L$(BUILD_DIR)/libs/fake/lib -L$(BUILD_DIR)/ext_src
 
 CC=gcc

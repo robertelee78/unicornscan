@@ -102,6 +102,14 @@ static const char *build_mode_str(const settings_t *settings) {
 					remaining--;
 				}
 			}
+			else if (phases[i].mode == 32) { /* MODE_TCPTRACE */
+				*p++ = 't';
+				remaining--;
+				if (remaining > 0) {
+					*p++ = 'r';
+					remaining--;
+				}
+			}
 			else {
 				*p++ = mode_to_char(phases[i].mode);
 				remaining--;
@@ -127,6 +135,14 @@ static const char *build_mode_str(const settings_t *settings) {
 			remaining--;
 			if (remaining > 0) {
 				*p++ = 'f';
+				remaining--;
+			}
+		}
+		else if (settings->ss->mode == 32) { /* MODE_TCPTRACE */
+			*p++ = 't';
+			remaining--;
+			if (remaining > 0) {
+				*p++ = 'r';
 				remaining--;
 			}
 		}
