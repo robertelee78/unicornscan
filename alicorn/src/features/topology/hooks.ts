@@ -50,7 +50,9 @@ function buildTopologyData(
   const edges: TopologyEdge[] = []
 
   // Add scanner as center node if known
+  // Scanner DOES get CIDR-grouped so it appears in its local network cluster
   if (scannerAddr) {
+    const scannerCidrGroup = determineIPGroup(scannerAddr, scannedCidrs) ?? undefined
     nodeMap.set(scannerAddr, {
       id: scannerAddr,
       type: 'scanner',
@@ -60,7 +62,7 @@ function buildTopologyData(
       connectionCount: 0,
       estimatedHops: 0,
       topologySource: 'static',
-      // Scanner doesn't get CIDR-grouped
+      cidrGroup: scannerCidrGroup,
     })
   }
 
@@ -114,23 +116,89 @@ function buildTopologyData(
         topologySource: 'mtr',
       })
     }
+  }
 
-    // Create edge from hop to target
-    const edgeId = `${hop.hop_addr}->${hop.target_addr}`
-    edges.push({
-      id: edgeId,
-      source: hop.hop_addr,
-      target: hop.target_addr,
-      pathSource: 'mtr',
-      hopNumber: hop.hop_number || undefined,
-      rttUs: hop.rtt_us || undefined,
-    })
+  // Build hop chain edges: sender → hop1 → hop2 → ... → target
+  // Group hops by target_addr (each traceroute path is to a specific target)
+  const hopsByTarget = new Map<string, typeof hops>()
+  for (const hop of hops) {
+    const existing = hopsByTarget.get(hop.target_addr)
+    if (existing) {
+      existing.push(hop)
+    } else {
+      hopsByTarget.set(hop.target_addr, [hop])
+    }
+  }
 
-    // Update connection counts
-    const hopNode = nodeMap.get(hop.hop_addr)
-    const targetNode = nodeMap.get(hop.target_addr)
-    if (hopNode) hopNode.connectionCount++
-    if (targetNode) targetNode.connectionCount++
+  // For each target, sort hops by hop_number and create chain edges
+  for (const [targetAddr, targetHops] of hopsByTarget) {
+    // Sort by hop_number ascending (1, 2, 3, ...)
+    const sortedHops = [...targetHops].sort((a, b) => (a.hop_number ?? 0) - (b.hop_number ?? 0))
+
+    // Create edge from scanner to first hop (if scanner known and first hop exists)
+    if (scannerAddr && sortedHops.length > 0) {
+      const firstHop = sortedHops[0]
+      const edgeId = `${scannerAddr}->${firstHop.hop_addr}`
+      // Only add if not already present (avoid duplicates across targets)
+      if (!edges.some(e => e.id === edgeId)) {
+        edges.push({
+          id: edgeId,
+          source: scannerAddr,
+          target: firstHop.hop_addr,
+          pathSource: 'mtr',
+          hopNumber: 0, // Before hop 1
+        })
+        const scannerNode = nodeMap.get(scannerAddr)
+        const firstHopNode = nodeMap.get(firstHop.hop_addr)
+        if (scannerNode) scannerNode.connectionCount++
+        if (firstHopNode) firstHopNode.connectionCount++
+      }
+    }
+
+    // Create chain edges between consecutive hops: hop[n] → hop[n+1]
+    for (let i = 0; i < sortedHops.length - 1; i++) {
+      const currentHop = sortedHops[i]
+      const nextHop = sortedHops[i + 1]
+      const edgeId = `${currentHop.hop_addr}->${nextHop.hop_addr}`
+
+      // Only add if not already present
+      if (!edges.some(e => e.id === edgeId)) {
+        edges.push({
+          id: edgeId,
+          source: currentHop.hop_addr,
+          target: nextHop.hop_addr,
+          pathSource: 'mtr',
+          hopNumber: currentHop.hop_number || undefined,
+          rttUs: currentHop.rtt_us || undefined,
+        })
+        const currentNode = nodeMap.get(currentHop.hop_addr)
+        const nextNode = nodeMap.get(nextHop.hop_addr)
+        if (currentNode) currentNode.connectionCount++
+        if (nextNode) nextNode.connectionCount++
+      }
+    }
+
+    // Create edge from last hop to target (if last hop is not the target itself)
+    if (sortedHops.length > 0) {
+      const lastHop = sortedHops[sortedHops.length - 1]
+      if (lastHop.hop_addr !== targetAddr) {
+        const edgeId = `${lastHop.hop_addr}->${targetAddr}`
+        if (!edges.some(e => e.id === edgeId)) {
+          edges.push({
+            id: edgeId,
+            source: lastHop.hop_addr,
+            target: targetAddr,
+            pathSource: 'mtr',
+            hopNumber: lastHop.hop_number || undefined,
+            rttUs: lastHop.rtt_us || undefined,
+          })
+          const lastNode = nodeMap.get(lastHop.hop_addr)
+          const targetNode = nodeMap.get(targetAddr)
+          if (lastNode) lastNode.connectionCount++
+          if (targetNode) targetNode.connectionCount++
+        }
+      }
+    }
   }
 
   // If scanner is known, add edges from scanner to first-hop nodes
