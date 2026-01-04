@@ -1,3 +1,12 @@
+unicornscan (0.4.35-1) unstable; urgency=medium
+
+  * Fix MODE_TCPTRACE display in Alicorn - now shows "tr" instead of "?"
+  * Fix modules.conf permissions to 600 (was 755, exposing credentials)
+  * Preserve existing modules.conf on install (installs as .new if exists)
+  * Add debian/conffiles for proper dpkg config file handling
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 03 Jan 2026 16:15:00 -0800
+
 unicornscan (0.4.34-1) unstable; urgency=medium
 
   * MTR Mode (TCP Traceroute) - Phase 2 Complete
