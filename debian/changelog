@@ -1,3 +1,12 @@
+unicornscan (0.4.37-1) unstable; urgency=medium
+
+  * Add TracerouteTab component for TCPtrace (-mtr) scan visualization
+  * Fix traceroute data not storing - make uni_hops.ipreport_id nullable
+  * Add useHops hook with fallback to implicit hops from uni_ipreport
+  * Add getHops() and getImplicitHopsForScan() to database client
+
+ -- Robert E. Lee <robert@unicornscan.org>  Sat, 03 Jan 2026 19:50:40 -0800
+
 unicornscan (0.4.36-1) unstable; urgency=medium
 
   * Fix topology edges: chain pattern instead of star pattern for traceroute
