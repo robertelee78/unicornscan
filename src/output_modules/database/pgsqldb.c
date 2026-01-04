@@ -21,6 +21,7 @@
 #include <scan_progs/scanopts.h>
 #include <scan_progs/scan_export.h>
 #include <scan_progs/workunits.h>
+#include <scan_progs/options.h>
 
 #include <settings.h>
 #include <unilib/qfifo.h>
@@ -1270,6 +1271,45 @@ static int pgsql_migrate_schema(PGconn *conn, int from_version) {
 		VRB(0, "PostgreSQL: schema migration to v10 complete (uni_hops.ipreport_id nullable)");
 	}
 
+	/* v11: Add GeoIP country_code and country_name to v_hosts view */
+	if (from_version < 11) {
+		VRB(0, "PostgreSQL: migrating schema from v%d to v11 (adding GeoIP to v_hosts)...", from_version);
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v11_update_v_hosts_ddl, "update v_hosts with GeoIP")) {
+			return 0;
+		}
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 11);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 11")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v11 complete (GeoIP in v_hosts)");
+	}
+
+	/* v12: Add application settings table for frontend configuration */
+	if (from_version < 12) {
+		VRB(0, "PostgreSQL: migrating schema from v%d to v12 (adding app settings table)...", from_version);
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v12_app_settings_ddl, "create uni_app_settings table")) {
+			return 0;
+		}
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 12);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 12")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v12 complete (uni_app_settings table created)");
+	}
+
+	/* v13: Add full GeoIP data (city, region, ASN) to v_hosts view */
+	if (from_version < 13) {
+		VRB(0, "PostgreSQL: migrating schema from v%d to v13 (adding full GeoIP to v_hosts)...", from_version);
+		if (!pgsql_exec_ddl(conn, pgsql_schema_v13_update_v_hosts_ddl, "update v_hosts with GeoIP columns")) {
+			return 0;
+		}
+		snprintf(version_sql, sizeof(version_sql) - 1, pgsql_schema_record_version_fmt, 13);
+		if (!pgsql_exec_ddl(conn, version_sql, "record schema version 13")) {
+			return 0;
+		}
+		VRB(0, "PostgreSQL: schema migration to v13 complete (v_hosts now includes city, region, ASN)");
+	}
+
 	return 1;
 }
 
@@ -1503,6 +1543,21 @@ void pgsql_database_init(void) {
 					ERR("cant request whole packet transfer, ignoring log packet option");
 				}
 			}
+		}
+		/* v6: Enable GeoIP lookups during scans */
+		if (strcmp(kv->key, "geoip") == 0) {
+			if (strcmp(kv->value, "true") == 0) {
+				scan_setgeoipenabled(1);
+				/* Auto-select maxmind provider (searches for .mmdb files) */
+				scan_setgeoipprovider("maxmind");
+			}
+		}
+		/* v6: Optional explicit GeoIP database paths */
+		if (strcmp(kv->key, "geoip_citydb") == 0) {
+			scan_setgeoipcitydb(kv->value);
+		}
+		if (strcmp(kv->key, "geoip_asndb") == 0) {
+			scan_setgeoipasndb(kv->value);
 		}
 	}
 

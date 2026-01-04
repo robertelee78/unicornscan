@@ -55,14 +55,18 @@ static int city_open = 0;
 static int asn_open = 0;
 static int anonymous_open = 0;
 
-/* Database version string */
+/* Database version string and detected provider */
 static char db_version[256] = "unknown";
+static char provider_name[51] = "mmdb";
 
 /* Database filenames to search for (in order of preference) */
 static const char *city_filenames[] = {
 	"GeoLite2-City.mmdb",
 	"GeoIP2-City.mmdb",
 	"dbip-city-lite.mmdb",
+	"GeoLite2-Country.mmdb",
+	"GeoIP2-Country.mmdb",
+	"dbip-country-lite.mmdb",  /* Country-only fallback */
 	NULL
 };
 
@@ -236,6 +240,20 @@ static int maxmind_init(const geoip_config_t *config) {
 		snprintf(db_version, sizeof(db_version) - 1, "%s (%llu)",
 			mmdb_city.metadata.database_type,
 			(unsigned long long)mmdb_city.metadata.build_epoch);
+
+		/* Detect provider from database_type */
+		const char *dbtype = mmdb_city.metadata.database_type;
+		if (dbtype) {
+			if (strncasecmp(dbtype, "DBIP", 4) == 0 || strncasecmp(dbtype, "DB-IP", 5) == 0) {
+				strncpy(provider_name, "dbip", sizeof(provider_name) - 1);
+			} else if (strncasecmp(dbtype, "GeoLite2", 8) == 0 || strncasecmp(dbtype, "GeoIP2", 6) == 0) {
+				strncpy(provider_name, "maxmind", sizeof(provider_name) - 1);
+			} else if (strncasecmp(dbtype, "ipinfo", 6) == 0) {
+				strncpy(provider_name, "ipinfo", sizeof(provider_name) - 1);
+			} else {
+				strncpy(provider_name, "mmdb", sizeof(provider_name) - 1);
+			}
+		}
 	}
 
 	/* Open ASN database (optional) */
@@ -265,7 +283,7 @@ static int maxmind_lookup(const char *ip, geoip_result_t *result) {
 
 	/* Clear result */
 	geoip_result_clear(result);
-	strncpy(result->provider, "maxmind", sizeof(result->provider) - 1);
+	strncpy(result->provider, provider_name, sizeof(result->provider) - 1);
 	strncpy(result->db_version, db_version, sizeof(result->db_version) - 1);
 
 	/* Lookup in City database */
@@ -377,6 +395,7 @@ static void maxmind_cleanup(void) {
 		anonymous_open = 0;
 	}
 	db_version[0] = '\0';
+	strncpy(provider_name, "mmdb", sizeof(provider_name) - 1);
 }
 
 /*

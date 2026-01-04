@@ -1,0 +1,450 @@
+#!/bin/bash
+#
+# unicornscan-geoip-update - Download free GeoIP databases for unicornscan
+#
+# Downloads DB-IP Lite databases (CC BY 4.0 license) - no registration required
+# https://db-ip.com/db/lite.php
+#
+# By default downloads:
+#   - City Lite (~126 MB) - city, region, country, lat/lon, timezone
+#   - ASN Lite (~7 MB) - ASN, ISP, organization
+#
+# Copyright (c) 2025-2026 Robert E. Lee <robert@unicornscan.org>
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set -e
+
+GEOIP_DIR="/usr/share/GeoIP"
+MODULES_CONF="/etc/unicornscan/modules.conf"
+WEB_PASSWORD_FILE="/opt/unicornscan-web/.db_password"
+
+# Database definitions
+CITY_DB="dbip-city-lite.mmdb"
+ASN_DB="dbip-asn-lite.mmdb"
+COUNTRY_DB="dbip-country-lite.mmdb"
+
+# Current month for download URLs
+YEAR_MONTH=$(date +%Y-%m)
+PREV_MONTH=$(date -d 'last month' +%Y-%m 2>/dev/null || date -v-1m +%Y-%m 2>/dev/null || echo "")
+
+print_usage() {
+    cat <<EOF
+Usage: unicornscan-geoip-update [OPTIONS]
+
+Download free DB-IP Lite GeoIP databases for unicornscan.
+
+By default, downloads City Lite (~126 MB) + ASN Lite (~7 MB) databases
+providing city, region, country, coordinates, ISP, and ASN data.
+
+Options:
+  --help, -h      Show this help message
+  --check         Check installed databases and show their age
+  --force         Re-download even if databases exist
+  --country-only  Download only country database (~7 MB, lightweight)
+  --city-only     Download only city database (skip ASN)
+  --asn-only      Download only ASN database
+
+Databases are stored at: $GEOIP_DIR/
+
+License: DB-IP Lite databases are licensed under CC BY 4.0
+         https://db-ip.com/db/lite.php
+         Attribution: "IP Geolocation by DB-IP" (https://db-ip.com)
+
+Note: DB-IP releases updated databases monthly. Run this script
+      periodically to keep your GeoIP data current.
+EOF
+}
+
+check_databases() {
+    echo "Checking installed GeoIP databases..."
+    echo ""
+
+    local found=0
+    for db in "$CITY_DB" "$ASN_DB" "$COUNTRY_DB"; do
+        if [ -f "$GEOIP_DIR/$db" ]; then
+            local age_days size
+            age_days=$(( ($(date +%s) - $(stat -c %Y "$GEOIP_DIR/$db" 2>/dev/null || stat -f %m "$GEOIP_DIR/$db")) / 86400 ))
+            size=$(du -h "$GEOIP_DIR/$db" 2>/dev/null | cut -f1)
+            echo "  $db: $size, $age_days days old"
+            if [ "$age_days" -gt 30 ]; then
+                echo "    ^ Consider updating (older than 30 days)"
+            fi
+            found=1
+        fi
+    done
+
+    if [ "$found" -eq 0 ]; then
+        echo "  No GeoIP databases found in $GEOIP_DIR/"
+        echo ""
+        echo "Run 'sudo unicornscan-geoip-update' to download databases."
+        return 1
+    fi
+
+    echo ""
+    echo "Configuration:"
+    if [ -f "$MODULES_CONF" ]; then
+        grep -E "geoip|geoip_citydb|geoip_asndb" "$MODULES_CONF" 2>/dev/null | sed 's/^/  /' || echo "  (no GeoIP config found)"
+    else
+        echo "  modules.conf not found at $MODULES_CONF"
+    fi
+
+    return 0
+}
+
+download_file() {
+    local url="$1"
+    local dest="$2"
+    local name="$3"
+
+    local tmp_file
+    tmp_file=$(mktemp)
+
+    echo "Downloading $name..."
+    echo "  URL: $url"
+
+    # Try current month first, fall back to previous month
+    local success=0
+    if command -v curl &>/dev/null; then
+        if curl -fsSL -o "$tmp_file" "$url" 2>/dev/null; then
+            success=1
+        elif [ -n "$PREV_MONTH" ]; then
+            local fallback_url="${url/$YEAR_MONTH/$PREV_MONTH}"
+            echo "  Trying previous month..."
+            if curl -fsSL -o "$tmp_file" "$fallback_url" 2>/dev/null; then
+                success=1
+            fi
+        fi
+    elif command -v wget &>/dev/null; then
+        if wget -q -O "$tmp_file" "$url" 2>/dev/null; then
+            success=1
+        elif [ -n "$PREV_MONTH" ]; then
+            local fallback_url="${url/$YEAR_MONTH/$PREV_MONTH}"
+            echo "  Trying previous month..."
+            if wget -q -O "$tmp_file" "$fallback_url" 2>/dev/null; then
+                success=1
+            fi
+        fi
+    else
+        echo "Error: curl or wget required"
+        rm -f "$tmp_file"
+        return 1
+    fi
+
+    if [ "$success" -eq 0 ]; then
+        echo "  Failed to download $name"
+        rm -f "$tmp_file"
+        return 1
+    fi
+
+    echo "  Decompressing..."
+    if ! gunzip -c "$tmp_file" > "${tmp_file}.mmdb" 2>/dev/null; then
+        echo "  Failed to decompress $name"
+        rm -f "$tmp_file" "${tmp_file}.mmdb"
+        return 1
+    fi
+
+    # Basic validation - MMDB files start with metadata
+    if [ ! -s "${tmp_file}.mmdb" ]; then
+        echo "  Error: Decompressed file is empty"
+        rm -f "$tmp_file" "${tmp_file}.mmdb"
+        return 1
+    fi
+
+    mv "${tmp_file}.mmdb" "$dest"
+    chmod 644 "$dest"
+    rm -f "$tmp_file"
+
+    local size
+    size=$(du -h "$dest" 2>/dev/null | cut -f1)
+    echo "  Installed: $dest ($size)"
+    return 0
+}
+
+update_modules_conf() {
+    local city_path="$1"
+    local asn_path="$2"
+
+    if [ ! -f "$MODULES_CONF" ]; then
+        echo ""
+        echo "Warning: $MODULES_CONF not found, skipping config update"
+        return 1
+    fi
+
+    echo ""
+    echo "Updating $MODULES_CONF..."
+
+    # Check if we can write to modules.conf
+    if [ ! -w "$MODULES_CONF" ]; then
+        echo "  Need elevated permissions for modules.conf"
+        # Re-exec with sudo if not root
+        if [ "$(id -u)" -ne 0 ]; then
+            echo "  (modules.conf update requires root)"
+            return 1
+        fi
+    fi
+
+    local updated=0
+
+    # Update or add geoip_citydb
+    if [ -n "$city_path" ] && [ -f "$city_path" ]; then
+        if grep -q "geoip_citydb" "$MODULES_CONF" 2>/dev/null; then
+            sed -i "s|geoip_citydb:.*|geoip_citydb: \"$city_path\";|" "$MODULES_CONF"
+        else
+            # Add after geoip: "true" line if it exists
+            if grep -q 'geoip:.*"true"' "$MODULES_CONF" 2>/dev/null; then
+                sed -i "/geoip:.*\"true\"/a\\	geoip_citydb: \"$city_path\";" "$MODULES_CONF"
+            fi
+        fi
+        echo "  Set geoip_citydb: \"$city_path\""
+        updated=1
+    fi
+
+    # Update or add geoip_asndb
+    if [ -n "$asn_path" ] && [ -f "$asn_path" ]; then
+        if grep -q "geoip_asndb" "$MODULES_CONF" 2>/dev/null; then
+            sed -i "s|geoip_asndb:.*|geoip_asndb: \"$asn_path\";|" "$MODULES_CONF"
+        else
+            # Add after geoip_citydb if it exists, otherwise after geoip: "true"
+            if grep -q "geoip_citydb" "$MODULES_CONF" 2>/dev/null; then
+                sed -i "/geoip_citydb:/a\\	geoip_asndb: \"$asn_path\";" "$MODULES_CONF"
+            elif grep -q 'geoip:.*"true"' "$MODULES_CONF" 2>/dev/null; then
+                sed -i "/geoip:.*\"true\"/a\\	geoip_asndb: \"$asn_path\";" "$MODULES_CONF"
+            fi
+        fi
+        echo "  Set geoip_asndb: \"$asn_path\""
+        updated=1
+    fi
+
+    if [ "$updated" -eq 0 ]; then
+        echo "  No changes made (geoip may not be enabled in modules.conf)"
+    fi
+
+    return 0
+}
+
+update_postgres_config() {
+    local city_path="$1"
+    local asn_path="$2"
+
+    echo ""
+    echo "Updating Alicorn database configuration..."
+
+    # Check if PostgreSQL is reachable
+    local db_password=""
+    if [ -f "$WEB_PASSWORD_FILE" ]; then
+        db_password=$(cat "$WEB_PASSWORD_FILE" 2>/dev/null)
+    fi
+
+    # Build JSON config
+    local config_json
+    config_json=$(cat <<EOF
+{
+  "provider": "dbip",
+  "enabled": true,
+  "cityDbPath": "$city_path",
+  "asnDbPath": "$asn_path",
+  "cacheSize": 1000,
+  "cacheTtlMs": 300000
+}
+EOF
+)
+
+    # Try docker exec first (most common case)
+    if command -v docker &>/dev/null && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "alicorn-postgres"; then
+        echo "  Found alicorn-postgres container"
+
+        # Create table if not exists and upsert config
+        local sql="
+            CREATE TABLE IF NOT EXISTS uni_app_settings (
+                key VARCHAR(128) PRIMARY KEY,
+                value JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            INSERT INTO uni_app_settings (key, value, updated_at)
+            VALUES ('geoip_config', '$config_json'::jsonb, now())
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+        "
+
+        if docker exec alicorn-postgres psql -U alicorn -d unicornscan -c "$sql" &>/dev/null; then
+            echo "  Updated uni_app_settings.geoip_config in PostgreSQL"
+            return 0
+        else
+            echo "  Warning: Could not update PostgreSQL (database may need schema migration)"
+        fi
+    # Try direct psql connection
+    elif command -v psql &>/dev/null && [ -n "$db_password" ]; then
+        echo "  Trying direct PostgreSQL connection..."
+
+        local sql="
+            CREATE TABLE IF NOT EXISTS uni_app_settings (
+                key VARCHAR(128) PRIMARY KEY,
+                value JSONB NOT NULL,
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            INSERT INTO uni_app_settings (key, value, updated_at)
+            VALUES ('geoip_config', '$config_json'::jsonb, now())
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+        "
+
+        if PGPASSWORD="$db_password" psql -h localhost -U alicorn -d unicornscan -c "$sql" &>/dev/null; then
+            echo "  Updated uni_app_settings.geoip_config in PostgreSQL"
+            return 0
+        else
+            echo "  Warning: Could not connect to PostgreSQL"
+        fi
+    else
+        echo "  Warning: PostgreSQL not reachable (unicornscan-web may not be running)"
+    fi
+
+    echo "  Alicorn web UI will use localStorage config until database is available"
+    return 1
+}
+
+do_download() {
+    local force="$1"
+    local download_city="$2"
+    local download_asn="$3"
+    local download_country="$4"
+
+    # Check for required tools
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        echo "Error: curl or wget is required to download databases"
+        exit 1
+    fi
+
+    if ! command -v gunzip &>/dev/null; then
+        echo "Error: gunzip is required to decompress databases"
+        exit 1
+    fi
+
+    # Check if running as root
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "Error: Root privileges required to install to $GEOIP_DIR"
+        echo "Run with: sudo unicornscan-geoip-update"
+        exit 1
+    fi
+
+    # Create directory if needed
+    if [ ! -d "$GEOIP_DIR" ]; then
+        echo "Creating $GEOIP_DIR..."
+        mkdir -p "$GEOIP_DIR"
+    fi
+
+    local city_path="" asn_path=""
+    local any_downloaded=0
+
+    # Download City database
+    if [ "$download_city" = "true" ]; then
+        local dest="$GEOIP_DIR/$CITY_DB"
+        if [ "$force" = "true" ] || [ ! -f "$dest" ]; then
+            if download_file "https://download.db-ip.com/free/dbip-city-lite-${YEAR_MONTH}.mmdb.gz" "$dest" "DB-IP City Lite"; then
+                city_path="$dest"
+                any_downloaded=1
+            fi
+        else
+            echo "City database exists: $dest (use --force to re-download)"
+            city_path="$dest"
+        fi
+    fi
+
+    # Download ASN database
+    if [ "$download_asn" = "true" ]; then
+        local dest="$GEOIP_DIR/$ASN_DB"
+        if [ "$force" = "true" ] || [ ! -f "$dest" ]; then
+            if download_file "https://download.db-ip.com/free/dbip-asn-lite-${YEAR_MONTH}.mmdb.gz" "$dest" "DB-IP ASN Lite"; then
+                asn_path="$dest"
+                any_downloaded=1
+            fi
+        else
+            echo "ASN database exists: $dest (use --force to re-download)"
+            asn_path="$dest"
+        fi
+    fi
+
+    # Download Country database (lightweight option)
+    if [ "$download_country" = "true" ]; then
+        local dest="$GEOIP_DIR/$COUNTRY_DB"
+        if [ "$force" = "true" ] || [ ! -f "$dest" ]; then
+            if download_file "https://download.db-ip.com/free/dbip-country-lite-${YEAR_MONTH}.mmdb.gz" "$dest" "DB-IP Country Lite"; then
+                # For country-only mode, use country db as city path
+                if [ -z "$city_path" ]; then
+                    city_path="$dest"
+                fi
+                any_downloaded=1
+            fi
+        else
+            echo "Country database exists: $dest (use --force to re-download)"
+            if [ -z "$city_path" ]; then
+                city_path="$dest"
+            fi
+        fi
+    fi
+
+    # Update configuration files
+    if [ -n "$city_path" ] || [ -n "$asn_path" ]; then
+        update_modules_conf "$city_path" "$asn_path"
+        update_postgres_config "$city_path" "$asn_path"
+    fi
+
+    # Summary
+    echo ""
+    echo "========================================"
+    if [ "$any_downloaded" -eq 1 ]; then
+        echo "GeoIP databases installed successfully!"
+    else
+        echo "GeoIP databases already up to date."
+    fi
+    echo ""
+    echo "Unicornscan will now include geographic and network data in scans."
+    echo ""
+    echo "With PostgreSQL output (-epgsqldb), data is stored in uni_geoip"
+    echo "and displayed in the Alicorn web UI at http://localhost:31337/hosts"
+    echo ""
+    echo "Attribution (required by license):"
+    echo "  IP Geolocation by DB-IP - https://db-ip.com"
+    echo "========================================"
+}
+
+# Parse arguments
+FORCE="false"
+DOWNLOAD_CITY="true"
+DOWNLOAD_ASN="true"
+DOWNLOAD_COUNTRY="false"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --help|-h)
+            print_usage
+            exit 0
+            ;;
+        --check)
+            check_databases
+            exit $?
+            ;;
+        --force)
+            FORCE="true"
+            shift
+            ;;
+        --country-only)
+            DOWNLOAD_CITY="false"
+            DOWNLOAD_ASN="false"
+            DOWNLOAD_COUNTRY="true"
+            shift
+            ;;
+        --city-only)
+            DOWNLOAD_ASN="false"
+            shift
+            ;;
+        --asn-only)
+            DOWNLOAD_CITY="false"
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            print_usage
+            exit 1
+            ;;
+    esac
+done
+
+do_download "$FORCE" "$DOWNLOAD_CITY" "$DOWNLOAD_ASN" "$DOWNLOAD_COUNTRY"

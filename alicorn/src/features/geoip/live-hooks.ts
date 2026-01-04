@@ -1,14 +1,17 @@
 /**
  * Live GeoIP lookup hooks
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2025-2026 Robert E. Lee <robert@unicornscan.org>
  *
  * Provides React Query hooks for live GeoIP lookups using
  * the GeoIP service. These hooks are for lookups that aren't
  * stored in the database (manual lookups, comparison mode).
+ *
+ * v12: Now uses useGeoIPConfig to read config from database (uni_app_settings)
+ *      with localStorage fallback. Config auto-refreshes on window focus.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   getGeoIPService,
   initializeGeoIPService,
@@ -17,6 +20,7 @@ import {
   type GeoIPServiceStatus,
   type GeoIPComparisonResult,
 } from '@/lib/geoip'
+import { useGeoIPConfig } from '@/lib/settings'
 
 // =============================================================================
 // Query Keys
@@ -36,12 +40,24 @@ export const liveGeoipKeys = {
 
 /**
  * Initialize and manage GeoIP service state
+ *
+ * v12: Now syncs with database config via useGeoIPConfig hook.
+ * Config is automatically refreshed on window focus (refetchOnWindowFocus).
+ * When config changes (e.g., after running unicornscan-geoip-update),
+ * the service is updated without requiring a Docker container restart.
  */
 export function useGeoIPService() {
   const [isReady, setIsReady] = useState(false)
   const [status, setStatus] = useState<GeoIPServiceStatus | null>(null)
   const queryClient = useQueryClient()
 
+  // Use database config with localStorage fallback
+  const { config: dbConfig, isLoading: configLoading, updateConfig: saveDbConfig } = useGeoIPConfig()
+
+  // Track previous config to detect changes
+  const prevConfigRef = useRef<GeoIPServiceConfig | null>(null)
+
+  // Initialize service
   useEffect(() => {
     const init = async () => {
       await initializeGeoIPService()
@@ -52,15 +68,55 @@ export function useGeoIPService() {
     init()
   }, [])
 
+  // Sync service config with database config when it changes
+  useEffect(() => {
+    if (configLoading || !isReady) return
+
+    const service = getGeoIPService()
+    const currentServiceConfig = service.getConfig()
+
+    // Check if config has changed
+    const configChanged =
+      dbConfig.enabled !== currentServiceConfig.enabled ||
+      dbConfig.cityDbPath !== currentServiceConfig.cityDbPath ||
+      dbConfig.asnDbPath !== currentServiceConfig.asnDbPath ||
+      dbConfig.provider !== currentServiceConfig.provider
+
+    if (configChanged && prevConfigRef.current !== null) {
+      // Update service with new database config
+      service.updateConfig(dbConfig)
+      setStatus(service.getStatus())
+
+      // Invalidate all live lookups when config changes
+      queryClient.invalidateQueries({ queryKey: liveGeoipKeys.all })
+
+      console.log('[GeoIP] Config updated from database:', {
+        enabled: dbConfig.enabled,
+        cityDbPath: dbConfig.cityDbPath,
+        asnDbPath: dbConfig.asnDbPath,
+      })
+    } else if (prevConfigRef.current === null) {
+      // Initial load - just set config without invalidating
+      service.updateConfig(dbConfig)
+      setStatus(service.getStatus())
+    }
+
+    prevConfigRef.current = dbConfig
+  }, [dbConfig, configLoading, isReady, queryClient])
+
   const updateConfig = useCallback(
     (config: Partial<GeoIPServiceConfig>) => {
       const service = getGeoIPService()
       service.updateConfig(config)
       setStatus(service.getStatus())
+
+      // Also save to database
+      saveDbConfig(config)
+
       // Invalidate all live lookups when config changes
       queryClient.invalidateQueries({ queryKey: liveGeoipKeys.all })
     },
-    [queryClient]
+    [queryClient, saveDbConfig]
   )
 
   const clearCache = useCallback(() => {
@@ -75,7 +131,7 @@ export function useGeoIPService() {
   }, [])
 
   return {
-    isReady,
+    isReady: isReady && !configLoading,
     status,
     updateConfig,
     clearCache,
