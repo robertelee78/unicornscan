@@ -7,11 +7,54 @@ install: all
 	mkdir -p $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
 	# modules.conf contains credentials - use restrictive permissions (600)
 	# Don't overwrite existing to preserve user's database password
-	@if [ ! -f $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf ]; then \
-		$(INSTALL) -m 600 modules.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/; \
+	@CONF_TARGET="$(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf"; \
+	if [ ! -f "$$CONF_TARGET" ]; then \
+		$(INSTALL) -m 600 modules.conf "$$CONF_TARGET"; \
+	elif [ -n "$(DESTDIR)" ]; then \
+		$(INSTALL) -m 600 modules.conf "$$CONF_TARGET"; \
 	else \
-		echo "*** modules.conf exists, installing as modules.conf.new"; \
-		$(INSTALL) -m 600 modules.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf.new; \
+		echo ""; \
+		echo "============================================================="; \
+		echo "  Configuration file exists: $$CONF_TARGET"; \
+		echo "  This file may contain your database password."; \
+		echo "============================================================="; \
+		echo ""; \
+		if diff -q modules.conf "$$CONF_TARGET" >/dev/null 2>&1; then \
+			echo "  (No differences - keeping existing file)"; \
+		else \
+			echo "Differences between NEW and EXISTING:"; \
+			echo "--------------------------------------------------------------"; \
+			diff -u "$$CONF_TARGET" modules.conf | head -50 || true; \
+			echo "--------------------------------------------------------------"; \
+			echo ""; \
+			echo "What would you like to do?"; \
+			echo "  [K] Keep existing file (default - preserves your password)"; \
+			echo "  [I] Install new file (OVERWRITES your configuration!)"; \
+			echo "  [N] Install new as modules.conf.new (merge manually later)"; \
+			echo "  [D] Show full diff"; \
+			echo ""; \
+			printf "Choice [K/i/n/d]: "; \
+			read choice; \
+			case "$$choice" in \
+				[iI]) \
+					echo "Installing new modules.conf..."; \
+					$(INSTALL) -m 600 modules.conf "$$CONF_TARGET"; \
+					;; \
+				[nN]) \
+					echo "Installing as modules.conf.new for manual merge..."; \
+					$(INSTALL) -m 600 modules.conf "$$CONF_TARGET.new"; \
+					echo "Compare with: diff -u $$CONF_TARGET $$CONF_TARGET.new"; \
+					;; \
+				[dD]) \
+					diff -u "$$CONF_TARGET" modules.conf || true; \
+					echo ""; \
+					echo "(Keeping existing file)"; \
+					;; \
+				*) \
+					echo "Keeping existing modules.conf"; \
+					;; \
+			esac; \
+		fi; \
 	fi
 	# Other config files - use 644 (not executable)
 	$(INSTALL) -m 644 payloads.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
