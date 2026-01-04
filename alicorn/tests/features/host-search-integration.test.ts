@@ -4,19 +4,14 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactNode } from 'react'
+import { describe, it, expect } from 'vitest'
 import {
   parseSearch,
-  detectSearchType,
   matchesCIDR,
   matchesIPPrefix,
   matchesMAC,
   matchesBanner,
   matchesText,
-  parseCIDR,
 } from '../../src/features/hosts/search-utils'
 import type { Host } from '../../src/types/database'
 import type { ParsedSearch } from '../../src/features/hosts/types'
