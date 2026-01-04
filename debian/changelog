@@ -1,3 +1,12 @@
+unicornscan (0.4.38-1) unstable; urgency=medium
+
+  * Fix global topology page to fetch traceroute data from all scans
+  * Add hops and scanner queries to useGlobalTopology() hook
+  * Change scanner node size to match other nodes (color only distinction)
+  * Add extractPrefixFromTarget() for hostname-based CIDR detection
+
+ -- Robert E. Lee <robert@unicornscan.org>  Sat, 04 Jan 2026 04:20:00 -0800
+
 unicornscan (0.4.37-1) unstable; urgency=medium
 
   * Add TracerouteTab component for TCPtrace (-mtr) scan visualization
