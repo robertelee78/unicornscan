@@ -144,6 +144,14 @@ static const embedded_sig_t embedded_response_sigs[] = {
 	{ "Linux", "embedded", 64, 1, P0F3_WIN_TYPE_NORMAL, 29200, 3, -1, "mss,nop,nop,sok,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS },
 	{ "Linux", "embedded", 64, 1, P0F3_WIN_TYPE_NORMAL, 29200, 7, -1, "mss,nop,nop,sok,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS },
 
+	/* Xerox printers (embedded Linux, TTL 255) */
+	{ "Xerox", "printer", 255, 1, P0F3_WIN_TYPE_NORMAL, 65160, 5, 1460, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+	{ "Xerox", "printer", 255, 1, P0F3_WIN_TYPE_NORMAL, 65160, -1, 1460, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS },
+
+	/* Signify/Philips Hue smart lighting (minimal embedded TCP stack) */
+	{ "Signify", "Hue/IoT", 64, 0, P0F3_WIN_TYPE_NORMAL, 32768, -1, 1436, "mss", P0F3_QUIRK_ID_PLUS },
+	{ "Signify", "Hue/IoT", 64, 0, P0F3_WIN_TYPE_NORMAL, 32768, -1, -1, "mss", P0F3_QUIRK_ID_PLUS },
+
 	/* Generic Linux (catch-all) */
 	{ "Linux", "", 64, 1, P0F3_WIN_TYPE_ANY, 0, -1, -1, "mss,sok,ts,nop,ws", P0F3_QUIRK_DF },
 	{ "Linux", "", 64, 1, P0F3_WIN_TYPE_ANY, 0, -1, -1, "mss,nop,nop,ts,nop,ws", P0F3_QUIRK_DF },
