@@ -5,11 +5,19 @@ all:
 
 install: all
 	mkdir -p $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
-	$(INSTALL_PROGRAM) modules.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
-	$(INSTALL_PROGRAM) payloads.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
-	$(INSTALL_PROGRAM) unicorn.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
-	$(INSTALL_PROGRAM) oui.txt $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
-	$(INSTALL_PROGRAM) ports.txt $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
+	# modules.conf contains credentials - use restrictive permissions (600)
+	# Don't overwrite existing to preserve user's database password
+	@if [ ! -f $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf ]; then \
+		$(INSTALL) -m 600 modules.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/; \
+	else \
+		echo "*** modules.conf exists, installing as modules.conf.new"; \
+		$(INSTALL) -m 600 modules.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf.new; \
+	fi
+	# Other config files - use 644 (not executable)
+	$(INSTALL) -m 644 payloads.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
+	$(INSTALL) -m 644 unicorn.conf $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
+	$(INSTALL) -m 644 oui.txt $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
+	$(INSTALL) -m 644 ports.txt $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
 	$(CHCON) -R system_u:object_r:unicornscan_share_t $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
 
 uninstall:
