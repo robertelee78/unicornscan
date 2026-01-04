@@ -46,6 +46,9 @@ export interface TopologyNode {
   // CIDR group for clustering (computed by grouping algorithm, e.g., "192.168.1.0/24")
   cidrGroup?: string
 
+  // True if this host is the target endpoint of a traceroute path
+  isTracerouteTarget?: boolean
+
   // Timestamps
   firstSeen?: number
   lastSeen?: number
