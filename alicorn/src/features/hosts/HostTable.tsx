@@ -18,6 +18,7 @@ import { ensureOuiLoaded, getVendorSync } from '@/lib/oui'
 import { decodeTcpFlags } from '@/types/database'
 import { TcpFlagsDisplay, truncateBanner, bannerNeedsExpansion } from '@/features/ports'
 import { useAggregatedPortHistory } from './hooks'
+import { useLiveGeoIP } from './useLiveGeoIP'
 import { HighlightText, textMatchesSearch, getMatchedFields, MATCHED_FIELD_LABELS } from './HighlightText'
 import type { Host } from '@/types/database'
 import type { SortState, SortField, AggregatedPortEntry, PortHistoryEntry, ParsedSearch } from './types'
@@ -91,6 +92,8 @@ export function HostTable({ hosts, sort, onSort, isLoading, parsedSearch }: Host
             <th className="pb-3 pr-4 font-medium text-muted">MAC Address</th>
             <th className="pb-3 pr-4 font-medium text-muted">Vendor</th>
             <th className="pb-3 pr-4 font-medium text-muted">OS</th>
+            <th className="pb-3 pr-4 font-medium text-muted">Location</th>
+            <th className="pb-3 pr-4 font-medium text-muted">ASN</th>
             <SortableHeader
               field="port_count"
               label="Responses"
@@ -184,6 +187,21 @@ function HostRow({ host, isExpanded, onToggleExpand, parsedSearch }: HostRowProp
   const allMacs = host.mac_addrs?.filter(Boolean) || (macAddr ? [macAddr] : [])
   const hasMultipleMacs = allMacs.length > 1
   const vendor = getVendorSync(macAddr)
+
+  // Check if host has stored GeoIP data
+  const hasStoredGeoIP = !!(host.city || host.region_name || host.country_code || host.asn)
+
+  // Fetch live GeoIP data if not stored in database
+  const { data: liveGeoIP, isLoading: geoIPLoading } = useLiveGeoIP(ipAddr, hasStoredGeoIP)
+
+  // Use stored data if available, otherwise use live lookup
+  const geoCity = host.city || liveGeoIP?.city || null
+  const geoRegion = host.region_name || liveGeoIP?.region_name || null
+  const geoCountryCode = host.country_code || liveGeoIP?.country_code || null
+  const geoCountryName = host.country_name || liveGeoIP?.country_name || null
+  const geoAsn = host.asn || liveGeoIP?.asn || null
+  const geoAsOrg = host.as_org || liveGeoIP?.as_org || null
+  const isLiveGeoIP = !hasStoredGeoIP && liveGeoIP !== null
 
   // Calculate which fields match for text/regex searches
   const matchInfo = useMemo(() => {
@@ -311,6 +329,57 @@ function HostRow({ host, isExpanded, onToggleExpand, parsedSearch }: HostRowProp
             <span className="text-muted">—</span>
           )}
         </td>
+        {/* Location: City, Region, Country */}
+        <td className="py-3 pr-4 text-xs max-w-[180px]">
+          {geoIPLoading ? (
+            <span className="text-muted animate-pulse">...</span>
+          ) : (geoCity || geoRegion || geoCountryCode) ? (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`cursor-default truncate block ${isLiveGeoIP ? 'text-cyan-400' : ''}`}>
+                    {[geoCity, geoRegion, geoCountryCode].filter(Boolean).join(', ')}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <div className="space-y-0.5">
+                    {geoCity && <p><span className="text-muted">City:</span> {geoCity}</p>}
+                    {geoRegion && <p><span className="text-muted">Region:</span> {geoRegion}</p>}
+                    {geoCountryName && <p><span className="text-muted">Country:</span> {geoCountryName}</p>}
+                    {isLiveGeoIP && <p className="text-cyan-400 text-xs mt-1">Live lookup (not stored)</p>}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <span className="text-muted">—</span>
+          )}
+        </td>
+        {/* ASN / Network info */}
+        <td className="py-3 pr-4 text-xs max-w-[150px]">
+          {geoIPLoading ? (
+            <span className="text-muted animate-pulse">...</span>
+          ) : geoAsn ? (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`cursor-default truncate block ${isLiveGeoIP ? 'text-cyan-400' : ''}`}>
+                    AS{geoAsn}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <div className="space-y-0.5">
+                    <p><span className="text-muted">ASN:</span> {geoAsn}</p>
+                    {geoAsOrg && <p><span className="text-muted">Org:</span> {geoAsOrg}</p>}
+                    {isLiveGeoIP && <p className="text-cyan-400 text-xs mt-1">Live lookup (not stored)</p>}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <span className="text-muted">—</span>
+          )}
+        </td>
         <td className="py-3 pr-4">
           {portCount > 0 ? (
             <Badge variant="open">{portCount}</Badge>
@@ -329,7 +398,7 @@ function HostRow({ host, isExpanded, onToggleExpand, parsedSearch }: HostRowProp
       {/* Expanded port details */}
       {isExpanded && (
         <tr className="bg-muted/20">
-          <td colSpan={10} className="p-0">
+          <td colSpan={12} className="p-0">
             <ExpandedHostPorts hostIp={ipAddr} />
           </td>
         </tr>

@@ -185,6 +185,12 @@ export interface Host {
   os_name?: string | null      // v10: OS name (e.g., "Linux", "Windows 10")
   os_version?: string | null   // v10: OS version (e.g., "2.6", "10.0")
   device_type?: string | null  // v10: Device type (e.g., "general purpose", "router")
+  country_code?: string | null // v11: 2-letter ISO country code from GeoIP
+  country_name?: string | null // v11: Full country name from GeoIP
+  region_name?: string | null  // v13: Region/state/province name from GeoIP
+  city?: string | null         // v13: City name from GeoIP
+  asn?: number | null          // v13: Autonomous System Number from GeoIP
+  as_org?: string | null       // v13: AS organization name (ISP/hosting) from GeoIP
   first_seen: string | number  // ISO 8601 string from timestamptz, or Unix timestamp
   last_seen: string | number   // ISO 8601 string from timestamptz, or Unix timestamp
   scan_count: number       // Number of unique scans this host appeared in
