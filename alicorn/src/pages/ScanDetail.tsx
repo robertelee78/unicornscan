@@ -10,11 +10,13 @@ import {
   ScanDetailHeader,
   Tabs,
   ResultsTab,
+  TracerouteTab,
   HostsTab,
   ArpResults,
   RawDataTab,
   NotesTab,
   useArpReports,
+  useHops,
   useScanNotes,
   type Tab,
 } from '@/features/scans'
@@ -49,7 +51,12 @@ export function ScanDetail() {
   const { data: reports = [], isLoading: reportsLoading } = useIpReports(scan_id)
   const { data: banners } = useBanners(scan_id)
   const { data: arpReports = [], isLoading: arpLoading } = useArpReports(scan_id)
+  const { data: hops = [], isLoading: hopsLoading } = useHops(scan_id)
   const { data: notes = [], isLoading: notesLoading } = useScanNotes(scan_id)
+
+  // Detect if this is a traceroute scan
+  // mode_str can be 'tr' (from -mtr flag) or 'TCPtrace' (from strscanmode())
+  const isTracerouteScan = scan?.mode_str === 'tr' || scan?.mode_str === 'TCPtrace'
 
   // Export functionality
   const exportDialog = useExportDialog()
@@ -95,12 +102,15 @@ export function ScanDetail() {
   }, [reports])
 
   // Build tabs with counts
+  // For TCPtrace scans, show "Traceroute" tab instead of "Results"
   const tabs: Tab[] = useMemo(() => [
-    { id: 'results', label: 'Results', count: reports.length },
+    isTracerouteScan
+      ? { id: 'results', label: 'Traceroute', count: hops.length }
+      : { id: 'results', label: 'Results', count: reports.length },
     { id: 'hosts', label: 'Hosts', count: hostCount },
     { id: 'raw', label: 'Raw Data' },
     { id: 'notes', label: 'Notes', count: notes.length || undefined },
-  ], [reports.length, hostCount, notes.length])
+  ], [isTracerouteScan, hops.length, reports.length, hostCount, notes.length])
 
   // Loading state
   if (scanLoading) {
@@ -188,7 +198,11 @@ export function ScanDetail() {
 
           <div className="pt-4">
             {activeTab === 'results' && (
-              <ResultsTab reports={reports} banners={banners} isLoading={reportsLoading} />
+              isTracerouteScan ? (
+                <TracerouteTab hops={hops} isLoading={hopsLoading} />
+              ) : (
+                <ResultsTab reports={reports} banners={banners} isLoading={reportsLoading} />
+              )
             )}
 
             {activeTab === 'hosts' && (

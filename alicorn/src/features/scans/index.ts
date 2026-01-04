@@ -31,6 +31,7 @@ export {
 export { ScanDetailHeader } from './ScanDetailHeader'
 export { Tabs, type Tab } from './Tabs'
 export { ResultsTab } from './ResultsTab'
+export { TracerouteTab } from './TracerouteTab'
 export { HostsTab } from './HostsTab'
 export { ArpResults } from './ArpResults'
 export { RawDataTab } from './RawDataTab'
@@ -40,6 +41,7 @@ export { NotesSidebar } from './NotesSidebar'
 export { TcpFlagBadge, TcpFlagsDisplay } from '@/features/ports'
 export {
   useArpReports,
+  useHops,
   useScanNotes,
   useEntityNotes,
   useAllNotes,

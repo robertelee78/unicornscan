@@ -95,6 +95,7 @@ export interface DatabaseClient {
   // IP Reports (ports/responses)
   getIpReports(scan_id: number): Promise<IpReport[]>
   getIpReportsByHost(scan_id: number, hostAddr: string): Promise<IpReport[]>
+  getSampleHostsPerScan(): Promise<Map<number, string>>
 
   // Banner data (from uni_ipreportdata type=1)
   getBannersForScan(scan_id: number): Promise<Map<number, string>>
@@ -138,7 +139,10 @@ export interface DatabaseClient {
 
   // Topology (network graph)
   getHops(scan_id: number): Promise<Hop[]>
+  getImplicitHopsForScan(scan_id: number): Promise<Hop[]>
   getHopsForHosts(hostAddrs: string[]): Promise<Hop[]>
+  getAllHops(): Promise<Hop[]>
+  getScannerAddresses(): Promise<string[]>
 
   // GeoIP (v6 schema)
   getGeoIPByHost(hostIp: string, scan_id?: number): Promise<GeoIPRecord | null>
@@ -395,6 +399,29 @@ class RestDatabase implements DatabaseClient {
 
     if (error) throw error
     return data as IpReport[]
+  }
+
+  /**
+   * Get one sample host address per scan.
+   * Used for deriving CIDR when scan target is a hostname.
+   * Returns Map of scan_id -> sample host_addr
+   */
+  async getSampleHostsPerScan(): Promise<Map<number, string>> {
+    // Get distinct scan_id + host_addr combinations, one per scan
+    const { data, error } = await this.client
+      .from('uni_ipreport')
+      .select('scan_id, host_addr')
+      .order('scan_id', { ascending: true })
+
+    if (error) throw error
+
+    const result = new Map<number, string>()
+    for (const row of data || []) {
+      if (!result.has(row.scan_id)) {
+        result.set(row.scan_id, row.host_addr)
+      }
+    }
+    return result
   }
 
   /**
@@ -1021,6 +1048,7 @@ class RestDatabase implements DatabaseClient {
       .select('*')
       .eq('scan_id', scan_id)
       .order('target_addr', { ascending: true })
+      .order('hop_number', { ascending: true })
 
     if (error) {
       // Table might not exist yet - return empty array
@@ -1028,6 +1056,45 @@ class RestDatabase implements DatabaseClient {
       throw error
     }
     return data as Hop[]
+  }
+
+  /**
+   * Get implicit hop data from uni_ipreport.trace_addr for a specific scan.
+   * When trace_addr != host_addr, the response came from an intermediate router.
+   * This provides traceroute path data when uni_hops is empty.
+   */
+  async getImplicitHopsForScan(scan_id: number): Promise<Hop[]> {
+    const { data, error } = await this.client
+      .from('uni_ipreport')
+      .select('ipreport_id, scan_id, host_addr, trace_addr, ttl')
+      .eq('scan_id', scan_id)
+      .neq('trace_addr', '0.0.0.0')
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+
+    // Filter to only rows where trace_addr != host_addr (router, not target)
+    // and convert to Hop-compatible format
+    const hops: Hop[] = []
+    for (const row of data || []) {
+      if (row.trace_addr && row.host_addr && row.trace_addr !== row.host_addr) {
+        hops.push({
+          hop_id: row.ipreport_id,
+          ipreport_id: row.ipreport_id,
+          scan_id: row.scan_id,
+          target_addr: row.host_addr,
+          hop_addr: row.trace_addr,
+          hop_number: null, // Not known from trace_addr alone
+          ttl_observed: row.ttl,
+          rtt_us: null,
+          extra_data: null,
+        })
+      }
+    }
+
+    return hops
   }
 
   async getHopsForHosts(hostAddrs: string[]): Promise<Hop[]> {
@@ -1044,6 +1111,89 @@ class RestDatabase implements DatabaseClient {
       throw error
     }
     return data as Hop[]
+  }
+
+  /**
+   * Get all hops across all scans for global topology view.
+   * Returns hops sorted by target_addr then hop_number for chain building.
+   */
+  async getAllHops(): Promise<Hop[]> {
+    const { data, error } = await this.client
+      .from('uni_hops')
+      .select('*')
+      .order('target_addr', { ascending: true })
+      .order('hop_number', { ascending: true })
+
+    if (error) {
+      // Table might not exist yet (pre-v9 schema) - return empty array
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+    return data as Hop[]
+  }
+
+  /**
+   * Get implicit hop data from uni_ipreport.trace_addr.
+   * When trace_addr != host_addr, the response came from an intermediate router.
+   * This provides traceroute path data even when uni_hops is empty.
+   *
+   * Returns Hop-compatible records for router nodes and edges.
+   */
+  async getImplicitHopsFromReports(): Promise<Hop[]> {
+    // Query IP reports where trace_addr differs from host_addr (router responded)
+    // Exclude 0.0.0.0 which indicates no trace address
+    const { data, error } = await this.client
+      .from('uni_ipreport')
+      .select('ipreport_id, scan_id, host_addr, trace_addr, ttl')
+      .neq('trace_addr', '0.0.0.0')
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+
+    // Filter to only rows where trace_addr != host_addr (router, not target)
+    // and convert to Hop-compatible format
+    const hops: Hop[] = []
+    for (const row of data || []) {
+      if (row.trace_addr && row.host_addr && row.trace_addr !== row.host_addr) {
+        hops.push({
+          hop_id: row.ipreport_id, // Use ipreport_id as hop_id
+          ipreport_id: row.ipreport_id,
+          scan_id: row.scan_id,
+          target_addr: row.host_addr, // The target we were probing
+          hop_addr: row.trace_addr,   // The router that responded
+          hop_number: null,           // Not known from trace_addr alone
+          ttl_observed: row.ttl,
+          rtt_us: null,
+          extra_data: null,
+        })
+      }
+    }
+
+    return hops
+  }
+
+  /**
+   * Get unique scanner addresses across all scans for global topology view.
+   * Returns sorted array of unique send_addr values from IP reports.
+   */
+  async getScannerAddresses(): Promise<string[]> {
+    const { data, error } = await this.client
+      .from('uni_ipreport')
+      .select('send_addr')
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+
+    // Extract unique addresses using Set
+    const unique = new Set<string>()
+    for (const row of data || []) {
+      if (row.send_addr) unique.add(row.send_addr)
+    }
+    return Array.from(unique).sort()
   }
 
   // ===========================================================================
@@ -1226,51 +1376,151 @@ class RestDatabase implements DatabaseClient {
       },
     }
 
+    // Helper to check if error should be ignored (table doesn't exist or no rows)
+    const isIgnorableError = (code: string | undefined) =>
+      code === 'PGRST116' || code === '42P01'
+
     try {
       // Delete in order to avoid foreign key violations
-      // 1. Delete IP reports
+      // Must delete child tables before parent tables
+
+      // First, get all ipreport_ids for this scan (needed for child table deletes)
+      const { data: ipreports } = await this.client
+        .from('uni_ipreport')
+        .select('ipreport_id')
+        .eq('scan_id', scan_id)
+      const ipreportIds = ipreports?.map(r => r.ipreport_id) || []
+
+      // 1a. Delete IP packets (FK to uni_ipreport by ipreport_id, no cascade)
+      if (ipreportIds.length > 0) {
+        const ippacketsDelete = await this.client
+          .from('uni_ippackets')
+          .delete()
+          .in('ipreport_id', ipreportIds)
+        if (ippacketsDelete.error && !isIgnorableError(ippacketsDelete.error.code)) {
+          throw ippacketsDelete.error
+        }
+      }
+
+      // 1b. Delete IP report data (FK to uni_ipreport by ipreport_id, no cascade)
+      if (ipreportIds.length > 0) {
+        const ipreportdataDelete = await this.client
+          .from('uni_ipreportdata')
+          .delete()
+          .in('ipreport_id', ipreportIds)
+        if (ipreportdataDelete.error && !isIgnorableError(ipreportdataDelete.error.code)) {
+          throw ipreportdataDelete.error
+        }
+      }
+
+      // 2. Delete IP reports (FK to uni_scan, no cascade)
       const reportsDelete = await this.client.from('uni_ipreport').delete().eq('scan_id', scan_id)
-      if (reportsDelete.error && reportsDelete.error.code !== 'PGRST116') {
+      if (reportsDelete.error && !isIgnorableError(reportsDelete.error.code)) {
         throw reportsDelete.error
       }
       result.deleted.reports = reportsDelete.count || 0
 
-      // 2. Delete ARP reports
+      // 3a. Get all arpreport_ids for this scan (needed for child table deletes)
+      const { data: arpreports } = await this.client
+        .from('uni_arpreport')
+        .select('arpreport_id')
+        .eq('scan_id', scan_id)
+      const arpreportIds = arpreports?.map(r => r.arpreport_id) || []
+
+      // 3b. Delete ARP packets (FK to uni_arpreport by arpreport_id, no cascade)
+      if (arpreportIds.length > 0) {
+        const arppacketsDelete = await this.client
+          .from('uni_arppackets')
+          .delete()
+          .in('arpreport_id', arpreportIds)
+        if (arppacketsDelete.error && !isIgnorableError(arppacketsDelete.error.code)) {
+          throw arppacketsDelete.error
+        }
+      }
+
+      // 3c. Delete ARP reports (FK to uni_scan, no cascade)
       const arpDelete = await this.client.from('uni_arpreport').delete().eq('scan_id', scan_id)
-      if (arpDelete.error && arpDelete.error.code !== 'PGRST116') {
+      if (arpDelete.error && !isIgnorableError(arpDelete.error.code)) {
         throw arpDelete.error
       }
       result.deleted.arp = arpDelete.count || 0
 
-      // 3. Delete hops/traceroute data
+      // 3. Delete scan phases (FK to uni_scan, no cascade)
+      const phasesDelete = await this.client.from('uni_scan_phases').delete().eq('scan_id', scan_id)
+      if (phasesDelete.error && !isIgnorableError(phasesDelete.error.code)) {
+        throw phasesDelete.error
+      }
+
+      // 4. Delete sender workunits (FK to uni_scan, no cascade)
+      const sworkunitsDelete = await this.client.from('uni_sworkunits').delete().eq('scan_id', scan_id)
+      if (sworkunitsDelete.error && !isIgnorableError(sworkunitsDelete.error.code)) {
+        throw sworkunitsDelete.error
+      }
+
+      // 5. Delete listener workunits (FK to uni_scan, no cascade)
+      const lworkunitsDelete = await this.client.from('uni_lworkunits').delete().eq('scan_id', scan_id)
+      if (lworkunitsDelete.error && !isIgnorableError(lworkunitsDelete.error.code)) {
+        throw lworkunitsDelete.error
+      }
+
+      // 6. Delete workunit stats (FK to uni_scan, no cascade)
+      const workunitstatsDelete = await this.client.from('uni_workunitstats').delete().eq('scan_id', scan_id)
+      if (workunitstatsDelete.error && !isIgnorableError(workunitstatsDelete.error.code)) {
+        throw workunitstatsDelete.error
+      }
+
+      // 7. Delete output records (FK to uni_scan, no cascade)
+      const outputDelete = await this.client.from('uni_output').delete().eq('scan_id', scan_id)
+      if (outputDelete.error && !isIgnorableError(outputDelete.error.code)) {
+        throw outputDelete.error
+      }
+
+      // 6. Delete hops/traceroute data (has cascade, but delete explicitly for count)
       const hopsDelete = await this.client.from('uni_hops').delete().eq('scan_id', scan_id)
-      if (hopsDelete.error && hopsDelete.error.code !== 'PGRST116') {
-        // Table might not exist
-        if (hopsDelete.error.code !== '42P01') throw hopsDelete.error
+      if (hopsDelete.error && !isIgnorableError(hopsDelete.error.code)) {
+        throw hopsDelete.error
       }
       result.deleted.hops = hopsDelete.count || 0
 
-      // 4. Delete notes
+      // 7. Delete services (has cascade, but delete explicitly)
+      const servicesDelete = await this.client.from('uni_services').delete().eq('scan_id', scan_id)
+      if (servicesDelete.error && !isIgnorableError(servicesDelete.error.code)) {
+        throw servicesDelete.error
+      }
+
+      // 8. Delete OS fingerprints (has cascade, but delete explicitly)
+      const osfpDelete = await this.client.from('uni_os_fingerprints').delete().eq('scan_id', scan_id)
+      if (osfpDelete.error && !isIgnorableError(osfpDelete.error.code)) {
+        throw osfpDelete.error
+      }
+
+      // 9. Delete notes
       const notesDelete = await this.client.from('uni_notes').delete().eq('entity_type', 'scan').eq('entity_id', scan_id)
-      if (notesDelete.error && notesDelete.error.code !== 'PGRST116' && notesDelete.error.code !== '42P01') {
+      if (notesDelete.error && !isIgnorableError(notesDelete.error.code)) {
         throw notesDelete.error
       }
       result.deleted.notes = notesDelete.count || 0
 
-      // 5. Delete tags
+      // 10. Delete tags (has cascade, but delete explicitly for count)
       const tagsDelete = await this.client.from('uni_scan_tags').delete().eq('scan_id', scan_id)
-      if (tagsDelete.error && tagsDelete.error.code !== 'PGRST116' && tagsDelete.error.code !== '42P01') {
+      if (tagsDelete.error && !isIgnorableError(tagsDelete.error.code)) {
         throw tagsDelete.error
       }
       result.deleted.tags = tagsDelete.count || 0
 
-      // 6. Delete GeoIP records
+      // 11. Delete GeoIP records (has cascade, but delete explicitly)
       const geoDelete = await this.client.from('uni_geoip').delete().eq('scan_id', scan_id)
-      if (geoDelete.error && geoDelete.error.code !== 'PGRST116' && geoDelete.error.code !== '42P01') {
-        // Ignore if table doesn't exist
+      if (geoDelete.error && !isIgnorableError(geoDelete.error.code)) {
+        throw geoDelete.error
       }
 
-      // 7. Finally, delete the scan record
+      // 12. Delete host_scans junction table (has cascade, but delete explicitly)
+      const hostScansDelete = await this.client.from('uni_host_scans').delete().eq('scan_id', scan_id)
+      if (hostScansDelete.error && !isIgnorableError(hostScansDelete.error.code)) {
+        throw hostScansDelete.error
+      }
+
+      // 13. Finally, delete the scan record itself
       const scanDelete = await this.client.from('uni_scan').delete().eq('scan_id', scan_id)
       if (scanDelete.error) {
         throw scanDelete.error
@@ -1278,7 +1528,17 @@ class RestDatabase implements DatabaseClient {
 
       result.success = true
     } catch (err) {
-      result.error = err instanceof Error ? err.message : 'Unknown error during deletion'
+      // PostgREST errors are plain objects with message/code/details, not Error instances
+      if (err && typeof err === 'object' && 'message' in err) {
+        const pgErr = err as { message: string; code?: string; details?: string; hint?: string }
+        result.error = pgErr.message
+        if (pgErr.details) result.error += `: ${pgErr.details}`
+        if (pgErr.hint) result.error += ` (${pgErr.hint})`
+      } else if (err instanceof Error) {
+        result.error = err.message
+      } else {
+        result.error = 'Unknown error during deletion'
+      }
     }
 
     return result
