@@ -629,18 +629,19 @@ function calculateDaySpan(startDate: string, endDate: string): number {
 
 /**
  * Helper to format time label based on granularity
+ * Uses UTC to match timeKey generation
  */
 function formatTimeLabel(timeKey: string, granularity: TimeGranularity): string {
   if (granularity === 'hourly') {
     // timeKey is "YYYY-MM-DDTHH"
     const [datePart, hour] = timeKey.split('T')
-    const date = new Date(datePart)
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
+    const date = new Date(datePart + 'T00:00:00Z') // Parse as UTC
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
     return `${dayName} ${hour}:00`
   } else {
     // timeKey is "YYYY-MM-DD"
-    const date = new Date(timeKey)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const date = new Date(timeKey + 'T00:00:00Z') // Parse as UTC
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
   }
 }
 
@@ -674,9 +675,11 @@ export function usePortActivityHeatmap(timeRange: TimeRange = 'all', maxPorts: n
         }
       }
 
-      // Determine date range and granularity
-      const firstScanDate = new Date(sortedScans[0].s_time * 1000).toISOString().split('T')[0]
-      const lastScanDate = new Date(sortedScans[sortedScans.length - 1].s_time * 1000).toISOString().split('T')[0]
+      // Determine date range and granularity (use UTC consistently)
+      const firstScan = new Date(sortedScans[0].s_time * 1000)
+      const lastScan = new Date(sortedScans[sortedScans.length - 1].s_time * 1000)
+      const firstScanDate = firstScan.toISOString().split('T')[0]
+      const lastScanDate = lastScan.toISOString().split('T')[0]
       const daySpan = calculateDaySpan(firstScanDate, lastScanDate)
 
       // Use hourly granularity for < 7 days, daily for >= 7 days
@@ -691,8 +694,12 @@ export function usePortActivityHeatmap(timeRange: TimeRange = 'all', maxPorts: n
 
       for (const scan of sortedScans) {
         const scanDate = new Date(scan.s_time * 1000)
-        const datePart = scanDate.toISOString().split('T')[0]
-        const hour = scanDate.getHours().toString().padStart(2, '0')
+        // Use UTC consistently to avoid timezone mixing bugs
+        const year = scanDate.getUTCFullYear()
+        const month = (scanDate.getUTCMonth() + 1).toString().padStart(2, '0')
+        const day = scanDate.getUTCDate().toString().padStart(2, '0')
+        const hour = scanDate.getUTCHours().toString().padStart(2, '0')
+        const datePart = `${year}-${month}-${day}`
 
         // Create time key based on granularity
         const timeKey = granularity === 'hourly'
