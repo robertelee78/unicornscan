@@ -61,6 +61,10 @@ export interface MultiScanPortDiff {
   presentCount: number
   /** True if port status changed between any consecutive scans */
   hasChanges: boolean
+  /** True if TTL value changed between any consecutive scans where port was present */
+  hasTtlChanges: boolean
+  /** TTL values observed across scans (for quick reference) */
+  ttlValues: number[]
 }
 
 /**
@@ -115,8 +119,10 @@ export interface MultiScanSummary {
   totalPorts: number
   /** Ports that appear in all scans */
   portsInAllScans: number
-  /** Ports with status changes across scans */
+  /** Ports with presence status changes across scans */
   portsWithChanges: number
+  /** Ports with TTL value changes across scans */
+  portsWithTtlChanges: number
 }
 
 /**
