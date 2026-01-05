@@ -10,6 +10,7 @@ export { ScanSelector } from './ScanSelector'
 export { ComparisonSummary } from './ComparisonSummary'
 export { HostDiffTable } from './HostDiffTable'
 export { ComparisonView } from './ComparisonView'
+export { SavedComparisons } from './SavedComparisons'
 
 // Visualization Views
 export { SideBySideView, TimelineView, UnifiedDiffView, MatrixHeatmapView } from './views'
