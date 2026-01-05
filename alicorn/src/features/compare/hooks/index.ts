@@ -8,3 +8,10 @@ export {
   multiCompareKeys,
   type UseMultiScanComparisonResult,
 } from './useMultiScanComparison'
+
+export {
+  useSavedComparisons,
+  useSavedComparisonByScanIds,
+  savedCompareKeys,
+  type UseSavedComparisonsResult,
+} from './useSavedComparisons'
