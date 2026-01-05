@@ -157,7 +157,7 @@ export function PortActivityHeatmap({
                       {gridData.dates.map((date) => {
                         const count = gridData.cellMap.get(`${port}-${date}`) || 0
                         const intensity = gridData.maxCount > 0 ? count / gridData.maxCount : 0
-                        const color = count > 0 ? getHeatmapColor(intensity) : 'hsl(var(--muted))'
+                        const color = count > 0 ? getHeatmapColor(intensity) : 'var(--color-muted)'
 
                         return (
                           <Tooltip key={`${port}-${date}`}>

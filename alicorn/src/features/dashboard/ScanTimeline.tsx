@@ -45,22 +45,22 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
               >
                 <defs>
                   <linearGradient id="scanGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="responseGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
+                  stroke="var(--color-border)"
                   vertical={false}
                 />
                 <XAxis
                   dataKey="date"
-                  stroke="hsl(var(--muted))"
+                  stroke="var(--color-muted)"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
@@ -71,7 +71,7 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                 />
                 <YAxis
                   yAxisId="left"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--color-primary)"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
@@ -80,13 +80,13 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                     value: 'Scans',
                     angle: -90,
                     position: 'insideLeft',
-                    style: { textAnchor: 'middle', fill: 'hsl(var(--primary))', fontSize: 11 },
+                    style: { textAnchor: 'middle', fill: 'var(--color-primary)', fontSize: 11 },
                   }}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  stroke="hsl(var(--accent))"
+                  stroke="var(--color-accent)"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
@@ -95,13 +95,13 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                     value: 'Responses',
                     angle: 90,
                     position: 'insideRight',
-                    style: { textAnchor: 'middle', fill: 'hsl(var(--accent))', fontSize: 11 },
+                    style: { textAnchor: 'middle', fill: 'var(--color-accent)', fontSize: 11 },
                   }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--surface))',
-                    border: '1px solid hsl(var(--border))',
+                    backgroundColor: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '6px',
                     fontSize: '12px',
                   }}
@@ -117,13 +117,13 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                 <Legend
                   verticalAlign="top"
                   height={36}
-                  wrapperStyle={{ fontSize: '12px', color: 'hsl(var(--foreground))' }}
+                  wrapperStyle={{ fontSize: '12px', color: 'var(--color-foreground)' }}
                 />
                 <Area
                   type="monotone"
                   dataKey="scans"
                   yAxisId="left"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--color-primary)"
                   fill="url(#scanGradient)"
                   strokeWidth={2}
                   name="Scans"
@@ -132,7 +132,7 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                   type="monotone"
                   dataKey="responses"
                   yAxisId="right"
-                  stroke="hsl(var(--accent))"
+                  stroke="var(--color-accent)"
                   fill="url(#responseGradient)"
                   strokeWidth={2}
                   name="Responses"

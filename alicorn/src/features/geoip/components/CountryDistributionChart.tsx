@@ -137,13 +137,13 @@ export function CountryDistributionChart({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="hsl(var(--border))"
+                stroke="var(--color-border)"
                 horizontal={true}
                 vertical={false}
               />
               <XAxis
                 type="number"
-                stroke="hsl(var(--muted))"
+                stroke="var(--color-muted)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -151,7 +151,7 @@ export function CountryDistributionChart({
               <YAxis
                 type="category"
                 dataKey="name"
-                stroke="hsl(var(--muted))"
+                stroke="var(--color-muted)"
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
@@ -163,8 +163,8 @@ export function CountryDistributionChart({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--surface))',
-                  border: '1px solid hsl(var(--border))',
+                  backgroundColor: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: '6px',
                   fontSize: '12px',
                 }}
