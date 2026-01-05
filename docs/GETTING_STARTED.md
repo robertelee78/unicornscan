@@ -1,5 +1,12 @@
 # Getting Started with Unicornscan
 
+## Prerequisites
+
+If you haven't installed Unicornscan yet:
+
+- **[Install from Package](INSTALL-package.md)** - Recommended for most users (Debian/Ubuntu)
+- **[Install from Source](INSTALL-source.md)** - For development or unsupported platforms
+
 ## Philosophy: More Than a Port Scanner
 
 Unicornscan is not merely a port scanner—it's a **distributed stimulus/response
