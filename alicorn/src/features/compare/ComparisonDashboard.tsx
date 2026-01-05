@@ -21,10 +21,14 @@ import {
   Grid3X3,
   Maximize2,
   Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useMultiScanComparison } from './hooks'
+import { SideBySideView } from './views'
+import type { MultiScanComparisonResult } from './types'
 
 // =============================================================================
 // Types
@@ -84,20 +88,23 @@ const VIEW_CONFIGS: ViewConfig[] = [
 // Placeholder View Component
 // =============================================================================
 
-interface ViewPlaceholderProps {
+interface ViewRendererProps {
   viewType: ViewType
+  data: MultiScanComparisonResult | null | undefined
+  isLoading: boolean
+  error: Error | null
   scanIds: number[]
-  isLoading?: boolean
   isThumbnail?: boolean
 }
 
 /**
- * Placeholder component for visualization views.
- * Will be replaced by actual implementations in Tasks 15-22.
+ * Renders the appropriate visualization view based on viewType.
+ * Shows loading/error states and placeholders for unimplemented views.
  */
-function ViewPlaceholder({ viewType, scanIds, isLoading, isThumbnail }: ViewPlaceholderProps) {
+function ViewRenderer({ viewType, data, isLoading, error, scanIds, isThumbnail }: ViewRendererProps) {
   const config = VIEW_CONFIGS.find((v) => v.id === viewType)!
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -106,6 +113,54 @@ function ViewPlaceholder({ viewType, scanIds, isLoading, isThumbnail }: ViewPlac
     )
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2 p-4">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-destructive">Failed to load comparison data</p>
+        <p className="text-xs text-muted-foreground">{error.message}</p>
+      </div>
+    )
+  }
+
+  // No data state
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2 p-4">
+        <AlertCircle className="h-8 w-8 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">No comparison data available</p>
+      </div>
+    )
+  }
+
+  // Render actual views (implemented) or placeholders (not yet implemented)
+  switch (viewType) {
+    case 'side-by-side':
+      return isThumbnail ? (
+        <ViewPlaceholder config={config} isThumbnail />
+      ) : (
+        <SideBySideView data={data} className="h-full" />
+      )
+
+    case 'timeline':
+    case 'unified-diff':
+    case 'matrix-heatmap':
+    default:
+      return <ViewPlaceholder config={config} scanIds={scanIds} isThumbnail={isThumbnail} />
+  }
+}
+
+interface ViewPlaceholderProps {
+  config: ViewConfig
+  scanIds?: number[]
+  isThumbnail?: boolean
+}
+
+/**
+ * Placeholder component for views not yet implemented.
+ */
+function ViewPlaceholder({ config, scanIds, isThumbnail }: ViewPlaceholderProps) {
   return (
     <div className={cn(
       'flex flex-col items-center justify-center h-full gap-2',
@@ -129,9 +184,11 @@ function ViewPlaceholder({ viewType, scanIds, isLoading, isThumbnail }: ViewPlac
             <p className="text-xs text-muted-foreground mt-1">
               {config.description}
             </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Comparing {scanIds.length} scans: {scanIds.join(', ')}
-            </p>
+            {scanIds && (
+              <p className="text-xs text-muted-foreground mt-2">
+                View coming soon...
+              </p>
+            )}
           </>
         )}
       </div>
@@ -145,20 +202,21 @@ function ViewPlaceholder({ viewType, scanIds, isLoading, isThumbnail }: ViewPlac
 
 interface ThumbnailCardProps {
   viewType: ViewType
+  data: MultiScanComparisonResult | null | undefined
+  isLoading: boolean
+  error: Error | null
   scanIds: number[]
-  isActive: boolean
   onClick: () => void
 }
 
-function ThumbnailCard({ viewType, scanIds, isActive, onClick }: ThumbnailCardProps) {
+function ThumbnailCard({ viewType, data, isLoading, error, scanIds, onClick }: ThumbnailCardProps) {
   const config = VIEW_CONFIGS.find((v) => v.id === viewType)!
 
   return (
     <Card
       className={cn(
         'cursor-pointer transition-all duration-200 hover:border-primary/50',
-        'h-full overflow-hidden',
-        isActive && 'ring-2 ring-primary'
+        'h-full overflow-hidden'
       )}
       onClick={onClick}
     >
@@ -182,8 +240,11 @@ function ThumbnailCard({ viewType, scanIds, isActive, onClick }: ThumbnailCardPr
       </CardHeader>
       <CardContent className="p-2 pt-1">
         <div className="h-24 bg-muted/30 rounded-md overflow-hidden">
-          <ViewPlaceholder
+          <ViewRenderer
             viewType={viewType}
+            data={data}
+            isLoading={isLoading}
+            error={error}
             scanIds={scanIds}
             isThumbnail
           />
@@ -214,6 +275,9 @@ export function ComparisonDashboard({ scanIds, className }: ComparisonDashboardP
   // Track which view is in the primary position
   const [primaryView, setPrimaryView] = useState<ViewType>('side-by-side')
 
+  // Fetch comparison data
+  const { data, isLoading, error } = useMultiScanComparison(scanIds)
+
   // Get the thumbnail views (all views except the primary)
   const thumbnailViews = VIEW_CONFIGS.filter((v) => v.id !== primaryView)
 
@@ -235,13 +299,21 @@ export function ComparisonDashboard({ scanIds, className }: ComparisonDashboardP
             <span className="text-sm font-normal text-muted-foreground ml-2">
               {primaryConfig.description}
             </span>
+            {data && (
+              <span className="text-sm font-normal text-muted-foreground ml-auto">
+                {data.summary.totalHosts} hosts, {data.summary.totalPorts} ports
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
           {/* Primary view content area - minimum height for good visibility */}
-          <div className="min-h-[400px] bg-muted/20 rounded-lg border border-border">
-            <ViewPlaceholder
+          <div className="min-h-[400px] max-h-[600px] bg-muted/20 rounded-lg border border-border overflow-auto">
+            <ViewRenderer
               viewType={primaryView}
+              data={data}
+              isLoading={isLoading}
+              error={error}
               scanIds={scanIds}
             />
           </div>
@@ -254,8 +326,10 @@ export function ComparisonDashboard({ scanIds, className }: ComparisonDashboardP
           <ThumbnailCard
             key={view.id}
             viewType={view.id}
+            data={data}
+            isLoading={isLoading}
+            error={error}
             scanIds={scanIds}
-            isActive={false}
             onClick={() => handleThumbnailClick(view.id)}
           />
         ))}
