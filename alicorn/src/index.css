@@ -149,12 +149,25 @@
   --color-background: #fafafa;
   --color-foreground: #18181b;
   --color-muted: #71717a;
-  --color-muted-foreground: #a1a1aa;
+  --color-muted-foreground: #52525b;
   --color-surface: #ffffff;
   --color-surface-light: #f4f4f5;
   --color-border: #e4e4e7;
   --color-primary-foreground: #ffffff;
   --color-ring: #0891b2;
+
+  /* Light mode needs darker variants for WCAG AA compliance */
+  --color-secondary: #6d28d9;           /* violet-700: 6.81:1 */
+  --color-secondary-hover: #5b21b6;     /* violet-800 */
+  --color-secondary-foreground: #faf5ff;
+  --color-destructive: #dc2626;         /* red-600: 4.63:1 */
+  --color-destructive-hover: #b91c1c;   /* red-700 */
+  --color-destructive-foreground: #fef2f2;
+  --color-accent: #be185d;              /* pink-700: 5.78:1 */
+  --color-accent-hover: #9d174d;        /* pink-800 */
+  --color-accent-foreground: #fdf2f8;
+  --color-info: #1d4ed8;                /* blue-700: 6.42:1 */
+  --color-error: #dc2626;               /* red-600: 4.63:1 */
 
   /* ==========================================================================
    * Light Mode Chart Colors - Protocol Distribution
