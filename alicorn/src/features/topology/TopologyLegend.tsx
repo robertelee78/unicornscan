@@ -1,11 +1,11 @@
 /**
  * Topology visualization legend
- * Explains node colors, sizes, and other visual encodings
+ * Dynamically populated from database OS family counts
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { cn } from '@/lib/utils'
-import { getOsFamilyColor, type OsFamily } from '@/types/database'
+import { useOsFamilyCounts, getOsFamilyDisplayColor } from './hooks'
 import type { NodeType } from './types'
 
 // =============================================================================
@@ -18,13 +18,6 @@ const NODE_TYPES: { type: NodeType; label: string; color: string }[] = [
   { type: 'router', label: 'Router/Hop', color: 'var(--color-topo-router)' },
 ]
 
-const OS_FAMILIES: { family: OsFamily; label: string }[] = [
-  { family: 'linux', label: 'Linux/Unix/macOS' },
-  { family: 'windows', label: 'Windows' },
-  { family: 'router', label: 'Network Device' },
-  { family: 'unknown', label: 'Unknown' },
-]
-
 // =============================================================================
 // Component
 // =============================================================================
@@ -35,8 +28,11 @@ interface TopologyLegendProps {
 }
 
 export function TopologyLegend({ className, compact = false }: TopologyLegendProps) {
+  // Fetch top 5 OS families from database
+  const { data: osFamilyCounts, isLoading } = useOsFamilyCounts(5)
+
   if (compact) {
-    return <CompactLegend className={className} />
+    return <CompactLegend className={className} osFamilies={osFamilyCounts || []} />
   }
 
   return (
@@ -61,26 +57,33 @@ export function TopologyLegend({ className, compact = false }: TopologyLegendPro
         </div>
       </div>
 
-      {/* OS Colors */}
+      {/* OS Colors - Dynamic from database */}
       <div className="mb-4">
         <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
           OS Detection (Host Color)
         </div>
         <div className="space-y-1.5">
-          {OS_FAMILIES.map(({ family, label }) => (
-            <div key={family} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: getOsFamilyColor(family) }}
-              />
-              <span>{label}</span>
-            </div>
-          ))}
+          {isLoading ? (
+            <div className="text-muted-foreground text-xs">Loading...</div>
+          ) : osFamilyCounts && osFamilyCounts.length > 0 ? (
+            osFamilyCounts.map(({ os_family, count }) => (
+              <div key={os_family} className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: getOsFamilyDisplayColor(os_family) }}
+                />
+                <span>{os_family}</span>
+                <span className="text-muted-foreground text-xs">({count})</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-muted-foreground text-xs">No OS data</div>
+          )}
         </div>
       </div>
 
       {/* Size Legend */}
-      <div className="mb-4">
+      <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
           Node Size
         </div>
@@ -95,34 +98,6 @@ export function TopologyLegend({ className, compact = false }: TopologyLegendPro
           </div>
         </div>
       </div>
-
-      {/* Edge Legend */}
-      <div>
-        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
-          Connections
-        </div>
-        <div className="space-y-1.5 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-0.5 bg-gray-500" />
-            <span>Direct connection</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-0.5 bg-gray-500 border-t-2" />
-            <span>Hop (traceroute)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* TTL Info */}
-      <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
-        <div className="font-medium mb-1">TTL-Based Distance</div>
-        <div>OS inference from TTL:</div>
-        <ul className="mt-1 space-y-0.5 ml-2">
-          <li>≤64: Linux/Unix (starts at 64)</li>
-          <li>65-128: Windows (starts at 128)</li>
-          <li>129-255: Router/Solaris (starts at 255)</li>
-        </ul>
-      </div>
     </div>
   )
 }
@@ -131,7 +106,12 @@ export function TopologyLegend({ className, compact = false }: TopologyLegendPro
 // Compact Legend
 // =============================================================================
 
-function CompactLegend({ className }: { className?: string }) {
+interface CompactLegendProps {
+  className?: string
+  osFamilies: Array<{ os_family: string; count: number }>
+}
+
+function CompactLegend({ className, osFamilies }: CompactLegendProps) {
   return (
     <div className={cn('flex flex-wrap items-center gap-4 text-xs', className)}>
       {/* Quick node type reference */}
@@ -140,28 +120,16 @@ function CompactLegend({ className }: { className?: string }) {
         <span className="text-muted-foreground">Scanner</span>
       </div>
 
-      {/* OS colors */}
-      <div className="flex items-center gap-2">
-        <div
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: getOsFamilyColor('linux') }}
-        />
-        <span className="text-muted-foreground">Linux</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: getOsFamilyColor('windows') }}
-        />
-        <span className="text-muted-foreground">Windows</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: getOsFamilyColor('router') }}
-        />
-        <span className="text-muted-foreground">Router</span>
-      </div>
+      {/* OS colors - dynamic from database */}
+      {osFamilies.map(({ os_family }) => (
+        <div key={os_family} className="flex items-center gap-2">
+          <div
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: getOsFamilyDisplayColor(os_family) }}
+          />
+          <span className="text-muted-foreground">{os_family}</span>
+        </div>
+      ))}
 
       {/* Size indicator */}
       <div className="flex items-center gap-1 text-muted-foreground">
