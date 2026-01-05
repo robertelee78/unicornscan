@@ -53,11 +53,11 @@ export function PortBadge({ port, showService = true, size = 'md', className }: 
         'font-mono',
         sizeClasses[size],
         getBgClass(),
-        isDangerous && 'border-red-500/50',
+        isDangerous && 'border-port-category-danger/50',
         className
       )}
     >
-      <span className={cn('font-bold', isDangerous ? 'text-red-400' : textColorClass)}>
+      <span className={cn('font-bold', isDangerous ? 'text-port-category-danger' : textColorClass)}>
         {port}
       </span>
       {showService && portInfo && (
@@ -83,7 +83,7 @@ export function PortNumber({ port, className }: PortNumberProps) {
 
   return (
     <span className={cn('font-mono', className)}>
-      <span className={cn(isDangerous && 'text-red-400')}>
+      <span className={cn(isDangerous && 'text-port-category-danger')}>
         {port}
       </span>
       {portInfo && (

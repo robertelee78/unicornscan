@@ -62,6 +62,18 @@
   --color-status-unchanged: #9ca3af;  /* gray-400: 7.78:1 on dark */
   --color-status-first: #3b82f6;      /* blue-500: 5.37:1 on dark */
 
+  /* Port Category Colors - used in PortBadge and well-known-ports */
+  --color-port-category-web: #3b82f6;       /* blue-500 */
+  --color-port-category-database: #a855f7;  /* purple-500 */
+  --color-port-category-mail: #f59e0b;      /* amber-500 */
+  --color-port-category-file: #22c55e;      /* green-500 */
+  --color-port-category-remote: #f97316;    /* orange-500 */
+  --color-port-category-security: #06b6d4;  /* cyan-500 */
+  --color-port-category-network: #64748b;   /* slate-500 */
+  --color-port-category-messaging: #ec4899; /* pink-500 */
+  --color-port-category-system: #6b7280;    /* gray-500 */
+  --color-port-category-danger: #f87171;    /* red-400 */
+
   /* ==========================================================================
    * Chart Colors - Protocol Distribution
    * Used in: ProtocolDistribution.tsx, types.ts CHART_COLORS
@@ -253,6 +265,18 @@
   --color-status-mixed: #b45309;      /* amber-700: 4.81:1 */
   --color-status-unchanged: #4b5563;  /* gray-600: 7.24:1 */
   --color-status-first: #1d4ed8;      /* blue-700: 6.42:1 */
+
+  /* Light Mode Port Category Colors - WCAG AA compliant */
+  --color-port-category-web: #1d4ed8;       /* blue-700: 6.42:1 */
+  --color-port-category-database: #7c3aed;  /* purple-700: 5.46:1 */
+  --color-port-category-mail: #b45309;      /* amber-700: 4.81:1 */
+  --color-port-category-file: #15803d;      /* green-700: 4.81:1 */
+  --color-port-category-remote: #c2410c;    /* orange-700: 4.96:1 */
+  --color-port-category-security: #0e7490;  /* cyan-700: 5.13:1 */
+  --color-port-category-network: #475569;   /* slate-600: 7.26:1 */
+  --color-port-category-messaging: #be185d; /* pink-700: 5.78:1 */
+  --color-port-category-system: #4b5563;    /* gray-600: 7.24:1 */
+  --color-port-category-danger: #dc2626;    /* red-600: 4.63:1 */
 
   /* Light Mode Topology Colors */
   --color-topo-scanner: #dc2626;   /* red-600: 3.58:1 */

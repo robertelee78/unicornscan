@@ -190,18 +190,19 @@ export function getServiceName(port: number): string {
 
 /**
  * Get category color class for port category
+ * Uses semantic CSS variables for WCAG AA compliance in both themes
  */
 export function getCategoryColor(category: PortEntry['category']): string {
   switch (category) {
-    case 'web': return 'text-blue-500'
-    case 'database': return 'text-purple-500'
-    case 'mail': return 'text-amber-500'
-    case 'file': return 'text-green-500'
-    case 'remote': return 'text-red-500'
-    case 'security': return 'text-cyan-500'
-    case 'network': return 'text-slate-500'
-    case 'messaging': return 'text-pink-500'
-    case 'system': return 'text-gray-500'
+    case 'web': return 'text-port-category-web'
+    case 'database': return 'text-port-category-database'
+    case 'mail': return 'text-port-category-mail'
+    case 'file': return 'text-port-category-file'
+    case 'remote': return 'text-port-category-remote'
+    case 'security': return 'text-port-category-security'
+    case 'network': return 'text-port-category-network'
+    case 'messaging': return 'text-port-category-messaging'
+    case 'system': return 'text-port-category-system'
     default: return 'text-muted'
   }
 }
