@@ -161,6 +161,7 @@ echo ""
 %{_libexecdir}/unicornscan/
 %config(noreplace) %{_sysconfdir}/unicornscan/
 %{_mandir}/man1/*
+%{_mandir}/man5/*
 %dir %{_localstatedir}/unicornscan
 /opt/unicornscan-web/
 
