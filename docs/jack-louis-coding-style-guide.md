@@ -1,8 +1,8 @@
-# Jack Louis Coding Style Guide for Unicornscan
+# Jack C. Louis Coding Style Guide for Unicornscan
 
 **Version:** 1.1
 **Date:** 2026-01-05
-**Purpose:** Comprehensive coding style and standards guide for the unicornscan codebase
+**Purpose:** Comprehensive coding style and standards guide
 
 ---
 
