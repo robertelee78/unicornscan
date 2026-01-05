@@ -14,6 +14,10 @@ import type {
   PortCount,
   ScanTimelinePoint,
 } from '@/features/dashboard/types'
+import type {
+  ScanPerformanceStats,
+  ProtocolBreakdownData,
+} from '@/features/charts/types'
 import type { SavedFilter, SavedFilterCreate, SavedFilterUpdate, SavedFilterType } from '@/features/scans/types'
 
 // =============================================================================
@@ -136,6 +140,10 @@ export interface DatabaseClient {
   getTopPorts(options: { limit: number; since: number | null }): Promise<PortCount[]>
   getScanTimeline(options: { since: number | null }): Promise<ScanTimelinePoint[]>
   getRecentScans(options: { limit: number; since: number | null }): Promise<ScanSummary[]>
+
+  // Statistics page (time-filtered)
+  getScanPerformanceStats(options: { since: number | null }): Promise<ScanPerformanceStats>
+  getProtocolBreakdown(options: { since: number | null }): Promise<ProtocolBreakdownData>
 
   // Topology (network graph)
   getHops(scan_id: number): Promise<Hop[]>
