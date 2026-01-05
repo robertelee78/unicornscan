@@ -1,3 +1,45 @@
+unicornscan (0.4.39-1) unstable; urgency=medium
+
+  * Multi-Scan Comparison Feature (Major)
+    - ComparisonDashboard with 4 visualization modes (side-by-side, timeline,
+      unified diff, matrix heatmap)
+    - Saved comparisons with notes and bookmark functionality
+    - Export to CSV, JSON, and Markdown formats
+    - Service banner diff tracking and TTL change detection
+    - Compatibility filtering for selecting comparable scans
+    - Performance optimization with React.memo and pagination
+
+  * GeoIP Improvements
+    - Live GeoIP fallback for hosts without stored data
+    - GeoIP v13 schema migration
+    - Clickable ASN column links to bgp.he.net
+
+  * Accessibility & UI Improvements
+    - WCAG 2.1 AA compliance across entire UI
+    - Statistics page redesign with scan performance metrics
+    - Port activity heatmap with adaptive time granularity
+    - Collapsible category groups in heatmap
+    - Fixed color contrast for charts, badges, popovers
+
+  * Testing & Quality
+    - 66+ tests for comparison feature (unit + integration)
+    - Port activity heatmap component tests
+    - Port category utility tests
+    - Fixed TypeScript compilation errors
+
+  * Documentation
+    - Modernized man page with complete documentation
+    - Scan comparison user guide and technical spec
+    - Replaced LaTeX man page with hand-maintained troff
+
+  * Bug Fixes
+    - Fix timezone mixing bug in usePortActivityHeatmap hook
+    - Fix Docker healthcheck using 127.0.0.1 instead of localhost
+    - Fix port_count using wrong column in database views
+    - Fix topology filter controls and filtering logic
+
+ -- Robert E. Lee <robert@unicornscan.org>  Sun, 05 Jan 2026 04:58:00 -0800
+
 unicornscan (0.4.38-1) unstable; urgency=medium
 
   * Fix global topology page to fetch traceroute data from all scans
