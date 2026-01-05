@@ -21,10 +21,10 @@
   --color-primary-hover: #22d3ee;
   --color-primary-foreground: #0a0a0f;
 
-  /* Secondary - deep purple */
-  --color-secondary: #7c3aed;
-  --color-secondary-hover: #8b5cf6;
-  --color-secondary-foreground: #faf5ff;
+  /* Secondary - violet (WCAG AA compliant) */
+  --color-secondary: #a78bfa;
+  --color-secondary-hover: #c4b5fd;
+  --color-secondary-foreground: #1e1b4b;
 
   /* Accent - hot pink/magenta */
   --color-accent: #ec4899;
