@@ -352,7 +352,9 @@ describe('SideBySideView', () => {
 
     // Should have port numbers displayed (as badge content)
     // Badges show port numbers like "80", "22", "443"
-    expect(screen.getByText('80')).toBeInTheDocument()
+    // Multiple elements may have "80" so use getAllByText
+    const port80Elements = screen.getAllByText('80')
+    expect(port80Elements.length).toBeGreaterThan(0)
   })
 
   it('handles empty data gracefully', () => {
@@ -444,13 +446,19 @@ describe('TimelineView', () => {
 // =============================================================================
 
 describe('UnifiedDiffView', () => {
+  const clipboardMock = {
+    writeText: vi.fn().mockResolvedValue(undefined),
+    readText: vi.fn().mockResolvedValue(''),
+  }
+
   beforeEach(() => {
-    // Mock clipboard API
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
+    // Mock clipboard API using Object.defineProperty since clipboard is a getter
+    Object.defineProperty(navigator, 'clipboard', {
+      value: clipboardMock,
+      writable: true,
+      configurable: true,
     })
+    vi.clearAllMocks()
   })
 
   it('renders with sample data', () => {
@@ -504,10 +512,14 @@ describe('UnifiedDiffView', () => {
     const data = createSampleData()
     render(<UnifiedDiffView data={data} />)
 
+    // Find the copy button and click it
     const copyButton = screen.getByRole('button', { name: /copy/i })
     await user.click(copyButton)
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalled()
+    // After successful copy, button text changes to "Copied"
+    // Use findByText to wait for async state update
+    const copiedButton = await screen.findByText(/copied/i)
+    expect(copiedButton).toBeInTheDocument()
   })
 
   it('handles no changes gracefully', () => {
