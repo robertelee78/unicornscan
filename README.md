@@ -21,4 +21,4 @@
 
 ---
 
-Created by Jack C. Louis. [History](HISTORY.md) | [License](COPYING)
+Created by Jack C. Louis. [History](HISTORY.md) | [License](LICENSE)
