@@ -1,17 +1,20 @@
 /**
  * Port activity heatmap component with adaptive rendering
  * Shows port activity over time in grid (dense data) or bars (sparse data)
+ * Supports collapsible category grouping in bar mode
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import type { AdaptiveHeatmapData, SparklineDataPoint } from './types'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import type { AdaptiveHeatmapData, SparklineDataPoint, GroupedPortData, PortCategory } from './types'
 import { getHeatmapColor, getServiceName } from './types'
 import { PortActivityBar } from './PortActivityBar'
-import { getCategoryColor, getPortCategory } from './portCategories'
+import { CategoryHeader } from './CategoryHeader'
+import { groupPortsByCategory } from './portCategories'
 
 // =============================================================================
 // Constants
@@ -33,7 +36,7 @@ interface PortActivityHeatmapProps {
 }
 
 // =============================================================================
-// Bar Mode Renderer (Sparse Data)
+// Bar Mode Renderer (Sparse Data) with Category Groups
 // =============================================================================
 
 interface BarModeProps {
@@ -42,6 +45,11 @@ interface BarModeProps {
 }
 
 function BarModeRenderer({ data, height }: BarModeProps) {
+  // Track which categories are expanded (all expanded by default)
+  const [expandedCategories, setExpandedCategories] = useState<Set<PortCategory>>(
+    () => new Set(['web', 'database', 'remote-access', 'email', 'file-transfer', 'directory', 'messaging', 'monitoring', 'other'])
+  )
+
   // Calculate total counts and sparkline data per port
   const portData = useMemo(() => {
     const result: Map<number, { count: number; sparklineData: SparklineDataPoint[] }> = new Map()
@@ -83,16 +91,7 @@ function BarModeRenderer({ data, height }: BarModeProps) {
     return result
   }, [data])
 
-  // Sort ports by total count descending
-  const sortedPorts = useMemo(() => {
-    return [...data.ports].sort((a, b) => {
-      const countA = portData.get(a)?.count || 0
-      const countB = portData.get(b)?.count || 0
-      return countB - countA
-    })
-  }, [data.ports, portData])
-
-  // Calculate max count for normalization
+  // Calculate max count for normalization (across all ports)
   const maxCount = useMemo(() => {
     let max = 0
     for (const { count } of portData.values()) {
@@ -101,30 +100,85 @@ function BarModeRenderer({ data, height }: BarModeProps) {
     return max
   }, [portData])
 
+  // Create activity map for grouping
+  const activityMap = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const [port, { count }] of portData) {
+      map.set(port, count)
+    }
+    return map
+  }, [portData])
+
+  // Group ports by category with activity totals
+  const groupedPorts = useMemo(() => {
+    const groups = groupPortsByCategory(data.ports, activityMap)
+    // Sort by total activity descending
+    return groups.sort((a, b) => b.totalActivity - a.totalActivity)
+  }, [data.ports, activityMap])
+
+  // Toggle category expansion
+  const toggleCategory = (category: PortCategory) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return next
+    })
+  }
+
   return (
     <div
-      className="space-y-0.5 overflow-y-auto"
+      className="space-y-1 overflow-y-auto"
       style={{ maxHeight: height - 60 }}
       role="list"
-      aria-label="Port activity bars"
+      aria-label="Port activity by category"
     >
-      {sortedPorts.map((port) => {
-        const info = portData.get(port)
-        if (!info) return null
+      {groupedPorts.map((group) => {
+        const isExpanded = expandedCategories.has(group.category)
 
-        const category = getPortCategory(port)
-        const color = getCategoryColor(category)
+        // Sort ports within category by activity descending
+        const sortedPorts = [...group.ports].sort((a, b) => {
+          const countA = portData.get(a)?.count || 0
+          const countB = portData.get(b)?.count || 0
+          return countB - countA
+        })
 
         return (
-          <PortActivityBar
-            key={port}
-            port={port}
-            count={info.count}
-            maxCount={maxCount}
-            sparklineData={info.sparklineData}
-            color={color}
-            showSparkline={data.timeKeys.length > 1}
-          />
+          <Collapsible
+            key={group.category}
+            open={isExpanded}
+            onOpenChange={() => toggleCategory(group.category)}
+          >
+            <CategoryHeader
+              config={group.config}
+              portCount={group.ports.length}
+              totalActivity={group.totalActivity}
+              isExpanded={isExpanded}
+            />
+            <CollapsibleContent className="pl-2">
+              <div className="space-y-0.5 pt-1">
+                {sortedPorts.map((port) => {
+                  const info = portData.get(port)
+                  if (!info) return null
+
+                  return (
+                    <PortActivityBar
+                      key={port}
+                      port={port}
+                      count={info.count}
+                      maxCount={maxCount}
+                      sparklineData={info.sparklineData}
+                      color={group.config.color}
+                      showSparkline={data.timeKeys.length > 1}
+                    />
+                  )
+                })}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )
       })}
     </div>
