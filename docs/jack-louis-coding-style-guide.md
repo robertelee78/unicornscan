@@ -1,8 +1,8 @@
 # Jack Louis Coding Style Guide for Unicornscan
 
-**Version:** 1.0
-**Date:** 2025-12-23
-**Purpose:** Guide for implementing compound modes in Jack Louis's original style
+**Version:** 1.1
+**Date:** 2026-01-05
+**Purpose:** Comprehensive coding style and standards guide for the unicornscan codebase
 
 ---
 
@@ -507,7 +507,48 @@ static unsigned int interfaces_off=0;
 
 ## 5. MEMORY MANAGEMENT
 
-### 5.1 Allocation Patterns
+### 5.1 xmalloc/xrealloc/xfree Wrappers
+
+The codebase provides wrapped allocation functions in `src/unilib/xmalloc.c`:
+
+```c
+#include <unilib/xmalloc.h>
+
+void *ptr = xmalloc(size);    /* Panics on failure */
+ptr = xrealloc(ptr, newsize); /* Panics on failure */
+xfree(ptr);                   /* Panics on NULL, sets ptr to NULL */
+```
+
+**Key behaviors:**
+- All three functions **panic** (abort) on error rather than returning NULL
+- `xfree()` macro sets the pointer to NULL after freeing
+- `xmalloc(0)` panics - never allocate zero bytes
+- `xrealloc(NULL, n)` calls `xmalloc(n)`
+
+### 5.2 When to Use Static vs Dynamic Allocation
+
+**Use static buffers when:**
+- Function is called frequently in hot paths
+- Buffer size is bounded and known
+- Caller will use result immediately (before next call)
+- Single-threaded access is guaranteed
+
+**Use dynamic allocation when:**
+- Caller needs to retain data across function calls
+- Data size varies significantly
+- Multiple instances needed simultaneously
+- Memory will be passed to other subsystems
+
+### 5.3 Buffer Clearing
+
+Use the `CLEAR()` macro from `src/unicorn_defs.h`:
+
+```c
+static char ret[4096];
+CLEAR(ret);  /* memset(ret, 0, sizeof(ret)) */
+```
+
+### 5.4 Allocation Patterns
 
 ```c
 // Simple allocation with explicit size
@@ -543,7 +584,7 @@ if (s->ss->port_str != NULL) {
 - Check for NULL before freeing, set to NULL after free
 - Variable-size: allocate base struct + data size, use union to access tail
 
-### 5.2 Cleanup Patterns
+### 5.5 Cleanup Patterns
 
 ```c
 // List cleanup

@@ -158,7 +158,7 @@ The modernization effort aims to preserve all original functionality while enabl
 **Effort**: 20 minutes
 
 **Files**:
-- `docs/unicornscan.1` - Currently shows 0.4.6b
+- `docs/man/unicornscan.1` - Currently shows 0.4.6b
 - `docs/unicornscan_man.tex` - LaTeX source
 
 **Update**:
