@@ -21,6 +21,28 @@ interface ScanDetailHeaderProps {
   onDelete?: () => void
 }
 
+/**
+ * Extract port specification from target string if port_str is empty
+ * Handles formats like: "192.168.1.0/24:80", "target.com:22,80,443", "10.0.0.1:1-1024"
+ */
+function getPortDisplay(scan: Scan): string {
+  // If port_str is set, use it
+  if (scan.port_str && scan.port_str.trim() !== '') {
+    return scan.port_str
+  }
+
+  // Try to extract port from target_str
+  if (scan.target_str) {
+    // Match port specification after last colon (e.g., ":80" or ":22,80,443" or ":1-1024")
+    const match = scan.target_str.match(/:([0-9][0-9,\-]*)$/)
+    if (match) {
+      return match[1]
+    }
+  }
+
+  return '—'
+}
+
 function formatDuration(start: number, end: number): string {
   // Handle incomplete scans (e_time = 0 means still running)
   if (end === 0 || end < start) {
@@ -127,7 +149,7 @@ export function ScanDetailHeader({
             <MetadataItem
               icon={<Target className="h-4 w-4" />}
               label="Ports"
-              value={scan.port_str ?? '—'}
+              value={getPortDisplay(scan)}
             />
             <MetadataItem
               icon={<Network className="h-4 w-4" />}

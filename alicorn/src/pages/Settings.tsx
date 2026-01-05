@@ -285,6 +285,20 @@ export function Settings() {
             configure the backend C scanner with MMDB databases and data will be
             stored during scans.
           </p>
+
+          {/* DB-IP Attribution (required by CC BY 4.0 license) */}
+          <div className="flex items-center justify-center gap-2 text-xs text-muted pt-2">
+            <span>IP Geolocation by</span>
+            <a
+              href="https://db-ip.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              DB-IP
+            </a>
+            <span className="text-muted/60">(CC BY 4.0)</span>
+          </div>
         </CardContent>
       </Card>
 
