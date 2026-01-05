@@ -4,3 +4,4 @@
  */
 
 export { SideBySideView } from './SideBySideView'
+export { TimelineView } from './TimelineView'
