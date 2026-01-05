@@ -117,8 +117,8 @@ function GeoIPStatsSummary({ scanId }: GeoIPStatsSummaryProps) {
 export function GeoIPSection() {
   const [selectedScanId, setSelectedScanId] = useState<number | null>(null)
 
-  // Check if selected scan has GeoIP data
-  const { hasGeoIP, isLoading: hasGeoIPLoading } = useHasGeoIP(selectedScanId || 0)
+  // Check if selected scan has GeoIP data (stored or live-lookupable)
+  const { data: hasGeoIP, isLoading: hasGeoIPLoading } = useHasGeoIP(selectedScanId || 0)
 
   // Fetch data for selected scan
   const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdown(
