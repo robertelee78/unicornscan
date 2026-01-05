@@ -5,7 +5,7 @@
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { ThemeProvider } from '@/features/theme'
@@ -19,7 +19,6 @@ import {
   Hosts,
   HostDetail,
   Topology,
-  Compare,
   Statistics,
   Settings,
   NotFound,
@@ -59,7 +58,7 @@ createRoot(document.getElementById('root')!).render(
                   <Route path="hosts" element={<Hosts />} />
                   <Route path="hosts/:id" element={<HostDetail />} />
                   <Route path="topology" element={<Topology />} />
-                  <Route path="compare" element={<Compare />} />
+                  <Route path="compare" element={<Navigate to="/scans" replace />} />
                   <Route path="statistics" element={<Statistics />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="*" element={<NotFound />} />

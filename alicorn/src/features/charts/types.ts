@@ -225,6 +225,50 @@ export interface WindowSizeDistributionData {
 }
 
 // =============================================================================
+// Scan Performance Statistics (Phase 3.4)
+// =============================================================================
+
+/**
+ * Aggregate scan performance metrics
+ * Used for the Scan Performance stat cards on Statistics page
+ */
+export interface ScanPerformanceStats {
+  /** Total packets sent across all scans in time range */
+  totalPacketsSent: number
+  /** Total responses received (from uni_ipreport) */
+  totalResponses: number
+  /** Total hosts targeted (sum of num_hosts from scans) */
+  totalHostsTargeted: number
+  /** Unique hosts that responded (distinct host_addr) */
+  totalHostsResponded: number
+  /** Response rate: (totalResponses / totalPacketsSent) * 100 */
+  responseRate: number
+  /** Host hit rate: (totalHostsResponded / totalHostsTargeted) * 100 */
+  hostHitRate: number
+  /** Number of scans in time range */
+  scanCount: number
+}
+
+// =============================================================================
+// Protocol Breakdown (Phase 3.4)
+// =============================================================================
+
+/**
+ * Protocol breakdown for response type analysis
+ * Used for the Protocol Breakdown chart on Statistics page
+ */
+export interface ProtocolBreakdownData {
+  /** Total TCP responses (proto=6) */
+  tcpTotal: number
+  /** TCP SYN+ACK responses (indicates open ports) */
+  tcpSynAck: number
+  /** TCP responses that also have banner data */
+  tcpWithBanner: number
+  /** Total UDP responses (proto=17) */
+  udpTotal: number
+}
+
+// =============================================================================
 // Port Activity Heatmap (Phase 3.3)
 // =============================================================================
 
