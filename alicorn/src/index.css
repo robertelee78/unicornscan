@@ -16,6 +16,10 @@
   --color-border: #27272a;
   --color-ring: #06b6d4;
 
+  /* Popover (dropdowns, tooltips, etc.) */
+  --color-popover: #18181b;          /* same as surface */
+  --color-popover-foreground: #e4e4e7; /* same as foreground */
+
   /* Primary - electric cyan */
   --color-primary: #06b6d4;
   --color-primary-hover: #22d3ee;
@@ -157,6 +161,8 @@
   --color-surface: #ffffff;
   --color-surface-light: #f4f4f5;
   --color-border: #a1a1aa;            /* zinc-400: 2.46:1 contrast (2x better than zinc-200) */
+  --color-popover: #ffffff;           /* white background for popovers */
+  --color-popover-foreground: #18181b; /* dark text for popovers */
   --color-primary-foreground: #ffffff;
   --color-ring: #0891b2;
 
