@@ -38,7 +38,6 @@ export function Scans() {
   const [filters, setFilters] = useState<ScanFilters>(DEFAULT_FILTERS)
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT)
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION)
-  const [showSelection, setShowSelection] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const { success: toastSuccess, error: toastError } = useToast()
 
@@ -78,7 +77,6 @@ export function Scans() {
       }
 
       setBulkDeleteOpen(false)
-      setShowSelection(false)
     },
     onError: (error, scan_id) => {
       toastError(`Failed to delete scan #${scan_id}`, error.message)
@@ -89,14 +87,6 @@ export function Scans() {
   const handleQuickExport = useCallback((format: ExportFormat) => {
     exportScansList({ ...exportDialog.options, format })
   }, [exportScansList, exportDialog.options])
-
-  // Toggle selection mode
-  const handleToggleSelection = useCallback(() => {
-    if (showSelection) {
-      clearSelection()
-    }
-    setShowSelection((prev) => !prev)
-  }, [showSelection, clearSelection])
 
   // Handle bulk delete
   const handleBulkDelete = useCallback(() => {
@@ -159,24 +149,15 @@ export function Scans() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CardTitle className="text-lg">Scan History</CardTitle>
-              {showSelection && selectedCount > 0 && (
+              {selectedCount > 0 && (
                 <span className="text-sm text-muted-foreground">
                   {selectedCount} selected
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/* Selection mode toggle */}
-              <Button
-                variant={showSelection ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={handleToggleSelection}
-              >
-                {showSelection ? 'Cancel' : 'Select'}
-              </Button>
-
               {/* Bulk delete button (only when items selected) */}
-              {showSelection && selectedCount > 0 && (
+              {selectedCount > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -204,7 +185,6 @@ export function Scans() {
             sort={sort}
             onSort={handleSort}
             isLoading={isLoading}
-            showSelection={showSelection}
             selectedIds={selectedIds}
             onSelectionChange={toggleSelection}
             onSelectAll={handleSelectAll}
