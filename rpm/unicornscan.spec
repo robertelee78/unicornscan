@@ -98,7 +98,8 @@ cp -r alicorn/public/* %{buildroot}/opt/unicornscan-web/public/
 install -m 644 alicorn/cli/setup.ts %{buildroot}/opt/unicornscan-web/cli/
 
 # PostgREST configuration
-install -m 644 alicorn/postgrest %{buildroot}/opt/unicornscan-web/
+mkdir -p %{buildroot}/opt/unicornscan-web/postgrest
+install -m 644 alicorn/postgrest/Dockerfile %{buildroot}/opt/unicornscan-web/postgrest/
 
 # SQL schema
 install -m 644 src/output_modules/database/sql/pgsql_schema.sql %{buildroot}/opt/unicornscan-web/sql/
