@@ -23,6 +23,8 @@ import type {
   WindowSizeBucket,
   PortActivityHeatmapData,
   HeatmapCell,
+  ScanPerformanceStats,
+  ProtocolBreakdownData,
 } from './types'
 import { getServiceName } from './types'
 
@@ -51,6 +53,11 @@ export const chartKeys = {
     [...chartKeys.all, 'windowSizeDistribution', timeRange] as const,
   portActivityHeatmap: (timeRange: TimeRange) =>
     [...chartKeys.all, 'portActivityHeatmap', timeRange] as const,
+  // Phase 3.4 keys
+  scanPerformance: (timeRange: TimeRange) =>
+    [...chartKeys.all, 'scanPerformance', timeRange] as const,
+  protocolBreakdown: (timeRange: TimeRange) =>
+    [...chartKeys.all, 'protocolBreakdown', timeRange] as const,
 }
 
 // =============================================================================
@@ -680,6 +687,46 @@ export function usePortActivityHeatmap(timeRange: TimeRange = 'all', maxPorts: n
         dates,
         maxCount,
       }
+    },
+    staleTime: 60000,
+  })
+}
+
+// =============================================================================
+// Scan Performance Stats Hook (Phase 3.4)
+// =============================================================================
+
+/**
+ * Get aggregated scan performance statistics for the Statistics page.
+ * Returns response rate, host hit rate, and packet counts.
+ */
+export function useScanPerformanceStats(timeRange: TimeRange = 'all') {
+  const sinceTimestamp = getSinceTimestamp(timeRange)
+
+  return useQuery({
+    queryKey: chartKeys.scanPerformance(timeRange),
+    queryFn: async (): Promise<ScanPerformanceStats> => {
+      return db.getScanPerformanceStats({ since: sinceTimestamp })
+    },
+    staleTime: 60000,
+  })
+}
+
+// =============================================================================
+// Protocol Breakdown Hook (Phase 3.4)
+// =============================================================================
+
+/**
+ * Get protocol breakdown for the Statistics page.
+ * Returns TCP/UDP counts and TCP SYN+ACK/banner breakdowns.
+ */
+export function useProtocolBreakdown(timeRange: TimeRange = 'all') {
+  const sinceTimestamp = getSinceTimestamp(timeRange)
+
+  return useQuery({
+    queryKey: chartKeys.protocolBreakdown(timeRange),
+    queryFn: async (): Promise<ProtocolBreakdownData> => {
+      return db.getProtocolBreakdown({ since: sinceTimestamp })
     },
     staleTime: 60000,
   })

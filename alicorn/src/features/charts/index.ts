@@ -14,19 +14,24 @@ export {
   usePortTimeline,
   useGlobalProtocolDistribution,
   useHostComparison,
-  // Phase 3.3 hooks
+  // Statistics page hooks
   useServiceDistribution,
   useTTLDistribution,
   useWindowSizeDistribution,
   usePortActivityHeatmap,
+  useScanPerformanceStats,
+  useProtocolBreakdown,
 } from './hooks'
 
 // Components
 export { PortTrendChart } from './PortTrendChart'
 export { ProtocolDistribution } from './ProtocolDistribution'
 export { PortTimeline } from './PortTimeline'
-// Phase 3.3 components
+// Statistics page components
 export { ServiceDistributionChart } from './ServiceDistributionChart'
+export { PortActivityHeatmap } from './PortActivityHeatmap'
+export { ScanPerformanceStatsCards } from './ScanPerformanceStatsCards'
+export { ProtocolBreakdownChart } from './ProtocolBreakdownChart'
+// OS Fingerprinting charts (available for future use, not currently in Statistics page)
 export { TTLHistogram } from './TTLHistogram'
 export { WindowSizeChart } from './WindowSizeChart'
-export { PortActivityHeatmap } from './PortActivityHeatmap'
