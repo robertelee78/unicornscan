@@ -6,3 +6,4 @@
 export { SideBySideView } from './SideBySideView'
 export { TimelineView } from './TimelineView'
 export { UnifiedDiffView } from './UnifiedDiffView'
+export { MatrixHeatmapView } from './MatrixHeatmapView'
