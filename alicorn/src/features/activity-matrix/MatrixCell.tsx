@@ -29,19 +29,19 @@ function getCellClasses(status: CellStatus, isBaseline: boolean): string {
   let colorClass: string
   switch (status) {
     case 'new':
-      colorClass = 'bg-green-500 hover:bg-green-400'
+      colorClass = 'bg-status-new hover:brightness-110'
       break
     case 'removed':
-      colorClass = 'bg-red-500 hover:bg-red-400'
+      colorClass = 'bg-status-removed hover:brightness-110'
       break
     case 'mixed':
-      colorClass = 'bg-amber-500 hover:bg-amber-400'
+      colorClass = 'bg-status-mixed hover:brightness-110'
       break
     case 'unchanged':
-      colorClass = 'bg-gray-400 hover:bg-gray-300'
+      colorClass = 'bg-status-unchanged hover:brightness-110'
       break
     case 'first':
-      colorClass = 'bg-blue-500 hover:bg-blue-400'
+      colorClass = 'bg-status-first hover:brightness-110'
       break
     case 'empty':
       colorClass = 'bg-muted opacity-30 hover:opacity-50'
@@ -52,7 +52,7 @@ function getCellClasses(status: CellStatus, isBaseline: boolean): string {
 
   // Add baseline indicator ring
   if (isBaseline) {
-    return `${base} ${colorClass} ring-2 ring-blue-600 ring-offset-1 ring-offset-background`
+    return `${base} ${colorClass} ring-2 ring-status-first ring-offset-1 ring-offset-background`
   }
 
   return `${base} ${colorClass}`
@@ -136,12 +136,12 @@ function MatrixCellComponent({ cell, size, onClick }: MatrixCellProps) {
               <span className="font-medium">{portCount}</span>
             </div>
             {newCount > 0 && (
-              <div className="text-green-500">
+              <div className="text-status-new">
                 +{newCount} new port{newCount !== 1 ? 's' : ''}
               </div>
             )}
             {removedCount > 0 && (
-              <div className="text-red-500">
+              <div className="text-status-removed">
                 -{removedCount} removed port{removedCount !== 1 ? 's' : ''}
               </div>
             )}
@@ -162,11 +162,11 @@ function MatrixCellComponent({ cell, size, onClick }: MatrixCellProps) {
 
 function StatusBadge({ status }: { status: CellStatus }) {
   const config = {
-    new: { bg: 'bg-green-500/20', text: 'text-green-500', label: 'New Ports' },
-    removed: { bg: 'bg-red-500/20', text: 'text-red-500', label: 'Removed Ports' },
-    mixed: { bg: 'bg-amber-500/20', text: 'text-amber-500', label: 'Mixed Changes' },
-    unchanged: { bg: 'bg-gray-400/20', text: 'text-gray-400', label: 'Unchanged' },
-    first: { bg: 'bg-blue-500/20', text: 'text-blue-500', label: 'Baseline' },
+    new: { bg: 'bg-status-new/20', text: 'text-status-new', label: 'New Ports' },
+    removed: { bg: 'bg-status-removed/20', text: 'text-status-removed', label: 'Removed Ports' },
+    mixed: { bg: 'bg-status-mixed/20', text: 'text-status-mixed', label: 'Mixed Changes' },
+    unchanged: { bg: 'bg-status-unchanged/20', text: 'text-status-unchanged', label: 'Unchanged' },
+    first: { bg: 'bg-status-first/20', text: 'text-status-first', label: 'Baseline' },
     empty: { bg: 'bg-muted', text: 'text-foreground', label: 'No Ports' },
   }
 

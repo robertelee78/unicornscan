@@ -165,9 +165,9 @@ export function MatrixDiffDialog({
                 <div className="space-y-4">
                   {data.newPorts.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium text-green-500 mb-2 flex items-center gap-2">
+                      <h4 className="text-sm font-medium text-status-new mb-2 flex items-center gap-2">
                         <span>New Ports</span>
-                        <Badge variant="secondary" className="bg-green-500/20 text-green-500">
+                        <Badge variant="secondary" className="bg-status-new/20 text-status-new">
                           +{data.newPorts.length}
                         </Badge>
                       </h4>
@@ -181,9 +181,9 @@ export function MatrixDiffDialog({
 
                   {data.removedPorts.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium text-red-500 mb-2 flex items-center gap-2">
+                      <h4 className="text-sm font-medium text-status-removed mb-2 flex items-center gap-2">
                         <span>Removed Ports</span>
-                        <Badge variant="secondary" className="bg-red-500/20 text-red-500">
+                        <Badge variant="secondary" className="bg-status-removed/20 text-status-removed">
                           -{data.removedPorts.length}
                         </Badge>
                       </h4>
@@ -233,11 +233,11 @@ export function MatrixDiffDialog({
 
 function StatusBadge({ status }: { status: DiffDialogData['status'] }) {
   const config = {
-    new: { bg: 'bg-green-500', label: 'New Ports' },
-    removed: { bg: 'bg-red-500', label: 'Removed Ports' },
-    mixed: { bg: 'bg-amber-500', label: 'Mixed Changes' },
-    unchanged: { bg: 'bg-gray-400', label: 'No Changes' },
-    first: { bg: 'bg-blue-500', label: 'First Scan' },
+    new: { bg: 'bg-status-new', label: 'New Ports' },
+    removed: { bg: 'bg-status-removed', label: 'Removed Ports' },
+    mixed: { bg: 'bg-status-mixed', label: 'Mixed Changes' },
+    unchanged: { bg: 'bg-status-unchanged', label: 'No Changes' },
+    first: { bg: 'bg-status-first', label: 'First Scan' },
     empty: { bg: 'bg-muted', label: 'No Ports' },
   }
 
@@ -297,10 +297,10 @@ function PortBadge({ port, variant }: PortBadgeProps) {
   const { port: portNum, protocol } = parsePortKey(port)
 
   const className = {
-    new: 'bg-green-500/20 text-green-500 border-green-500/50',
-    removed: 'bg-red-500/20 text-red-500 border-red-500/50 line-through',
+    new: 'bg-status-new/20 text-status-new border-status-new/50',
+    removed: 'bg-status-removed/20 text-status-removed border-status-removed/50 line-through',
     default: 'bg-muted text-foreground border-border',
-    unchanged: 'bg-gray-500/20 text-gray-500 border-gray-500/50',
+    unchanged: 'bg-status-unchanged/20 text-status-unchanged border-status-unchanged/50',
   }[variant]
 
   return (
@@ -330,13 +330,13 @@ function CompositePortView({ data }: { data: DiffDialogData }) {
     <div className="space-y-2">
       <div className="flex gap-4 text-xs text-muted-foreground mb-2">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-green-500 rounded" /> New
+          <span className="w-3 h-3 bg-status-new rounded" /> New
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-red-500 rounded" /> Removed
+          <span className="w-3 h-3 bg-status-removed rounded" /> Removed
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-gray-400 rounded" /> Unchanged
+          <span className="w-3 h-3 bg-status-unchanged rounded" /> Unchanged
         </span>
       </div>
 
@@ -362,27 +362,27 @@ function CompositePortView({ data }: { data: DiffDialogData }) {
                   <td className="py-1 px-2 font-mono">{port}</td>
                   <td className="text-center py-1 px-2">
                     {inBaseline ? (
-                      <span className={isRemoved ? 'text-red-500' : 'text-green-500'}>✓</span>
+                      <span className={isRemoved ? 'text-status-removed' : 'text-status-new'}>✓</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="text-center py-1 px-2">
                     {inCurrent ? (
-                      <span className={isNew ? 'text-green-500' : 'text-green-500'}>✓</span>
+                      <span className={isNew ? 'text-status-new' : 'text-status-new'}>✓</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="py-1 px-2">
                     {isNew && (
-                      <Badge className="bg-green-500/20 text-green-500 text-xs">New</Badge>
+                      <Badge className="bg-status-new/20 text-status-new text-xs">New</Badge>
                     )}
                     {isRemoved && (
-                      <Badge className="bg-red-500/20 text-red-500 text-xs">Removed</Badge>
+                      <Badge className="bg-status-removed/20 text-status-removed text-xs">Removed</Badge>
                     )}
                     {!isNew && !isRemoved && inCurrent && inBaseline && (
-                      <Badge className="bg-gray-500/20 text-gray-500 text-xs">Unchanged</Badge>
+                      <Badge className="bg-status-unchanged/20 text-status-unchanged text-xs">Unchanged</Badge>
                     )}
                   </td>
                 </tr>
