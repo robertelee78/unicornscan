@@ -107,9 +107,9 @@ export function Statistics() {
         </div>
       </div>
 
-      {/* GeoIP Section - Scan-specific geographic intelligence */}
+      {/* GeoIP Section - Geographic intelligence for selected time range */}
       <div className="border-t border-border pt-6">
-        <GeoIPSection />
+        <GeoIPSection timeRange={timeRange} />
       </div>
     </div>
   )
