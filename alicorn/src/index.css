@@ -26,10 +26,10 @@
   --color-secondary-hover: #c4b5fd;
   --color-secondary-foreground: #1e1b4b;
 
-  /* Accent - hot pink/magenta */
-  --color-accent: #ec4899;
-  --color-accent-hover: #f472b6;
-  --color-accent-foreground: #fdf2f8;
+  /* Accent - pink (WCAG AA compliant) */
+  --color-accent: #f472b6;
+  --color-accent-hover: #f9a8d4;
+  --color-accent-foreground: #500724;
 
   /* Destructive (WCAG AA compliant) */
   --color-destructive: #f87171;
