@@ -1,20 +1,19 @@
 /**
  * GeoIP Section component for Statistics page
  * Comprehensive geographic visualization section
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Now uses time-range filtering to match Statistics page time selector
+ * Copyright (c) 2025-2026 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useRecentScans } from '@/features/dashboard'
+import { type TimeRange, getTimeRangeLabel } from '@/features/dashboard/types'
 import {
-  useGeoIPCountryBreakdown,
-  useGeoIPMapPoints,
-  useGeoIPStats,
-  useGeoIPTypeBreakdown,
-  useGeoIPAsnBreakdown,
-  useHasGeoIP,
-  ALL_SCANS,
+  useGeoIPCountryBreakdownForTimeRange,
+  useGeoIPMapPointsForTimeRange,
+  useGeoIPStatsForTimeRange,
+  useGeoIPTypeBreakdownForTimeRange,
+  useGeoIPAsnBreakdownForTimeRange,
+  useHasGeoIPForTimeRange,
 } from '../hooks'
 import { GeoIPWorldMap } from './GeoIPWorldMap'
 import { CountryDistributionChart } from './CountryDistributionChart'
@@ -23,57 +22,15 @@ import { GeoIPCountryTable } from './GeoIPCountryTable'
 import { GeoIPAsnTable } from './GeoIPAsnTable'
 
 // =============================================================================
-// Scan Selector Component
-// =============================================================================
-
-interface ScanSelectorProps {
-  selectedScanId: number | null
-  onSelect: (scanId: number) => void
-}
-
-function ScanSelector({ selectedScanId, onSelect }: ScanSelectorProps) {
-  const { data: recentScans, isLoading } = useRecentScans('30d', 20)
-
-  if (isLoading) {
-    return (
-      <div className="h-10 w-48 bg-muted/20 animate-pulse rounded" />
-    )
-  }
-
-  if (!recentScans || recentScans.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        No scans available
-      </div>
-    )
-  }
-
-  return (
-    <select
-      value={selectedScanId || ''}
-      onChange={(e) => onSelect(Number(e.target.value))}
-      className="h-10 px-3 py-2 bg-surface border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-    >
-      <option value="">Select a scan...</option>
-      {recentScans.map((scan) => (
-        <option key={scan.scan_id} value={scan.scan_id}>
-          {scan.target_str} - {new Date(scan.s_time * 1000).toLocaleString()}
-        </option>
-      ))}
-    </select>
-  )
-}
-
-// =============================================================================
 // GeoIP Stats Summary
 // =============================================================================
 
 interface GeoIPStatsSummaryProps {
-  scanId: number
+  timeRange: TimeRange
 }
 
-function GeoIPStatsSummary({ scanId }: GeoIPStatsSummaryProps) {
-  const { data: stats, isLoading } = useGeoIPStats(scanId)
+function GeoIPStatsSummary({ timeRange }: GeoIPStatsSummaryProps) {
+  const { data: stats, isLoading } = useGeoIPStatsForTimeRange(timeRange)
 
   if (isLoading || !stats) {
     return null
@@ -115,37 +72,32 @@ function GeoIPStatsSummary({ scanId }: GeoIPStatsSummaryProps) {
 // Main GeoIP Section Component
 // =============================================================================
 
-export function GeoIPSection() {
-  const [selectedScanId, setSelectedScanId] = useState<number | null>(null)
+interface GeoIPSectionProps {
+  timeRange: TimeRange
+}
 
-  // Use ALL_SCANS (0) when no specific scan is selected
-  const effectiveScanId = selectedScanId ?? ALL_SCANS
+export function GeoIPSection({ timeRange }: GeoIPSectionProps) {
+  // Check if time range has GeoIP data (stored or live-lookupable)
+  const { data: hasGeoIP, isLoading: hasGeoIPLoading } = useHasGeoIPForTimeRange(timeRange)
 
-  // Check if scan(s) have GeoIP data (stored or live-lookupable)
-  const { data: hasGeoIP, isLoading: hasGeoIPLoading } = useHasGeoIP(effectiveScanId)
-
-  // Fetch data for selected scan (or all scans if none selected)
-  const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdown(effectiveScanId)
-  const { data: mapPoints, isLoading: mapLoading } = useGeoIPMapPoints(effectiveScanId)
-  const typeBreakdown = useGeoIPTypeBreakdown(effectiveScanId)
-  const asnBreakdown = useGeoIPAsnBreakdown(effectiveScanId, 15)
+  // Fetch data for selected time range
+  const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdownForTimeRange(timeRange)
+  const { data: mapPoints, isLoading: mapLoading } = useGeoIPMapPointsForTimeRange(timeRange)
+  const typeBreakdown = useGeoIPTypeBreakdownForTimeRange(timeRange)
+  const asnBreakdown = useGeoIPAsnBreakdownForTimeRange(timeRange, 15)
 
   return (
     <div className="space-y-6">
-      {/* Header with scan selector */}
+      {/* Header - now shows time range instead of scan selector */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="text-lg">Geographic Intelligence</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                GeoIP analysis of scanned hosts
+                GeoIP analysis of scanned hosts ({getTimeRangeLabel(timeRange)})
               </p>
             </div>
-            <ScanSelector
-              selectedScanId={selectedScanId}
-              onSelect={setSelectedScanId}
-            />
           </div>
         </CardHeader>
       </Card>
@@ -170,7 +122,7 @@ export function GeoIPSection() {
               <div className="text-4xl mb-3">📍</div>
               <p>No GeoIP data available</p>
               <p className="text-sm mt-1">
-                No scans with GeoIP data found in the last 30 days
+                No scans with GeoIP data found in the selected time range
               </p>
             </div>
           </CardContent>
@@ -181,7 +133,7 @@ export function GeoIPSection() {
       {!hasGeoIPLoading && hasGeoIP && (
         <>
           {/* Stats Summary */}
-          <GeoIPStatsSummary scanId={effectiveScanId} />
+          <GeoIPStatsSummary timeRange={timeRange} />
 
           {/* World Map - Full width */}
           <GeoIPWorldMap
@@ -251,10 +203,10 @@ export function GeoIPSection() {
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-foreground">Historical Data</span>
+                  <span className="font-medium text-foreground">Time Range Aggregation</span>
                   <p className="mt-1">
-                    GeoIP data is captured at scan time for historical accuracy.
-                    IP-to-location mappings can change over time.
+                    Data is aggregated from all scans within the selected time range.
+                    IPs are deduplicated across scans for accurate unique counts.
                   </p>
                 </div>
               </div>

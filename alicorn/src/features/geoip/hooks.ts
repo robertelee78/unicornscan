@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
+import { getTimeRangeSeconds, type TimeRange } from '@/features/dashboard/types'
 import type {
   GeoIPRecord,
   GeoIPScanStats,
@@ -34,11 +35,18 @@ export const geoipKeys = {
   all: ['geoip'] as const,
   byHost: (hostIp: string) => [...geoipKeys.all, 'host', hostIp] as const,
   byScan: (scanId: number) => [...geoipKeys.all, 'scan', scanId] as const,
+  byTimeRange: (timeRange: string) => [...geoipKeys.all, 'timeRange', timeRange] as const,
   stats: (scanId: number) => [...geoipKeys.all, 'stats', scanId] as const,
+  statsTimeRange: (timeRange: string) => [...geoipKeys.all, 'stats', 'timeRange', timeRange] as const,
   countryBreakdown: (scanId: number) => [...geoipKeys.all, 'countries', scanId] as const,
+  countryBreakdownTimeRange: (timeRange: string) => [...geoipKeys.all, 'countries', 'timeRange', timeRange] as const,
   typeBreakdown: (scanId: number) => [...geoipKeys.all, 'types', scanId] as const,
+  typeBreakdownTimeRange: (timeRange: string) => [...geoipKeys.all, 'types', 'timeRange', timeRange] as const,
   mapPoints: (scanId: number) => [...geoipKeys.all, 'map', scanId] as const,
+  mapPointsTimeRange: (timeRange: string) => [...geoipKeys.all, 'map', 'timeRange', timeRange] as const,
   asnBreakdown: (scanId: number) => [...geoipKeys.all, 'asns', scanId] as const,
+  asnBreakdownTimeRange: (timeRange: string) => [...geoipKeys.all, 'asns', 'timeRange', timeRange] as const,
+  hasGeoIPTimeRange: (timeRange: string) => [...geoipKeys.all, 'has', 'timeRange', timeRange] as const,
 }
 
 // =============================================================================
@@ -513,6 +521,7 @@ async function fetchLiveGeoIPRecords(ips: string[], scanId: number): Promise<Liv
 
 /**
  * Get recent scan IDs (last 30 days, up to 20 scans)
+ * @deprecated Use getScanIdsByTimeRange() for time-range-based filtering
  */
 async function getRecentScanIds(): Promise<number[]> {
   const thirtyDaysAgo = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60)
@@ -522,6 +531,40 @@ async function getRecentScanIds(): Promise<number[]> {
     .filter((s) => s.s_time >= thirtyDaysAgo)
     .slice(0, 20)
     .map((s) => s.scan_id)
+}
+
+/**
+ * Get ALL scan IDs within the specified time range (no arbitrary limit)
+ * Used by time-range-based GeoIP hooks to aggregate data across all scans
+ */
+async function getScanIdsByTimeRange(timeRange: TimeRange): Promise<number[]> {
+  const seconds = getTimeRangeSeconds(timeRange)
+  const sinceTimestamp = seconds !== null
+    ? Math.floor(Date.now() / 1000) - seconds
+    : 0  // 'all' time range
+  const scans = await db.getScans({ limit: 10000 })  // High limit to get all scans
+  return scans
+    .filter((s) => s.s_time >= sinceTimestamp)
+    .map((s) => s.scan_id)
+}
+
+/**
+ * Get public IPs from scans within a time range
+ */
+async function getPublicIpsForTimeRange(timeRange: TimeRange): Promise<string[]> {
+  const scanIds = await getScanIdsByTimeRange(timeRange)
+  if (scanIds.length === 0) return []
+
+  const allIps = new Set<string>()
+  for (const sid of scanIds) {
+    const ipReports = await db.getIpReports(sid)
+    ipReports.forEach((r) => {
+      if (!isPrivateIp(r.host_addr)) {
+        allIps.add(r.host_addr)
+      }
+    })
+  }
+  return Array.from(allIps)
 }
 
 /**
@@ -766,4 +809,341 @@ export function useHasGeoIPLegacy(scanId: number) {
     hasGeoIP: records && records.length > 0,
     isLoading,
   }
+}
+
+// =============================================================================
+// Time-Range-Based GeoIP Hooks (for Statistics page)
+// =============================================================================
+
+/**
+ * Check if there's GeoIP data available for scans in the time range
+ */
+export function useHasGeoIPForTimeRange(timeRange: TimeRange) {
+  return useQuery({
+    queryKey: geoipKeys.hasGeoIPTimeRange(timeRange),
+    queryFn: async (): Promise<boolean> => {
+      const scanIds = await getScanIdsByTimeRange(timeRange)
+      if (scanIds.length === 0) return false
+
+      // Check if any scan has GeoIP data
+      for (const sid of scanIds) {
+        const storedRecords = await db.getGeoIPByScan(sid, { limit: 1 })
+        if (storedRecords.length > 0) return true
+      }
+
+      // No stored data - check for public IPs that could be looked up
+      const publicIps = await getPublicIpsForTimeRange(timeRange)
+      return publicIps.length > 0
+    },
+    staleTime: 60000,
+  })
+}
+
+/**
+ * Get GeoIP country breakdown for all scans in time range
+ */
+export function useGeoIPCountryBreakdownForTimeRange(timeRange: TimeRange) {
+  return useQuery({
+    queryKey: geoipKeys.countryBreakdownTimeRange(timeRange),
+    queryFn: async (): Promise<GeoIPCountryStats[]> => {
+      const scanIds = await getScanIdsByTimeRange(timeRange)
+      if (scanIds.length === 0) return []
+
+      // Aggregate stored data from all scans
+      const allRecords: GeoIPRecord[] = []
+      const ipsWithStoredData = new Set<string>()
+      for (const sid of scanIds) {
+        const records = await db.getGeoIPByScan(sid)
+        records.forEach((r) => {
+          if (!ipsWithStoredData.has(r.host_ip)) {
+            ipsWithStoredData.add(r.host_ip)
+            allRecords.push(r)
+          }
+        })
+      }
+
+      // Get public IPs needing live lookup
+      const allPublicIps = await getPublicIpsForTimeRange(timeRange)
+      const ipsNeedingLookup = allPublicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+      // Do live lookups
+      if (ipsNeedingLookup.length > 0) {
+        const liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, 0)
+        allRecords.push(...(liveRecords as unknown as GeoIPRecord[]))
+      }
+
+      // Aggregate by country
+      return aggregateRecordsToCountryStats(allRecords)
+    },
+    staleTime: 60000,
+  })
+}
+
+/**
+ * Get GeoIP map points for all scans in time range
+ */
+export function useGeoIPMapPointsForTimeRange(timeRange: TimeRange) {
+  return useQuery({
+    queryKey: geoipKeys.mapPointsTimeRange(timeRange),
+    queryFn: async (): Promise<GeoIPMapPoint[]> => {
+      const scanIds = await getScanIdsByTimeRange(timeRange)
+      if (scanIds.length === 0) return []
+
+      const allPoints: GeoIPMapPoint[] = []
+      const ipsWithStoredData = new Set<string>()
+
+      for (const sid of scanIds) {
+        const records = await db.getGeoIPByScan(sid, { hasCoordinates: true })
+        records
+          .filter((r): r is GeoIPRecord & { latitude: number; longitude: number } =>
+            r.latitude !== null && r.longitude !== null
+          )
+          .forEach((r) => {
+            if (!ipsWithStoredData.has(r.host_ip)) {
+              ipsWithStoredData.add(r.host_ip)
+              allPoints.push({
+                latitude: r.latitude,
+                longitude: r.longitude,
+                host_ip: r.host_ip,
+                country_code: r.country_code,
+                city: r.city,
+                ip_type: r.ip_type,
+                scan_id: r.scan_id,
+              })
+            }
+          })
+      }
+
+      // Get IPs needing live lookup
+      const allPublicIps = await getPublicIpsForTimeRange(timeRange)
+      const ipsNeedingLookup = allPublicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+      if (ipsNeedingLookup.length > 0) {
+        const liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, 0)
+        liveRecords
+          .filter((r) => r.latitude !== null && r.longitude !== null)
+          .forEach((r) => {
+            allPoints.push({
+              latitude: r.latitude!,
+              longitude: r.longitude!,
+              host_ip: r.host_ip,
+              country_code: r.country_code,
+              city: r.city,
+              ip_type: r.ip_type as IpType,
+              scan_id: 0,
+            })
+          })
+      }
+
+      return allPoints
+    },
+    staleTime: 60000,
+  })
+}
+
+/**
+ * Get GeoIP type breakdown for all scans in time range
+ */
+export function useGeoIPTypeBreakdownForTimeRange(timeRange: TimeRange): GeoIPTypeDistribution[] {
+  const { data: countryStats } = useGeoIPCountryBreakdownForTimeRange(timeRange)
+
+  return useMemo(() => {
+    if (!countryStats || countryStats.length === 0) return []
+
+    const typeCounts: Record<IpType, number> = {
+      datacenter: 0,
+      residential: 0,
+      vpn: 0,
+      proxy: 0,
+      tor: 0,
+      mobile: 0,
+      unknown: 0,
+    }
+
+    let total = 0
+    countryStats.forEach((cs) => {
+      typeCounts.datacenter += cs.datacenter_count
+      typeCounts.residential += cs.residential_count
+      typeCounts.vpn += cs.vpn_count
+      typeCounts.proxy += cs.proxy_count
+      typeCounts.tor += cs.tor_count
+      typeCounts.mobile += cs.mobile_count
+      total += cs.host_count
+    })
+
+    // Calculate unknown (hosts with no IP type classification)
+    const classified = Object.entries(typeCounts)
+      .filter(([k]) => k !== 'unknown')
+      .reduce((acc, [, v]) => acc + v, 0)
+    typeCounts.unknown = Math.max(0, total - classified)
+
+    // Convert to distribution array with percentages
+    const distribution: GeoIPTypeDistribution[] = Object.entries(typeCounts)
+      .filter(([, count]) => count > 0)
+      .map(([type, count]) => ({
+        ip_type: type as IpType,
+        count,
+        percentage: total > 0 ? (count / total) * 100 : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    // Filter out "unknown" if it's the only one or if there are better classifications
+    if (distribution.length > 1) {
+      return distribution.filter((d) => d.ip_type !== 'unknown' || d.percentage > 50)
+    }
+
+    return distribution
+  }, [countryStats])
+}
+
+/**
+ * Get GeoIP ASN breakdown for all scans in time range
+ */
+export function useGeoIPAsnBreakdownForTimeRange(timeRange: TimeRange, _limit: number = 20): GeoIPAsnStats[] {
+  const { data: countryStats } = useGeoIPCountryBreakdownForTimeRange(timeRange)
+
+  // We need to re-aggregate to get ASN breakdown since country stats aggregate by country
+  // For now, return empty and let the full implementation fetch ASN data properly
+  return useMemo(() => {
+    // TODO: implement proper ASN aggregation across time range
+    // For now, return empty - the country breakdown is the main visualization
+    return []
+  }, [countryStats])
+}
+
+/**
+ * Get GeoIP stats for all scans in time range
+ */
+export function useGeoIPStatsForTimeRange(timeRange: TimeRange) {
+  return useQuery({
+    queryKey: geoipKeys.statsTimeRange(timeRange),
+    queryFn: async (): Promise<GeoIPScanStats> => {
+      const scanIds = await getScanIdsByTimeRange(timeRange)
+      if (scanIds.length === 0) {
+        return {
+          scan_id: ALL_SCANS,
+          total_hosts: 0,
+          hosts_with_geoip: 0,
+          country_count: 0,
+          countries: [],
+          asn_count: 0,
+          coverage_percentage: 0,
+          type_distribution: [],
+          top_asns: [],
+          bounds: null,
+        }
+      }
+
+      // Aggregate stored data from all scans (deduplicated by IP)
+      const allRecords: GeoIPRecord[] = []
+      const ipsWithStoredData = new Set<string>()
+      for (const sid of scanIds) {
+        const records = await db.getGeoIPByScan(sid)
+        records.forEach((r) => {
+          if (!ipsWithStoredData.has(r.host_ip)) {
+            ipsWithStoredData.add(r.host_ip)
+            allRecords.push(r)
+          }
+        })
+      }
+
+      // Get total public IPs
+      const allPublicIps = await getPublicIpsForTimeRange(timeRange)
+
+      // Calculate stats
+      const countries = new Set<string>()
+      const asns = new Set<number>()
+      let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
+      let hasCoords = false
+
+      allRecords.forEach((r) => {
+        if (r.country_code) countries.add(r.country_code)
+        if (r.asn) asns.add(r.asn)
+        if (r.latitude !== null && r.longitude !== null) {
+          hasCoords = true
+          minLat = Math.min(minLat, r.latitude)
+          maxLat = Math.max(maxLat, r.latitude)
+          minLng = Math.min(minLng, r.longitude)
+          maxLng = Math.max(maxLng, r.longitude)
+        }
+      })
+
+      return {
+        scan_id: ALL_SCANS,
+        total_hosts: allPublicIps.length,
+        hosts_with_geoip: allRecords.length,
+        country_count: countries.size,
+        countries: [],  // Calculated separately by useGeoIPCountryBreakdownForTimeRange
+        asn_count: asns.size,
+        coverage_percentage: allPublicIps.length > 0
+          ? (allRecords.length / allPublicIps.length) * 100
+          : 0,
+        type_distribution: [],  // Calculated separately by useGeoIPTypeBreakdownForTimeRange
+        top_asns: [],  // Calculated separately
+        bounds: hasCoords ? {
+          min_lat: minLat,
+          max_lat: maxLat,
+          min_lng: minLng,
+          max_lng: maxLng,
+        } : null,
+      }
+    },
+    staleTime: 60000,
+  })
+}
+
+/**
+ * Helper to aggregate records to country stats
+ */
+function aggregateRecordsToCountryStats(records: GeoIPRecord[]): GeoIPCountryStats[] {
+  const countryMap = new Map<string, GeoIPCountryStats>()
+
+  records.forEach((r) => {
+    const cc = r.country_code || 'Unknown'
+    if (!countryMap.has(cc)) {
+      countryMap.set(cc, {
+        scan_id: ALL_SCANS,  // Sentinel value for aggregated data
+        country_code: cc,
+        country_name: r.country_name || cc,
+        host_count: 0,
+        unique_asns: 0,
+        datacenter_count: 0,
+        residential_count: 0,
+        vpn_count: 0,
+        proxy_count: 0,
+        tor_count: 0,
+        mobile_count: 0,
+      })
+    }
+
+    const stats = countryMap.get(cc)!
+    stats.host_count++
+
+    // Track IP type
+    switch (r.ip_type) {
+      case 'datacenter': stats.datacenter_count++; break
+      case 'residential': stats.residential_count++; break
+      case 'vpn': stats.vpn_count++; break
+      case 'proxy': stats.proxy_count++; break
+      case 'tor': stats.tor_count++; break
+      case 'mobile': stats.mobile_count++; break
+    }
+  })
+
+  // Calculate unique ASNs per country
+  const countryAsns = new Map<string, Set<number>>()
+  records.forEach((r) => {
+    const cc = r.country_code || 'Unknown'
+    if (r.asn) {
+      if (!countryAsns.has(cc)) countryAsns.set(cc, new Set())
+      countryAsns.get(cc)!.add(r.asn)
+    }
+  })
+
+  countryMap.forEach((stats, cc) => {
+    stats.unique_asns = countryAsns.get(cc)?.size || 0
+  })
+
+  return Array.from(countryMap.values())
+    .sort((a, b) => b.host_count - a.host_count)
 }
