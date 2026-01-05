@@ -1,29 +1,29 @@
 /**
  * Statistics page - Advanced network scan statistics
- * Service distribution, TTL analysis, window size, port activity heatmaps, and GeoIP
+ * Scan performance, protocol breakdown, service distribution, port activity heatmaps, and GeoIP
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState } from 'react'
 import {
   ServiceDistributionChart,
-  TTLHistogram,
-  WindowSizeChart,
   PortActivityHeatmap,
   useServiceDistribution,
-  useTTLDistribution,
-  useWindowSizeDistribution,
   usePortActivityHeatmap,
+  useScanPerformanceStats,
+  useProtocolBreakdown,
 } from '@/features/charts'
+import { ScanPerformanceStatsCards } from '@/features/charts/ScanPerformanceStatsCards'
+import { ProtocolBreakdownChart } from '@/features/charts/ProtocolBreakdownChart'
 import { TimeRangeSelect, type TimeRange } from '@/features/dashboard'
 import { GeoIPSection } from '@/features/geoip'
 
 export function Statistics() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d')
 
+  const { data: perfStats, isLoading: perfLoading } = useScanPerformanceStats(timeRange)
+  const { data: protocolData, isLoading: protocolLoading } = useProtocolBreakdown(timeRange)
   const { data: serviceData, isLoading: serviceLoading } = useServiceDistribution(timeRange)
-  const { data: ttlData, isLoading: ttlLoading } = useTTLDistribution(timeRange)
-  const { data: windowData, isLoading: windowLoading } = useWindowSizeDistribution(timeRange)
   const { data: heatmapData, isLoading: heatmapLoading } = usePortActivityHeatmap(timeRange)
 
   return (
@@ -37,21 +37,26 @@ export function Statistics() {
         <TimeRangeSelect value={timeRange} onChange={setTimeRange} />
       </div>
 
-      {/* Service Distribution - Both pie and bar variants */}
+      {/* Scan Performance Stats Cards */}
+      <ScanPerformanceStatsCards
+        data={perfStats}
+        isLoading={perfLoading}
+      />
+
+      {/* Protocol Breakdown and Service Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ServiceDistributionChart
-          data={serviceData}
-          isLoading={serviceLoading}
-          variant="pie"
-          title="Service Distribution"
-          height={320}
+        <ProtocolBreakdownChart
+          data={protocolData}
+          isLoading={protocolLoading}
+          title="Protocol Breakdown"
+          height={280}
         />
         <ServiceDistributionChart
           data={serviceData}
           isLoading={serviceLoading}
           variant="bar"
           title="Top Services by Count"
-          height={320}
+          height={280}
         />
       </div>
 
@@ -63,47 +68,32 @@ export function Statistics() {
         height={450}
       />
 
-      {/* OS Fingerprinting Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TTLHistogram
-          data={ttlData}
-          isLoading={ttlLoading}
-          title="TTL Distribution (OS Fingerprinting)"
-          height={320}
-        />
-        <WindowSizeChart
-          data={windowData}
-          isLoading={windowLoading}
-          title="TCP Window Size Distribution"
-          height={320}
-        />
-      </div>
-
       {/* Info panel about what these metrics mean */}
       <div className="bg-surface border border-border rounded-lg p-4 text-sm">
         <h3 className="font-medium mb-2">About These Statistics</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-muted-foreground">
           <div>
+            <span className="font-medium text-foreground">Response & Host Rates</span>
+            <p className="mt-1">
+              Response Rate shows what percentage of probe packets received a response.
+              Host Hit Rate indicates how many targeted hosts responded to at least one probe.
+              Higher rates suggest more responsive targets or less packet loss.
+            </p>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">Protocol Breakdown</span>
+            <p className="mt-1">
+              Breakdown of responses by protocol type. TCP SYN+ACK indicates open ports.
+              "With Banner" shows services that sent application data after connection.
+              UDP responses indicate active UDP services.
+            </p>
+          </div>
+          <div>
             <span className="font-medium text-foreground">Service Distribution</span>
             <p className="mt-1">
               Shows the distribution of services based on port number mappings.
-              Note: This is derived from well-known port assignments, not actual
+              This is derived from well-known port assignments, not actual
               service detection (which requires banner grabbing).
-            </p>
-          </div>
-          <div>
-            <span className="font-medium text-foreground">TTL Analysis</span>
-            <p className="mt-1">
-              Time-To-Live values can help identify operating systems.
-              Common initial TTLs: Linux/Unix (64), Windows (128),
-              Network devices (255). Values decrease with each hop.
-            </p>
-          </div>
-          <div>
-            <span className="font-medium text-foreground">TCP Window Size</span>
-            <p className="mt-1">
-              The initial TCP window size varies by OS and can aid fingerprinting.
-              Different operating systems use characteristic default values.
             </p>
           </div>
           <div>

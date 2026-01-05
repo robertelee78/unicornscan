@@ -1051,6 +1051,149 @@ class RestDatabase implements DatabaseClient {
     return summaries
   }
 
+  // ===========================================================================
+  // Statistics Page Methods (Phase 3.4)
+  // ===========================================================================
+
+  /**
+   * Get aggregated scan performance statistics for time range.
+   * Used for stat cards on Statistics page:
+   * - Response Rate: totalResponses / totalPacketsSent * 100
+   * - Host Hit Rate: totalHostsResponded / totalHostsTargeted * 100
+   * - Total Packets: totalPacketsSent
+   */
+  async getScanPerformanceStats(options: { since: number | null }): Promise<ScanPerformanceStats> {
+    const { since } = options
+
+    // Query 1: Get scan-level data (packets sent, hosts targeted, scan count)
+    const scansQuery = this.client
+      .from('uni_scan')
+      .select('num_packets, num_hosts')
+
+    // Query 2: Get response-level data (total responses, unique responding hosts)
+    const responsesQuery = this.client
+      .from('uni_ipreport')
+      .select('host_addr')
+
+    if (since !== null) {
+      scansQuery.gte('s_time', since)
+      responsesQuery.gte('tstamp', since)
+    }
+
+    const [scansResult, responsesResult] = await Promise.all([scansQuery, responsesQuery])
+
+    if (scansResult.error) throw scansResult.error
+    if (responsesResult.error) throw responsesResult.error
+
+    // Aggregate scan data
+    const scans = scansResult.data || []
+    let totalPacketsSent = 0
+    let totalHostsTargeted = 0
+    for (const scan of scans) {
+      totalPacketsSent += scan.num_packets || 0
+      totalHostsTargeted += scan.num_hosts || 0
+    }
+    const scanCount = scans.length
+
+    // Aggregate response data
+    const responses = responsesResult.data || []
+    const totalResponses = responses.length
+    const uniqueRespondingHosts = new Set(responses.map(r => r.host_addr))
+    const totalHostsResponded = uniqueRespondingHosts.size
+
+    // Calculate percentages (avoid division by zero)
+    const responseRate = totalPacketsSent > 0
+      ? (totalResponses / totalPacketsSent) * 100
+      : 0
+    const hostHitRate = totalHostsTargeted > 0
+      ? (totalHostsResponded / totalHostsTargeted) * 100
+      : 0
+
+    return {
+      totalPacketsSent,
+      totalResponses,
+      totalHostsTargeted,
+      totalHostsResponded,
+      responseRate,
+      hostHitRate,
+      scanCount,
+    }
+  }
+
+  /**
+   * Get protocol breakdown for Statistics page.
+   * Counts:
+   * - tcpTotal: All TCP responses (proto=6)
+   * - tcpSynAck: TCP with SYN+ACK flags (type field = 0x12 = 18)
+   * - tcpWithBanner: TCP responses that have associated banner data
+   * - udpTotal: All UDP responses (proto=17)
+   *
+   * Note: In uni_ipreport, the 'type' field contains TCP flags, not 'flags'.
+   * SYN+ACK = SYN(0x02) | ACK(0x10) = 0x12 = 18 decimal
+   */
+  async getProtocolBreakdown(options: { since: number | null }): Promise<ProtocolBreakdownData> {
+    const { since } = options
+
+    // Query responses with protocol and type (TCP flags)
+    const responsesQuery = this.client
+      .from('uni_ipreport')
+      .select('ipreport_id, proto, type')
+
+    if (since !== null) {
+      responsesQuery.gte('tstamp', since)
+    }
+
+    const { data: responses, error: responsesError } = await responsesQuery
+    if (responsesError) throw responsesError
+
+    // Count protocols and TCP flags
+    let tcpTotal = 0
+    let tcpSynAck = 0
+    let udpTotal = 0
+    const tcpReportIds: number[] = []
+
+    const TCP_PROTO = 6
+    const UDP_PROTO = 17
+    const SYN_ACK_FLAGS = 0x12  // SYN(0x02) | ACK(0x10)
+
+    for (const r of responses || []) {
+      if (r.proto === TCP_PROTO) {
+        tcpTotal++
+        tcpReportIds.push(r.ipreport_id)
+        // Check for SYN+ACK in the type field
+        // Use bitwise AND to check if both SYN and ACK bits are set
+        if ((r.type & SYN_ACK_FLAGS) === SYN_ACK_FLAGS) {
+          tcpSynAck++
+        }
+      } else if (r.proto === UDP_PROTO) {
+        udpTotal++
+      }
+    }
+
+    // Query for TCP responses with banner data
+    let tcpWithBanner = 0
+    if (tcpReportIds.length > 0) {
+      const { data: bannerData, error: bannerError } = await this.client
+        .from('uni_ipreportdata')
+        .select('ipreport_id')
+        .in('ipreport_id', tcpReportIds)
+        .eq('type', 1)  // type=1 is banner data
+
+      if (!bannerError && bannerData) {
+        // Count unique report IDs with banners
+        const reportIdsWithBanners = new Set(bannerData.map(b => b.ipreport_id))
+        tcpWithBanner = reportIdsWithBanners.size
+      }
+    }
+
+    return {
+      tcpTotal,
+      tcpSynAck,
+      tcpWithBanner,
+      udpTotal,
+    }
+  }
+
   async getHops(scan_id: number): Promise<Hop[]> {
     const { data, error } = await this.client
       .from('uni_hops')
