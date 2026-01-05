@@ -28,6 +28,14 @@ export {
   type UseMultiScanComparisonResult,
 } from './hooks/index'
 
+// Hooks (saved comparisons)
+export {
+  useSavedComparisons,
+  useSavedComparisonByScanIds,
+  savedCompareKeys,
+  type UseSavedComparisonsResult,
+} from './hooks/index'
+
 // Utilities
 export { compareScans, parseCompareUrl, buildCompareUrl } from './compare-utils'
 export { exportComparisonToCSV, exportComparisonToJSON } from './export-utils'
