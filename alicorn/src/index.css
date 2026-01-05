@@ -54,7 +54,7 @@
   --color-chart-tcp: #22c55e;
   --color-chart-udp: #3b82f6;
   --color-chart-icmp: #f59e0b;
-  --color-chart-other: #6b7280;
+  --color-chart-other: #9ca3af;
   --color-chart-new: #10b981;
   --color-chart-removed: #ef4444;
 
@@ -65,7 +65,7 @@
   --color-os-linux: #f97316;
   --color-os-windows: #3b82f6;
   --color-os-router: #22c55e;
-  --color-os-unknown: #6b7280;
+  --color-os-unknown: #9ca3af;
 
   /* ==========================================================================
    * Chart Colors - Multi-Category Palette
@@ -108,7 +108,7 @@
    * ========================================================================== */
   --color-topo-scanner: #ef4444;
   --color-topo-router: #f59e0b;
-  --color-topo-host: #6b7280;
+  --color-topo-host: #9ca3af;
   --color-topo-host-linux: #22c55e;
   --color-topo-host-windows: #3b82f6;
   --color-topo-edge: #4b5563;
@@ -120,7 +120,7 @@
    * ========================================================================== */
   --color-timeline-tcp: #3b82f6;
   --color-timeline-udp: #8b5cf6;
-  --color-timeline-other: #6b7280;
+  --color-timeline-other: #9ca3af;
   --color-timeline-active: #22c55e;
   --color-timeline-closed: #ef4444;
   --color-timeline-filtered: #f59e0b;
