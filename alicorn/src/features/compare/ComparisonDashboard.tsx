@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useMultiScanComparison } from './hooks'
-import { SideBySideView } from './views'
+import { SideBySideView, TimelineView } from './views'
 import type { MultiScanComparisonResult } from './types'
 
 // =============================================================================
@@ -144,6 +144,12 @@ function ViewRenderer({ viewType, data, isLoading, error, scanIds, isThumbnail }
       )
 
     case 'timeline':
+      return isThumbnail ? (
+        <ViewPlaceholder config={config} isThumbnail />
+      ) : (
+        <TimelineView data={data} className="h-full" />
+      )
+
     case 'unified-diff':
     case 'matrix-heatmap':
     default:

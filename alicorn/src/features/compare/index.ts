@@ -12,7 +12,7 @@ export { HostDiffTable } from './HostDiffTable'
 export { ComparisonView } from './ComparisonView'
 
 // Visualization Views
-export { SideBySideView } from './views'
+export { SideBySideView, TimelineView } from './views'
 
 // Hooks (legacy 2-scan comparison)
 export {
