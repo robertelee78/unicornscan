@@ -6,6 +6,31 @@
 
 services:
   # ==========================================================================
+  # GeoIP API Service (live lookups from MMDB databases)
+  # ==========================================================================
+  geoip:
+    build:
+      context: ./geoip-api
+      dockerfile: Dockerfile
+    container_name: alicorn-geoip
+    environment:
+      GEOIP_PORT: 3001
+      GEOIP_DIR: /usr/share/GeoIP
+    volumes:
+      # Mount host GeoIP databases (read-only)
+      - /usr/share/GeoIP:/usr/share/GeoIP:ro
+      - /var/lib/GeoIP:/var/lib/GeoIP:ro
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================================
   # PostgreSQL Database
   # ==========================================================================
   postgres:
