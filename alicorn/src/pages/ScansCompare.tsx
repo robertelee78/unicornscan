@@ -4,12 +4,17 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, GitCompare, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ComparisonDashboard } from '@/features/compare'
+import {
+  ComparisonDashboard,
+  ComparisonHeader,
+  type ExportFormat,
+} from '@/features/compare'
+import { useToast } from '@/features/toast'
 
 /**
  * Parse and validate scan IDs from URL query parameter
@@ -49,6 +54,38 @@ export function ScansCompare() {
 
   // Validate we have enough scans to compare
   const hasEnoughScans = scanIds.length >= 2
+
+  // Toast notifications
+  const { info } = useToast()
+
+  // Note and bookmark state (will be persisted in Phase 6)
+  const [note, setNote] = useState('')
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Handle note changes (auto-save will be implemented in Phase 6)
+  const handleNoteChange = useCallback((newNote: string) => {
+    setNote(newNote)
+  }, [])
+
+  // Handle bookmark toggle (persistence will be implemented in Phase 6)
+  const handleBookmarkToggle = useCallback(() => {
+    setIsBookmarked((prev) => !prev)
+    info(
+      isBookmarked ? 'Bookmark removed' : 'Comparison bookmarked',
+      isBookmarked ? 'Removed from saved comparisons' : 'Added to saved comparisons'
+    )
+  }, [isBookmarked, info])
+
+  // Handle export (actual export logic will be implemented in Phase 7)
+  const handleExport = useCallback((format: ExportFormat) => {
+    setIsExporting(true)
+    // Simulate export delay
+    setTimeout(() => {
+      setIsExporting(false)
+      info(`Export started`, `Generating ${format.toUpperCase()} export...`)
+    }, 500)
+  }, [info])
 
   // Handle invalid state - not enough scans
   if (!hasEnoughScans) {
@@ -94,31 +131,22 @@ export function ScansCompare() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with back button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/scans')}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Scans
-          </Button>
-          <div className="flex items-center gap-2">
-            <GitCompare className="h-5 w-5 text-primary" />
-            <h1 className="text-2xl font-bold">Compare Scans</h1>
-          </div>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          Comparing {scanIds.length} scan{scanIds.length !== 1 ? 's' : ''}
-        </div>
-      </div>
+    <div className="flex flex-col h-full">
+      {/* Comparison Header with notes, bookmark, and export */}
+      <ComparisonHeader
+        scanIds={scanIds}
+        note={note}
+        onNoteChange={handleNoteChange}
+        isBookmarked={isBookmarked}
+        onBookmarkToggle={handleBookmarkToggle}
+        onExport={handleExport}
+        isExporting={isExporting}
+      />
 
       {/* Comparison Dashboard with 4 visualization modes */}
-      <ComparisonDashboard scanIds={scanIds} />
+      <div className="flex-1 p-6 space-y-6">
+        <ComparisonDashboard scanIds={scanIds} />
+      </div>
     </div>
   )
 }
