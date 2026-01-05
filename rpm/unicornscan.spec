@@ -103,7 +103,7 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 echo ""
 echo "Unicornscan installed successfully!"
 echo ""
-echo "OPTIONAL: Enable GeoIP country lookups:"
+echo "OPTIONAL: Enable GeoIP city, region, and ASN lookups:"
 echo "  sudo unicornscan-geoip-update"
 echo ""
 

@@ -42,7 +42,7 @@ case "$1" in
         echo "║              Unicornscan installed successfully!               ║"
         echo "╠════════════════════════════════════════════════════════════════╣"
         echo "║                                                                ║"
-        echo "║  OPTIONAL: Enable GeoIP country lookups:                       ║"
+        echo "║  OPTIONAL: Enable GeoIP city, region, and ASN lookups:         ║"
         echo "║    sudo unicornscan-geoip-update                               ║"
         echo "║                                                                ║"
         echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
