@@ -169,7 +169,7 @@ All files contain references to version 0.4.7 as part of technical analysis and 
 - ⚠️ `configure`: 0.4.8 (generated file, needs regeneration)
 
 ### Other Version References Found:
-- `docs/unicornscan.1`: 0.4.6b (man page - very old)
+- `docs/man/unicornscan.1`: 0.4.6b (man page - very old)
 - `docs/unicornscan_man.tex`: 0.4.6b (LaTeX version of man page)
 
 **Note**: Man page versions (0.4.6b) are separate issue, not part of this audit.

@@ -1,8 +1,9 @@
 include ../Makefile.inc
 
-# Man pages (hand-maintained troff format)
-MAN1_PAGES = unicornscan.1 fantaip.1 unibrow.1 unicfgtst.1
-MAN5_PAGES = unicorn.conf.5
+# Man pages (hand-maintained troff format in man/ subdirectory)
+MANDIR = man
+MAN1_PAGES = $(MANDIR)/unicornscan.1 $(MANDIR)/fantaip.1 $(MANDIR)/unibrow.1 $(MANDIR)/unicfgtst.1
+MAN5_PAGES = $(MANDIR)/unicorn.conf.5
 
 all: $(MAN1_PAGES) $(MAN5_PAGES)
 
@@ -16,11 +17,11 @@ unicornscan.pdf: unicornscan.dvi
 install: $(MAN1_PAGES) $(MAN5_PAGES)
 	mkdir -p $(DESTDIR)/$(mandir)/man1
 	mkdir -p $(DESTDIR)/$(mandir)/man5
-	$(INSTALL_PROGRAM) -m 644 unicornscan.1 $(DESTDIR)/$(mandir)/man1/@targetname@.1
-	$(INSTALL_PROGRAM) -m 644 fantaip.1 $(DESTDIR)/$(mandir)/man1/fantaip.1
-	$(INSTALL_PROGRAM) -m 644 unibrow.1 $(DESTDIR)/$(mandir)/man1/unibrow.1
-	$(INSTALL_PROGRAM) -m 644 unicfgtst.1 $(DESTDIR)/$(mandir)/man1/unicfgtst.1
-	$(INSTALL_PROGRAM) -m 644 unicorn.conf.5 $(DESTDIR)/$(mandir)/man5/unicorn.conf.5
+	$(INSTALL_PROGRAM) -m 644 $(MANDIR)/unicornscan.1 $(DESTDIR)/$(mandir)/man1/@targetname@.1
+	$(INSTALL_PROGRAM) -m 644 $(MANDIR)/fantaip.1 $(DESTDIR)/$(mandir)/man1/fantaip.1
+	$(INSTALL_PROGRAM) -m 644 $(MANDIR)/unibrow.1 $(DESTDIR)/$(mandir)/man1/unibrow.1
+	$(INSTALL_PROGRAM) -m 644 $(MANDIR)/unicfgtst.1 $(DESTDIR)/$(mandir)/man1/unicfgtst.1
+	$(INSTALL_PROGRAM) -m 644 $(MANDIR)/unicorn.conf.5 $(DESTDIR)/$(mandir)/man5/unicorn.conf.5
 
 clean:
 	rm -f *.aux *.dvi *.ps *.log

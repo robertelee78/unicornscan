@@ -82,7 +82,7 @@ export const PORT_CATEGORIES: PortCategoryConfig[] = [
     id: 'monitoring',
     name: 'Monitoring & Management',
     description: 'SNMP, Syslog, and monitoring tools',
-    ports: [161, 162, 514, 111, 135, 6443, 9090, 9100, 3000, 8086],
+    ports: [161, 162, 514, 111, 135, 6443, 9090, 9100, 8086],
     icon: 'Activity',
     color: 'var(--color-palette-7)',
     sortOrder: 8,
