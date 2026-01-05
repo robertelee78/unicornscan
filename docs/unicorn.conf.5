@@ -1,0 +1,295 @@
+'\" t
+.\" Manual page for unicorn.conf
+.\" Copyright (C) 2004-2006 Jack Louis <jack@rapturesecurity.org>
+.\" Maintained by Robert E. Lee <robert@unicornscan.org> (2025-present)
+.de Vb
+.ft CW
+.nf
+..
+.de Ve
+.ft R
+
+.fi
+..
+.TH "UNICORN.CONF" "5" "2026-01-05" "unicornscan 0.4.38" "File Formats"
+.SH NAME
+
+.PP
+unicorn.conf \- unicornscan configuration file
+
+.SH SYNOPSIS
+
+.PP
+\fB/usr/local/etc/unicornscan/unicorn.conf\fP
+
+.SH DESCRIPTION
+
+.PP
+The \fBunicorn.conf\fP file contains default configuration settings for
+\fBunicornscan\fP. Command-line options override settings in this file.
+
+.PP
+The file uses a C-style syntax with blocks, key-value pairs, semicolons,
+and C-style comments (/* ... */ and // ...).
+
+.SH FILE FORMAT
+
+.SS Basic Syntax
+.PP
+Configuration is organized in blocks:
+
+.Vb
+global {
+    option:     value;
+    option2:    "string value";
+};
+.Ve
+
+.SS Data Types
+.IP \(bu 2
+\fBInteger\fP: Numeric values (e.g., \fBpps: 1000;\fP)
+.IP \(bu 2
+\fBBoolean\fP: \fBtrue\fP or \fBfalse\fP (also 1 or 0)
+.IP \(bu 2
+\fBString\fP: Quoted text (e.g., \fBdelaytype: "tsc";\fP)
+.IP \(bu 2
+\fBKeyword\fP: Unquoted special values (e.g., \fBtsc\fP, \fBgtod\fP, \fBsleep\fP)
+
+.SS Comments
+.PP
+C-style comments are supported:
+.Vb
+/* This is a block comment */
+// This is a line comment
+.Ve
+
+.SS Include Directive
+.PP
+Other configuration files can be included:
+.Vb
+include "/path/to/other.conf";
+.Ve
+
+.SH GLOBAL OPTIONS
+
+.PP
+The following options can be set in the \fBglobal\fP block:
+
+.SS Scan Rate and Timing
+.TP
+\fBpps\fP: \fIinteger\fP
+Packets per second. Default: 250. Example: \fBpps: 300;\fP for cable modem,
+\fBpps: 10000;\fP for high-speed networks.
+.TP
+\fBrepeats\fP: \fIinteger\fP
+Number of times to repeat the entire scan. Default: 1.
+.TP
+\fBdelaytype\fP: \fItsc\fP | \fIgtod\fP | \fIsleep\fP
+Timer mechanism for rate control. \fBtsc\fP uses CPU timestamp counter (most
+accurate but CPU-intensive), \fBgtod\fP uses gettimeofday, \fBsleep\fP uses
+nanosleep (least CPU-intensive).
+
+.SS Packet Settings
+.TP
+\fBsourceport\fP: \fIinteger\fP
+Source port for outgoing packets. Use -1 for random (default), or 0-65535.
+.TP
+\fBipttl\fP: \fIvalue\fP
+IP Time-To-Live value (0-255 or hex like 0xFF).
+.TP
+\fBiptos\fP: \fIinteger\fP
+IP Type-of-Service value (0-255).
+.TP
+\fBtcpflags\fP: \fIflags\fP
+TCP flags for SYN packets. Uppercase = set, lowercase = unset.
+Valid flags: S(yn), F(in), U(rg), P(sh), A(ck), E(ce), C(wr).
+Default: \fBSfupaec\fP (SYN set, others unset).
+.TP
+\fBbrokencrc\fP: \fBtransport\fP | \fBnetwork\fP | \fBboth\fP
+Generate invalid checksums for firewall/IDS testing.
+.TP
+\fBfingerprint\fP: \fIinteger\fP
+OS fingerprint profile to emulate. 0=Cisco, 1=OpenBSD, 2=Windows XP, 4=p0f.
+
+.SS Payload and Response Handling
+.TP
+\fBdefaultpayload\fP: \fBtrue\fP | \fBfalse\fP
+Send default UDP payload when no specific payload is defined. Default: true.
+Also accepts: \fBdefpayload\fP.
+.TP
+\fBprocerrors\fP: \fBtrue\fP | \fBfalse\fP
+Process ICMP errors and RST packets. Default: false.
+.TP
+\fBpayload_group\fP: \fIinteger\fP
+Payload group to use. Default: 1.
+.TP
+\fBignoreseq\fP: \fBA\fP | \fBR\fP | \fBN\fP
+Ignore TCP sequence validation. \fBA\fP=all, \fBR\fP=RST only, \fBN\fP=none.
+
+.SS Output and Display
+.TP
+\fBverbose\fP: \fIinteger\fP
+Verbosity level (0-7). Higher values produce more output.
+.TP
+\fBimmediate\fP: \fBtrue\fP | \fBfalse\fP
+Display results immediately as they arrive. Default: false.
+.TP
+\fBquiet\fP: \fBtrue\fP | \fBfalse\fP
+Suppress most output. Default: false.
+.TP
+\fBdodns\fP: \fBtrue\fP | \fBfalse\fP
+Perform DNS resolution on discovered hosts. Default: false.
+
+.SS Output Format
+.TP
+\fBformat { ... }\fP
+Custom output format strings. Format types:
+.RS
+.IP \(bu 2
+\fBip:\fP \- IP scan reports
+.IP \(bu 2
+\fBimip:\fP \- Immediate IP reports
+.IP \(bu 2
+\fBarp:\fP \- ARP scan reports
+.IP \(bu 2
+\fBimarp:\fP \- Immediate ARP reports
+.RE
+.PP
+Format specifiers include: %r (response), %p (port), %P (port name),
+%h (host), %H (hostname), %T (TCP flags), %t (TTL), %M (MAC), %o (OUI vendor).
+
+.SS Quick Port Lists
+.TP
+\fBtcpquickports { ... }\fP
+Default TCP ports for quick scans (when using \fB-p q\fP). Ports are specified
+as comma-separated values or ranges in quoted strings.
+.TP
+\fBudpquickports { ... }\fP
+Default UDP ports for quick scans.
+
+.SS Debugging
+.TP
+\fBdebug\fP: \fImask\fP
+Debug output mask. Use "none" to disable.
+.TP
+\fBreadfile\fP: \fI"path"\fP
+Read packets from pcap file instead of network.
+
+.SH PAYLOAD SECTION
+
+.PP
+Protocol payloads are defined in the \fBpayloads\fP block or included from
+\fBpayloads.conf\fP:
+
+.Vb
+payloads {
+    udp 53 -1 1 { "\\x00\\x01..." };
+    tcp 80 -1 1 { "GET / HTTP/1.0\\r\\n\\r\\n" };
+};
+.Ve
+
+.PP
+Format: \fBproto port sport group { "data" };\fP
+.IP \(bu 2
+\fBproto\fP: udp or tcp
+.IP \(bu 2
+\fBport\fP: destination port (-1 for default payload)
+.IP \(bu 2
+\fBsport\fP: source port (-1 for any)
+.IP \(bu 2
+\fBgroup\fP: payload group number
+
+.SH MODULE SECTION
+
+.PP
+Module parameters are defined in named blocks:
+
+.Vb
+module "pgsqldb" {
+    host:   "localhost";
+    db:     "unicornscan";
+};
+.Ve
+
+.SH COMMAND-LINE ONLY OPTIONS
+
+.PP
+The following options are documented in the example \fBunicorn.conf\fP as
+comments but are \fBNOT\fP valid in the configuration file. They must be
+specified on the command line:
+
+.IP \(bu 2
+\fBinterface\fP \- Use \fB-i\fP option
+.IP \(bu 2
+\fBsrcaddr\fP \- Use \fB-s\fP option
+.IP \(bu 2
+\fBsavefile\fP \- Use \fB-w\fP option
+.IP \(bu 2
+\fBpcapfilter\fP \- Use \fB-P\fP option
+.IP \(bu 2
+\fBmoduledir\fP \- Use \fB-M\fP option
+
+.SH EXAMPLES
+
+.PP
+Basic configuration for cable modem:
+.Vb
+global {
+    pps:            300;
+    repeats:        1;
+    delaytype:      tsc;
+    fingerprint:    1;
+};
+.Ve
+
+.PP
+Configuration with custom output format:
+.Vb
+global {
+    pps:        1000;
+    verbose:    1;
+    format {
+        "ip:%-8r %h:%p %T ttl %t"
+    };
+};
+.Ve
+
+.PP
+Including payload and module files:
+.Vb
+include "/usr/local/etc/unicornscan/payloads.conf";
+include "/usr/local/etc/unicornscan/modules.conf";
+.Ve
+
+.SH FILES
+
+.TP
+\fB/usr/local/etc/unicornscan/unicorn.conf\fP
+Main configuration file.
+.TP
+\fB/usr/local/etc/unicornscan/payloads.conf\fP
+Protocol-specific UDP/TCP payload definitions.
+.TP
+\fB/usr/local/etc/unicornscan/modules.conf\fP
+Output module configuration.
+.TP
+\fB/usr/local/etc/unicornscan/ports.txt\fP
+Port number to service name mappings.
+.TP
+\fB/usr/local/etc/unicornscan/oui.txt\fP
+MAC address vendor prefixes (for ARP scanning).
+
+.SH SEE ALSO
+
+.PP
+\fBunicornscan\fP(1), \fBunicfgtst\fP(1)
+
+.SH AUTHOR
+
+.PP
+Jack Louis <jack@rapturesecurity.org>
+
+.SH COPYRIGHT
+
+.PP
+Copyright \(co 2004-2006 Jack Louis. Licensed under the GNU General Public License v2.

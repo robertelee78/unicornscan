@@ -1,0 +1,187 @@
+'\" t
+.\" Manual page for unibrow
+.\" Copyright (C) 2004-2006 Jack Louis <jack@rapturesecurity.org>
+.\" Maintained by Robert E. Lee <robert@unicornscan.org> (2025-present)
+.de Vb
+.ft CW
+.nf
+..
+.de Ve
+.ft R
+
+.fi
+..
+.TH "UNIBROW" "1" "2026-01-05" "unicornscan 0.4.38" "Network Tools"
+.SH NAME
+
+.PP
+unibrow \- extract UDP/TCP payloads from pcap files for unicornscan
+
+.SH SYNOPSIS
+
+.PP
+.B unibrow
+\fB\-i\fP \fIfile\fP
+[\fB\-o\fP \fIfile\fP]
+[\fB\-v\fP]
+[\fB\-h\fP]
+[\fIpcap filter expression\fP]
+
+.SH DESCRIPTION
+
+.PP
+\fBunibrow\fP reads packet capture (pcap) files and extracts UDP and TCP
+payloads, outputting them in \fBunicornscan\fP's \fBpayloads.conf\fP format.
+This allows you to create custom protocol payloads from captured network
+traffic for use in service detection and banner grabbing.
+
+.PP
+The extracted payloads can be appended directly to your \fBpayloads.conf\fP
+file or saved separately for review before integration.
+
+.SH OPTIONS
+
+.TP
+\fB\-i\fP \fIfile\fP
+Input pcap file to read. This option is required. The file must be in
+standard pcap format (as created by \fBtcpdump\fP, \fBwireshark\fP, etc.).
+.TP
+\fB\-o\fP \fIfile\fP
+Output file for extracted payloads. The file is opened in append mode,
+so existing content is preserved. If not specified, output goes to stdout.
+.TP
+\fB\-v\fP
+Verbose operation. Displays additional debugging information including
+packet layer details and hex dumps.
+.TP
+\fB\-h\fP
+Display help message and exit.
+
+.SH ARGUMENTS
+
+.TP
+\fIpcap filter expression\fP
+Optional BPF (Berkeley Packet Filter) expression to filter which packets
+are processed. Uses the same syntax as \fBtcpdump\fP. If not specified,
+defaults to "tcp or udp".
+
+.SH OUTPUT FORMAT
+
+.PP
+\fBunibrow\fP outputs payloads in unicornscan's \fBpayloads.conf\fP format:
+
+.Vb
+proto port sport {
+    "payload line 1\\r\\n"
+    "payload line 2\\r\\n"
+};
+.Ve
+
+.PP
+Where:
+.IP \(bu 2
+\fBproto\fP is "tcp" or "udp"
+.IP \(bu 2
+\fBport\fP is the destination port number
+.IP \(bu 2
+\fBsport\fP is the source port (-1 for any)
+.IP \(bu 2
+The payload content uses C-style escape sequences (\\n, \\r, \\t, \\xNN)
+
+.PP
+Printable payloads are output as escaped strings. Binary payloads are
+output as hex sequences (\\xNN) with ASCII annotations.
+
+.SH EXAMPLES
+
+.PP
+Extract all TCP/UDP payloads from a capture file:
+.Vb
+unibrow -i capture.pcap
+.Ve
+
+.PP
+Extract only DNS query payloads and save to file:
+.Vb
+unibrow -i capture.pcap -o dns-payloads.conf port 53 and udp
+.Ve
+
+.PP
+Extract HTTP payloads with verbose output:
+.Vb
+unibrow -v -i web-traffic.pcap port 80 and tcp
+.Ve
+
+.PP
+Extract ISAKMP/IKE payloads:
+.Vb
+unibrow -i ipsec.pcap -o ike.conf port 500 and udp
+.Ve
+
+.PP
+Append extracted payloads to existing configuration:
+.Vb
+unibrow -i capture.pcap -o /etc/unicornscan/payloads.conf
+.Ve
+
+.SH WORKFLOW
+
+.PP
+Typical workflow for creating custom payloads:
+
+.IP 1. 4
+Capture traffic using \fBtcpdump\fP or \fBwireshark\fP:
+.Vb
+tcpdump -i eth0 -w capture.pcap port 1234
+.Ve
+
+.IP 2. 4
+Extract payloads with \fBunibrow\fP:
+.Vb
+unibrow -i capture.pcap -o custom.conf
+.Ve
+
+.IP 3. 4
+Review and edit the extracted payloads as needed.
+
+.IP 4. 4
+Add to \fBpayloads.conf\fP or use as-is:
+.Vb
+cat custom.conf >> /etc/unicornscan/payloads.conf
+.Ve
+
+.IP 5. 4
+Scan with the custom payloads:
+.Vb
+unicornscan -mU target:1234
+.Ve
+
+.SH FILES
+
+.TP
+\fB/usr/local/etc/unicornscan/payloads.conf\fP
+Default unicornscan payload configuration file.
+
+.SH EXIT STATUS
+
+.TP
+\fB0\fP
+Success.
+.TP
+\fB1\fP
+Error (file not found, invalid pcap, filter syntax error, etc.).
+
+.SH SEE ALSO
+
+.PP
+\fBunicornscan\fP(1), \fBunicorn.conf\fP(5), \fBtcpdump\fP(1), \fBpcap\fP(3)
+
+.SH AUTHOR
+
+.PP
+Jack Louis <jack@rapturesecurity.org>
+
+.SH COPYRIGHT
+
+.PP
+Copyright \(co 2004-2006 Jack Louis. Licensed under the GNU General Public License v2.

@@ -1,26 +1,26 @@
 include ../Makefile.inc
 
-all: unicornscan.1
+# Man pages (hand-maintained troff format)
+MAN1_PAGES = unicornscan.1 fantaip.1 unibrow.1 unicfgtst.1
+MAN5_PAGES = unicorn.conf.5
 
+all: $(MAN1_PAGES) $(MAN5_PAGES)
+
+# LaTeX documentation (separate from man pages)
 unicornscan.dvi: unicornscan.tex
 	latex unicornscan.tex
 
 unicornscan.pdf: unicornscan.dvi
 	pdflatex unicornscan.tex
 
-# Man page is pre-built in source tree; only regenerate if latex2man is available
-unicornscan.1: unicornscan_man.tex
-	@if command -v latex2man >/dev/null 2>&1; then \
-		latex2man unicornscan_man.tex unicornscan.1; \
-	elif [ -f unicornscan.1 ]; then \
-		echo "Using pre-built man page"; \
-	else \
-		echo "Error: latex2man not found and no pre-built man page"; exit 1; \
-	fi
-
-install: unicornscan.1
+install: $(MAN1_PAGES) $(MAN5_PAGES)
 	mkdir -p $(DESTDIR)/$(mandir)/man1
+	mkdir -p $(DESTDIR)/$(mandir)/man5
 	$(INSTALL_PROGRAM) -m 644 unicornscan.1 $(DESTDIR)/$(mandir)/man1/@targetname@.1
+	$(INSTALL_PROGRAM) -m 644 fantaip.1 $(DESTDIR)/$(mandir)/man1/fantaip.1
+	$(INSTALL_PROGRAM) -m 644 unibrow.1 $(DESTDIR)/$(mandir)/man1/unibrow.1
+	$(INSTALL_PROGRAM) -m 644 unicfgtst.1 $(DESTDIR)/$(mandir)/man1/unicfgtst.1
+	$(INSTALL_PROGRAM) -m 644 unicorn.conf.5 $(DESTDIR)/$(mandir)/man5/unicorn.conf.5
 
 clean:
 	rm -f *.aux *.dvi *.ps *.log
@@ -30,3 +30,7 @@ distclean: clean
 
 uninstall:
 	rm -f $(DESTDIR)/$(mandir)/man1/@targetname@.1
+	rm -f $(DESTDIR)/$(mandir)/man1/fantaip.1
+	rm -f $(DESTDIR)/$(mandir)/man1/unibrow.1
+	rm -f $(DESTDIR)/$(mandir)/man1/unicfgtst.1
+	rm -f $(DESTDIR)/$(mandir)/man5/unicorn.conf.5

@@ -1,0 +1,166 @@
+'\" t
+.\" Manual page for unicfgtst
+.\" Copyright (C) 2004-2006 Jack Louis <jack@rapturesecurity.org>
+.\" Maintained by Robert E. Lee <robert@unicornscan.org> (2025-present)
+.de Vb
+.ft CW
+.nf
+..
+.de Ve
+.ft R
+
+.fi
+..
+.TH "UNICFGTST" "1" "2026-01-05" "unicornscan 0.4.38" "Network Tools"
+.SH NAME
+
+.PP
+unicfgtst \- test and validate unicornscan configuration files
+
+.SH SYNOPSIS
+
+.PP
+.B unicfgtst
+\fIfile\fP
+
+.SH DESCRIPTION
+
+.PP
+\fBunicfgtst\fP parses and validates \fBunicornscan\fP configuration files,
+displaying the parsed contents in a human-readable format. It is useful for
+testing configuration syntax, debugging payload definitions, and verifying
+module parameters before running scans.
+
+.PP
+The tool can parse any unicornscan configuration file including:
+.IP \(bu 2
+\fBunicorn.conf\fP \- Main scanner configuration
+.IP \(bu 2
+\fBpayloads.conf\fP \- Protocol payload definitions
+.IP \(bu 2
+\fBmodules.conf\fP \- Module parameters
+
+.SH ARGUMENTS
+
+.TP
+\fIfile\fP
+Path to the configuration file to test. This argument is required.
+
+.SH OUTPUT
+
+.PP
+\fBunicfgtst\fP displays different information depending on the file type:
+
+.SS Configuration Options
+.PP
+For general configuration options, displays key-value pairs:
+.Vb
+Option `pps'=`1000'
+Option `interface'=`eth0'
+.Ve
+
+.SS Module Definitions
+.PP
+For module configurations, displays module names and their parameters:
+.Vb
+Module: pgsqldb
+    host=localhost
+    db=unicornscan
+    user=scanner
+.Ve
+
+.SS Payload Definitions
+.PP
+For payload files, displays protocol, port, source port, size, and payload group:
+.Vb
+Added payload for proto 17 dport 53 sport -1 size 29 payload group 1
+Added payload for proto 6 dport 80 sport -1 size 78 payload group 1
+Added default payload for proto 17 sport -1 size 0 payload group 1
+.Ve
+
+.PP
+Protocol numbers: 6 = TCP, 17 = UDP. Source port -1 means "any".
+
+.SH EXAMPLES
+
+.PP
+Test the main configuration file:
+.Vb
+unicfgtst /usr/local/etc/unicornscan/unicorn.conf
+.Ve
+
+.PP
+Validate payload definitions:
+.Vb
+unicfgtst /usr/local/etc/unicornscan/payloads.conf
+.Ve
+
+.PP
+Test a custom configuration before use:
+.Vb
+unicfgtst ./my-custom.conf
+.Ve
+
+.PP
+Check for syntax errors in module config:
+.Vb
+unicfgtst /usr/local/etc/unicornscan/modules.conf
+.Ve
+
+.SH EXIT STATUS
+
+.TP
+\fB0\fP
+Success. The configuration file was parsed without errors.
+.TP
+\fB1\fP
+Error. The configuration file could not be parsed. An error message
+describing the problem is printed to stderr.
+
+.SH DIAGNOSTICS
+
+.PP
+On parse error, \fBunicfgtst\fP prints an error message indicating the
+nature of the problem:
+
+.Vb
+Error parsing configuration from `/path/to/file'
+.Ve
+
+.PP
+Common errors include:
+.IP \(bu 2
+File not found or not readable
+.IP \(bu 2
+Syntax errors in configuration
+.IP \(bu 2
+Invalid payload format
+.IP \(bu 2
+Malformed module definitions
+
+.SH FILES
+
+.TP
+\fB/usr/local/etc/unicornscan/unicorn.conf\fP
+Main unicornscan configuration file.
+.TP
+\fB/usr/local/etc/unicornscan/payloads.conf\fP
+Protocol payload definitions.
+.TP
+\fB/usr/local/etc/unicornscan/modules.conf\fP
+Output module parameters.
+
+.SH SEE ALSO
+
+.PP
+\fBunicornscan\fP(1), \fBunicorn.conf\fP(5)
+
+.SH AUTHOR
+
+.PP
+Jack Louis <jack@rapturesecurity.org>
+
+.SH COPYRIGHT
+
+.PP
+Copyright \(co 2004-2006 Jack Louis. Licensed under the GNU General Public License v2.

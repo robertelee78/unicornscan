@@ -26,6 +26,7 @@ Requires:       libpcap
 Requires:       libdnet
 Requires:       libtool-ltdl
 Requires:       libcap
+Requires:       postgresql-libs
 Recommends:     libmaxminddb
 
 %description
@@ -63,6 +64,44 @@ mkdir -p %{buildroot}%{_localstatedir}/unicornscan
 
 # Install GeoIP update script
 install -m 755 scripts/unicornscan-geoip-update %{buildroot}%{_bindir}/
+
+# Install unicornscan-web management script
+install -m 755 debian/unicornscan-web %{buildroot}%{_bindir}/
+
+# Install Alicorn web UI files
+mkdir -p %{buildroot}/opt/unicornscan-web/sql
+mkdir -p %{buildroot}/opt/unicornscan-web/src
+mkdir -p %{buildroot}/opt/unicornscan-web/public
+mkdir -p %{buildroot}/opt/unicornscan-web/cli
+
+# Docker configuration
+install -m 644 alicorn/docker-compose.standalone.yml %{buildroot}/opt/unicornscan-web/docker-compose.yml
+install -m 644 alicorn/Dockerfile %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/nginx.conf %{buildroot}/opt/unicornscan-web/
+
+# Build configuration
+install -m 644 alicorn/package.json %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/package-lock.json %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/vite.config.ts %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/tsconfig.json %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/tsconfig.app.json %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/tsconfig.node.json %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/eslint.config.js %{buildroot}/opt/unicornscan-web/ 2>/dev/null || :
+install -m 644 alicorn/vitest.config.ts %{buildroot}/opt/unicornscan-web/ 2>/dev/null || :
+install -m 644 alicorn/index.html %{buildroot}/opt/unicornscan-web/
+
+# Source code (copy directories)
+cp -r alicorn/src/* %{buildroot}/opt/unicornscan-web/src/
+cp -r alicorn/public/* %{buildroot}/opt/unicornscan-web/public/
+
+# CLI / Setup wizard
+install -m 644 alicorn/cli/setup.ts %{buildroot}/opt/unicornscan-web/cli/
+
+# PostgREST configuration
+install -m 644 alicorn/postgrest %{buildroot}/opt/unicornscan-web/
+
+# SQL schema
+install -m 644 src/output_modules/database/sql/pgsql_schema.sql %{buildroot}/opt/unicornscan-web/sql/
 
 %post
 # Create unicornscan group for shared config access
@@ -116,11 +155,13 @@ echo ""
 %{_bindir}/unicfgtst
 %{_bindir}/us
 %{_bindir}/unicornscan-geoip-update
+%{_bindir}/unicornscan-web
 %{_libdir}/unicornscan/
 %{_libexecdir}/unicornscan/
 %config(noreplace) %{_sysconfdir}/unicornscan/
 %{_mandir}/man1/*
 %dir %{_localstatedir}/unicornscan
+/opt/unicornscan-web/
 
 %changelog
 * Thu Jan 02 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.32-1
