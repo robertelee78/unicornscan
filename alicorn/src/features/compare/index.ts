@@ -4,6 +4,7 @@
  */
 
 // Components
+export { ComparisonDashboard, type ViewType } from './ComparisonDashboard'
 export { ScanSelector } from './ScanSelector'
 export { ComparisonSummary } from './ComparisonSummary'
 export { HostDiffTable } from './HostDiffTable'
