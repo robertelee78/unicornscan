@@ -363,14 +363,20 @@ function HostRow({ host, isExpanded, onToggleExpand, parsedSearch }: HostRowProp
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className={`cursor-default truncate block ${isLiveGeoIP ? 'text-cyan-400' : ''}`}>
+                  <a
+                    href={`https://bgp.he.net/AS${geoAsn}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`truncate block hover:underline ${isLiveGeoIP ? 'text-cyan-400' : 'text-primary'}`}
+                  >
                     AS{geoAsn}
-                  </span>
+                  </a>
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   <div className="space-y-0.5">
                     <p><span className="text-muted">ASN:</span> {geoAsn}</p>
                     {geoAsOrg && <p><span className="text-muted">Org:</span> {geoAsOrg}</p>}
+                    <p className="text-muted text-xs">Click to view on bgp.he.net</p>
                     {isLiveGeoIP && <p className="text-cyan-400 text-xs mt-1">Live lookup (not stored)</p>}
                   </div>
                 </TooltipContent>
