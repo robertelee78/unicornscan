@@ -12,6 +12,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   ComparisonDashboard,
   ComparisonHeader,
+  useMultiScanComparison,
+  exportMultiScanToCSV,
+  downloadCSV,
+  exportMultiScanToJSON,
+  downloadJSON,
+  exportMultiScanToMarkdown,
+  downloadMarkdown,
   type ExportFormat,
 } from '@/features/compare'
 import { useToast } from '@/features/toast'
@@ -56,7 +63,10 @@ export function ScansCompare() {
   const hasEnoughScans = scanIds.length >= 2
 
   // Toast notifications
-  const { info } = useToast()
+  const { info, error: showError } = useToast()
+
+  // Fetch comparison data for exports
+  const { data: comparisonData } = useMultiScanComparison(scanIds)
 
   // Note and bookmark state (will be persisted in Phase 6)
   const [note, setNote] = useState('')
@@ -77,15 +87,48 @@ export function ScansCompare() {
     )
   }, [isBookmarked, info])
 
-  // Handle export (actual export logic will be implemented in Phase 7)
+  // Handle export - generate and download file
   const handleExport = useCallback((format: ExportFormat) => {
+    if (!comparisonData) {
+      showError('Export failed', 'Comparison data not loaded yet')
+      return
+    }
+
     setIsExporting(true)
-    // Simulate export delay
-    setTimeout(() => {
+
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const scanIdsStr = scanIds.join('-')
+
+      switch (format) {
+        case 'csv': {
+          const csvContent = exportMultiScanToCSV(comparisonData, note || undefined)
+          const filename = `scan-comparison-${scanIdsStr}-${timestamp}.csv`
+          downloadCSV(csvContent, filename)
+          info('Export complete', `Downloaded ${filename}`)
+          break
+        }
+        case 'json': {
+          const jsonContent = exportMultiScanToJSON(comparisonData, note || undefined)
+          const filename = `scan-comparison-${scanIdsStr}-${timestamp}.json`
+          downloadJSON(jsonContent, filename)
+          info('Export complete', `Downloaded ${filename}`)
+          break
+        }
+        case 'markdown': {
+          const mdContent = exportMultiScanToMarkdown(comparisonData, note || undefined)
+          const filename = `scan-comparison-${scanIdsStr}-${timestamp}.md`
+          downloadMarkdown(mdContent, filename)
+          info('Export complete', `Downloaded ${filename}`)
+          break
+        }
+      }
+    } catch (err) {
+      showError('Export failed', err instanceof Error ? err.message : 'Unknown error')
+    } finally {
       setIsExporting(false)
-      info(`Export started`, `Generating ${format.toUpperCase()} export...`)
-    }, 500)
-  }, [info])
+    }
+  }, [comparisonData, scanIds, note, info, showError])
 
   // Handle invalid state - not enough scans
   if (!hasEnoughScans) {
@@ -135,6 +178,8 @@ export function ScansCompare() {
       {/* Comparison Header with notes, bookmark, and export */}
       <ComparisonHeader
         scanIds={scanIds}
+        targetStr={comparisonData?.scans[0]?.target_str}
+        modeStr={comparisonData?.scans[0]?.mode_str}
         note={note}
         onNoteChange={handleNoteChange}
         isBookmarked={isBookmarked}

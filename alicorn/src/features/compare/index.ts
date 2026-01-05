@@ -32,5 +32,15 @@ export {
 export { compareScans, parseCompareUrl, buildCompareUrl } from './compare-utils'
 export { exportComparisonToCSV, exportComparisonToJSON } from './export-utils'
 
+// Multi-scan export utilities
+export {
+  exportMultiScanToCSV,
+  downloadCSV,
+  exportMultiScanToJSON,
+  downloadJSON,
+  exportMultiScanToMarkdown,
+  downloadMarkdown,
+} from './export'
+
 // Types
 export * from './types'
