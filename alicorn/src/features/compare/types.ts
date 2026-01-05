@@ -20,6 +20,8 @@ export interface PortInfo {
   flags: number
   /** Sport for the report */
   sport?: number
+  /** Service banner if available */
+  banner?: string
 }
 
 // =============================================================================
@@ -65,6 +67,10 @@ export interface MultiScanPortDiff {
   hasTtlChanges: boolean
   /** TTL values observed across scans (for quick reference) */
   ttlValues: number[]
+  /** True if service banner changed between any consecutive scans where port was present */
+  hasBannerChanges: boolean
+  /** True if any scan has a banner for this port */
+  hasBanner: boolean
 }
 
 /**
@@ -123,6 +129,10 @@ export interface MultiScanSummary {
   portsWithChanges: number
   /** Ports with TTL value changes across scans */
   portsWithTtlChanges: number
+  /** Ports with banner changes across scans */
+  portsWithBannerChanges: number
+  /** Ports with any banner data */
+  portsWithBanners: number
 }
 
 /**
