@@ -206,6 +206,6 @@ export function classifyResponse(
     category: 'unknown',
     summary: `Proto ${protocol}`,
     detail: `Unknown protocol ${protocol}`,
-    colorClass: 'bg-muted text-muted-foreground',
+    colorClass: 'bg-muted text-foreground',
   }
 }

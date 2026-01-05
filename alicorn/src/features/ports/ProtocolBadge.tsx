@@ -18,7 +18,7 @@ const PROTOCOL_COLORS: Record<Protocol, string> = {
   tcp: 'bg-blue-600 text-white',
   udp: 'bg-emerald-600 text-white',
   icmp: 'bg-amber-600 text-white',
-  other: 'bg-muted text-muted-foreground',
+  other: 'bg-muted text-foreground',
 }
 
 /**

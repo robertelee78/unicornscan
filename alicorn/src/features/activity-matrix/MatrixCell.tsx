@@ -167,7 +167,7 @@ function StatusBadge({ status }: { status: CellStatus }) {
     mixed: { bg: 'bg-amber-500/20', text: 'text-amber-500', label: 'Mixed Changes' },
     unchanged: { bg: 'bg-gray-400/20', text: 'text-gray-400', label: 'Unchanged' },
     first: { bg: 'bg-blue-500/20', text: 'text-blue-500', label: 'Baseline' },
-    empty: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'No Ports' },
+    empty: { bg: 'bg-muted', text: 'text-foreground', label: 'No Ports' },
   }
 
   const { bg, text, label } = config[status]

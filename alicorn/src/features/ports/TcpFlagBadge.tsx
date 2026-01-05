@@ -47,7 +47,7 @@ interface TcpFlagBadgeProps {
  * Single TCP flag badge with color coding
  */
 export function TcpFlagBadge({ flag, size = 'sm' }: TcpFlagBadgeProps) {
-  const colorClass = FLAG_COLORS[flag] || 'bg-muted text-muted-foreground'
+  const colorClass = FLAG_COLORS[flag] || 'bg-muted text-foreground'
 
   const sizeClasses = {
     sm: 'text-[10px] px-1.5 py-0',
