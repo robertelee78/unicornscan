@@ -180,7 +180,15 @@ export function GeoIPAsnTable({
                     onClick={() => onAsnClick?.(asn.asn)}
                   >
                     <td className="px-3 py-2">
-                      <span className="font-mono text-sm text-primary">AS{asn.asn}</span>
+                      <a
+                        href={`https://bgp.he.net/AS${asn.asn}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-sm text-primary hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        AS{asn.asn}
+                      </a>
                     </td>
                     <td className="px-3 py-2">
                       <div className="font-medium text-sm truncate max-w-[200px]">
