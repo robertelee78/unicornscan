@@ -3,7 +3,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import {
   ScanFilterBar,
   Pagination,
   useScanList,
+  useCompatibleScans,
   DEFAULT_FILTERS,
   DEFAULT_SORT,
   DEFAULT_PAGINATION,
@@ -42,6 +43,19 @@ export function Scans() {
   const { success: toastSuccess, error: toastError } = useToast()
 
   const { data: scans, total, isLoading, error } = useScanList(filters, sort, pagination)
+
+  // Get the first selected scan ID to use as the base for compatibility filtering
+  const baseScanId = useMemo(() => {
+    if (selectedIds.size === 0) return null
+    // Get the first selected scan (the one that establishes filter criteria)
+    return Array.from(selectedIds)[0]
+  }, [selectedIds])
+
+  // Filter scans to only show compatible ones when a scan is selected
+  const { compatibleScans, isFiltering, filterCriteria } = useCompatibleScans(scans, baseScanId)
+
+  // Use compatible scans when filtering, otherwise use all scans
+  const displayedScans = isFiltering ? compatibleScans : scans
 
   // Export functionality
   const exportDialog = useExportDialog()
@@ -173,7 +187,7 @@ export function Scans() {
               <ExportDropdown
                 onExport={handleQuickExport}
                 onOpenDialog={exportDialog.openDialog}
-                disabled={scans.length === 0}
+                disabled={displayedScans.length === 0}
               />
             </div>
           </div>
@@ -181,7 +195,7 @@ export function Scans() {
         </CardHeader>
         <CardContent className="space-y-4">
           <ScanTable
-            scans={scans}
+            scans={displayedScans}
             sort={sort}
             onSort={handleSort}
             isLoading={isLoading}
@@ -207,7 +221,7 @@ export function Scans() {
           exportDialog.closeDialog()
         }}
         isExporting={isExporting}
-        filteredCount={scans.length}
+        filteredCount={displayedScans.length}
         totalCount={total}
       />
 
