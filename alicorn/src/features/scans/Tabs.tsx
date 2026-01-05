@@ -34,7 +34,7 @@ export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
           >
             {tab.label}
             {tab.count !== undefined && (
-              <span className="ml-1.5 font-mono text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+              <span className="ml-1.5 font-mono text-xs bg-muted text-foreground px-1.5 py-0.5 rounded">
                 {tab.count}
               </span>
             )}
