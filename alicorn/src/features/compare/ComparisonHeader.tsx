@@ -226,6 +226,7 @@ export function ComparisonHeader({
           value={localNote}
           onChange={handleNoteChange}
           className="h-8 text-sm"
+          aria-label="Comparison note"
         />
         {isSaving && (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
@@ -240,15 +241,17 @@ export function ComparisonHeader({
               variant="ghost"
               size="sm"
               onClick={onBookmarkToggle}
+              aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark comparison'}
+              aria-pressed={isBookmarked}
               className={cn(
                 'shrink-0',
                 isBookmarked && 'text-primary'
               )}
             >
               {isBookmarked ? (
-                <BookmarkCheck className="h-4 w-4" />
+                <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
               ) : (
-                <Bookmark className="h-4 w-4" />
+                <Bookmark className="h-4 w-4" aria-hidden="true" />
               )}
             </Button>
           </TooltipTrigger>
