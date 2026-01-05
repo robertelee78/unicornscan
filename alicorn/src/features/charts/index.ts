@@ -32,6 +32,7 @@ export {
   useTTLDistribution,
   useWindowSizeDistribution,
   usePortActivityHeatmap,
+  usePortActivityHeatmapLegacy,  // Backward compatibility
   useScanPerformanceStats,
   useProtocolBreakdown,
 } from './hooks'

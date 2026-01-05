@@ -25,8 +25,12 @@ import type {
   HeatmapCell,
   ScanPerformanceStats,
   ProtocolBreakdownData,
+  // Adaptive heatmap types
+  AdaptiveHeatmapData,
+  AdaptiveHeatmapCell,
+  TimeGranularity,
 } from './types'
-import { getServiceName } from './types'
+import { getServiceName, DEFAULT_ADAPTIVE_HEATMAP_CONFIG } from './types'
 
 const db = getDatabase()
 
@@ -611,17 +615,169 @@ export function useWindowSizeDistribution(timeRange: TimeRange = 'all') {
 }
 
 // =============================================================================
-// Port Activity Heatmap Hook (Phase 3.3)
+// Port Activity Heatmap Hook (Phase 3.3 - Enhanced with Adaptive Granularity)
 // =============================================================================
 
 /**
- * Get port activity heatmap data showing when ports were seen
+ * Helper to calculate day span between two dates
+ */
+function calculateDaySpan(startDate: string, endDate: string): number {
+  const start = new Date(startDate).getTime()
+  const end = new Date(endDate).getTime()
+  return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
+}
+
+/**
+ * Helper to format time label based on granularity
+ */
+function formatTimeLabel(timeKey: string, granularity: TimeGranularity): string {
+  if (granularity === 'hourly') {
+    // timeKey is "YYYY-MM-DDTHH"
+    const [datePart, hour] = timeKey.split('T')
+    const date = new Date(datePart)
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
+    return `${dayName} ${hour}:00`
+  } else {
+    // timeKey is "YYYY-MM-DD"
+    const date = new Date(timeKey)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+}
+
+/**
+ * Get port activity heatmap data with adaptive time granularity
+ * Uses hourly buckets for < 7 days, daily buckets for >= 7 days
  */
 export function usePortActivityHeatmap(timeRange: TimeRange = 'all', maxPorts: number = 20) {
   const sinceTimestamp = getSinceTimestamp(timeRange)
 
   return useQuery({
     queryKey: chartKeys.portActivityHeatmap(timeRange),
+    queryFn: async (): Promise<AdaptiveHeatmapData> => {
+      const scans = await db.getScans({ limit: 100 })
+      const filteredScans = sinceTimestamp
+        ? scans.filter(s => s.s_time >= sinceTimestamp)
+        : scans
+
+      const sortedScans = [...filteredScans].sort((a, b) => a.s_time - b.s_time)
+
+      if (sortedScans.length === 0) {
+        const now = new Date().toISOString().split('T')[0]
+        return {
+          cells: [],
+          ports: [],
+          timeKeys: [],
+          timeLabels: [],
+          maxCount: 0,
+          granularity: 'daily',
+          dateRange: { start: now, end: now, daySpan: 1 },
+        }
+      }
+
+      // Determine date range and granularity
+      const firstScanDate = new Date(sortedScans[0].s_time * 1000).toISOString().split('T')[0]
+      const lastScanDate = new Date(sortedScans[sortedScans.length - 1].s_time * 1000).toISOString().split('T')[0]
+      const daySpan = calculateDaySpan(firstScanDate, lastScanDate)
+
+      // Use hourly granularity for < 7 days, daily for >= 7 days
+      const granularity: TimeGranularity = daySpan < DEFAULT_ADAPTIVE_HEATMAP_CONFIG.hourlyThresholdDays
+        ? 'hourly'
+        : 'daily'
+
+      // Track port activity per time bucket
+      const activityMap = new Map<string, number>() // "port-timeKey" -> count
+      const portCounts = new Map<number, number>()  // port -> total count
+      const allTimeKeys = new Set<string>()
+
+      for (const scan of sortedScans) {
+        const scanDate = new Date(scan.s_time * 1000)
+        const datePart = scanDate.toISOString().split('T')[0]
+        const hour = scanDate.getHours().toString().padStart(2, '0')
+
+        // Create time key based on granularity
+        const timeKey = granularity === 'hourly'
+          ? `${datePart}T${hour}`
+          : datePart
+
+        allTimeKeys.add(timeKey)
+
+        const reports = await db.getIpReports(scan.scan_id)
+
+        for (const report of reports) {
+          const key = `${report.sport}-${timeKey}`
+          activityMap.set(key, (activityMap.get(key) || 0) + 1)
+          portCounts.set(report.sport, (portCounts.get(report.sport) || 0) + 1)
+        }
+      }
+
+      // Get top N ports by frequency
+      const topPorts = [...portCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxPorts)
+        .map(([port]) => port)
+        .sort((a, b) => a - b)
+
+      const timeKeys = [...allTimeKeys].sort()
+      const timeLabels = timeKeys.map(tk => formatTimeLabel(tk, granularity))
+
+      // Find max count for intensity scaling
+      let maxCount = 0
+      for (const count of activityMap.values()) {
+        maxCount = Math.max(maxCount, count)
+      }
+
+      // Build cells for heatmap
+      const cells: AdaptiveHeatmapCell[] = []
+
+      for (const port of topPorts) {
+        for (const timeKey of timeKeys) {
+          const key = `${port}-${timeKey}`
+          const count = activityMap.get(key) || 0
+
+          // Extract date and hour from timeKey
+          const datePart = timeKey.includes('T') ? timeKey.split('T')[0] : timeKey
+          const hourPart = timeKey.includes('T') ? parseInt(timeKey.split('T')[1], 10) : undefined
+
+          cells.push({
+            port,
+            date: datePart,
+            timestamp: new Date(datePart).getTime() / 1000,
+            count,
+            intensity: maxCount > 0 ? count / maxCount : 0,
+            hour: hourPart,
+            timeKey,
+          })
+        }
+      }
+
+      return {
+        cells,
+        ports: topPorts,
+        timeKeys,
+        timeLabels,
+        maxCount,
+        granularity,
+        dateRange: {
+          start: firstScanDate,
+          end: lastScanDate,
+          daySpan,
+        },
+      }
+    },
+    staleTime: 60000,
+  })
+}
+
+/**
+ * Legacy hook that returns the old PortActivityHeatmapData format
+ * Kept for backward compatibility with existing components
+ * @deprecated Use usePortActivityHeatmap which returns AdaptiveHeatmapData
+ */
+export function usePortActivityHeatmapLegacy(timeRange: TimeRange = 'all', maxPorts: number = 20) {
+  const sinceTimestamp = getSinceTimestamp(timeRange)
+
+  return useQuery({
+    queryKey: [...chartKeys.portActivityHeatmap(timeRange), 'legacy'] as const,
     queryFn: async (): Promise<PortActivityHeatmapData> => {
       const scans = await db.getScans({ limit: 100 })
       const filteredScans = sinceTimestamp
