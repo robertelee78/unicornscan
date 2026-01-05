@@ -14,6 +14,7 @@ import {
   useGeoIPTypeBreakdown,
   useGeoIPAsnBreakdown,
   useHasGeoIP,
+  ALL_SCANS,
 } from '../hooks'
 import { GeoIPWorldMap } from './GeoIPWorldMap'
 import { CountryDistributionChart } from './CountryDistributionChart'
@@ -117,16 +118,17 @@ function GeoIPStatsSummary({ scanId }: GeoIPStatsSummaryProps) {
 export function GeoIPSection() {
   const [selectedScanId, setSelectedScanId] = useState<number | null>(null)
 
-  // Check if selected scan has GeoIP data (stored or live-lookupable)
-  const { data: hasGeoIP, isLoading: hasGeoIPLoading } = useHasGeoIP(selectedScanId || 0)
+  // Use ALL_SCANS (0) when no specific scan is selected
+  const effectiveScanId = selectedScanId ?? ALL_SCANS
 
-  // Fetch data for selected scan
-  const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdown(
-    selectedScanId || 0
-  )
-  const { data: mapPoints, isLoading: mapLoading } = useGeoIPMapPoints(selectedScanId || 0)
-  const typeBreakdown = useGeoIPTypeBreakdown(selectedScanId || 0)
-  const asnBreakdown = useGeoIPAsnBreakdown(selectedScanId || 0, 15)
+  // Check if scan(s) have GeoIP data (stored or live-lookupable)
+  const { data: hasGeoIP, isLoading: hasGeoIPLoading } = useHasGeoIP(effectiveScanId)
+
+  // Fetch data for selected scan (or all scans if none selected)
+  const { data: countryStats, isLoading: countryLoading } = useGeoIPCountryBreakdown(effectiveScanId)
+  const { data: mapPoints, isLoading: mapLoading } = useGeoIPMapPoints(effectiveScanId)
+  const typeBreakdown = useGeoIPTypeBreakdown(effectiveScanId)
+  const asnBreakdown = useGeoIPAsnBreakdown(effectiveScanId, 15)
 
   return (
     <div className="space-y-6">
@@ -148,23 +150,8 @@ export function GeoIPSection() {
         </CardHeader>
       </Card>
 
-      {/* Show placeholder if no scan selected */}
-      {!selectedScanId && (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">
-              <div className="text-4xl mb-3">🌍</div>
-              <p>Select a scan above to view geographic distribution</p>
-              <p className="text-sm mt-1">
-                GeoIP data shows the geographic locations of scanned hosts
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Show loading state */}
-      {selectedScanId && hasGeoIPLoading && (
+      {hasGeoIPLoading && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
@@ -175,15 +162,15 @@ export function GeoIPSection() {
         </Card>
       )}
 
-      {/* Show "no data" message if scan has no GeoIP */}
-      {selectedScanId && !hasGeoIPLoading && !hasGeoIP && (
+      {/* Show "no data" message if no GeoIP data available */}
+      {!hasGeoIPLoading && !hasGeoIP && (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
               <div className="text-4xl mb-3">📍</div>
-              <p>No GeoIP data available for this scan</p>
+              <p>No GeoIP data available</p>
               <p className="text-sm mt-1">
-                GeoIP enrichment may not have been enabled during this scan
+                No scans with GeoIP data found in the last 30 days
               </p>
             </div>
           </CardContent>
@@ -191,10 +178,10 @@ export function GeoIPSection() {
       )}
 
       {/* Show GeoIP visualizations if data is available */}
-      {selectedScanId && !hasGeoIPLoading && hasGeoIP && (
+      {!hasGeoIPLoading && hasGeoIP && (
         <>
           {/* Stats Summary */}
-          <GeoIPStatsSummary scanId={selectedScanId} />
+          <GeoIPStatsSummary scanId={effectiveScanId} />
 
           {/* World Map - Full width */}
           <GeoIPWorldMap
