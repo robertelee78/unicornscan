@@ -118,9 +118,27 @@ export function IpTypeChart({
                 outerRadius={90}
                 paddingAngle={2}
                 dataKey="value"
-                label={({ name, percent }: { name?: string; percent?: number }) =>
-                  `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-                }
+                label={({ cx, cy, midAngle, outerRadius, name, percent }: {
+                  cx?: number; cy?: number; midAngle?: number; outerRadius?: number;
+                  name?: string; percent?: number
+                }) => {
+                  const RADIAN = Math.PI / 180
+                  const radius = (outerRadius ?? 90) + 15
+                  const x = (cx ?? 0) + radius * Math.cos(-((midAngle ?? 0) * RADIAN))
+                  const y = (cy ?? 0) + radius * Math.sin(-((midAngle ?? 0) * RADIAN))
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill="hsl(var(--foreground))"
+                      textAnchor={x > (cx ?? 0) ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={11}
+                    >
+                      {`${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    </text>
+                  )
+                }}
                 labelLine={false}
               >
                 {chartData.map((entry, index) => (
