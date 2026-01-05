@@ -4,9 +4,10 @@
  */
 
 import { useState, useCallback, useMemo } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, X, Filter } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   ScanTable,
   ScanFilterBar,
@@ -194,6 +195,33 @@ export function Scans() {
           <ScanFilterBar filters={filters} onChange={handleFilterChange} />
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Compatibility filter chip - shown when filtering by first selected scan */}
+          {isFiltering && filterCriteria && (
+            <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <Filter className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm">
+                Showing scans matching:{' '}
+                <Badge variant="outline" className="mx-1">
+                  {filterCriteria.targetStr || 'Unknown target'}
+                </Badge>
+                <Badge variant="secondary" className="mx-1">
+                  {filterCriteria.modeStr || 'Unknown mode'}
+                </Badge>
+              </span>
+              <span className="text-sm text-muted-foreground">
+                ({displayedScans.length} compatible)
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-6 w-6 p-0"
+                onClick={clearSelection}
+                aria-label="Clear filter"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <ScanTable
             scans={displayedScans}
             sort={sort}
