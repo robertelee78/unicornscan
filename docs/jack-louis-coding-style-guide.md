@@ -1313,6 +1313,149 @@ Before committing code for compound modes, verify:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-12-23
-**Maintainer:** Research Agent analyzing unicornscan codebase
+## 14. STATIC BUFFER FUNCTIONS (CRITICAL ANTI-PATTERN)
+
+Several functions return pointers to static buffers for memory efficiency. This was a deliberate design choice for a single-threaded scanner in 2004, but it creates subtle bugs if you call them incorrectly.
+
+### 14.1 Functions That Return Static Buffers
+
+| Function | Location | Buffer Size | Purpose |
+|----------|----------|-------------|---------|
+| `pgsql_escstr()` | `src/output_modules/database/pgsqldb.c` | Dynamic (2x input) | SQL string escaping |
+| `build_mode_str()` | `src/output_modules/database/pgsqldb.c` | 64 bytes | Scan mode string ("T", "Tsf", "A+T+U") |
+| `build_target_str()` | `src/output_modules/database/pgsqldb.c` | 4096 bytes | Concatenated target specifications |
+| `workunit_pstr_get()` | `src/scan_progs/workunits.c` | 4096 bytes | Port string from workunit |
+| `workunit_fstr_get()` | `src/scan_progs/workunits.c` | 1024 bytes | Filter string from workunit |
+
+### 14.2 Why Static Buffers?
+
+These were intentional design decisions in 2004:
+- **Memory efficiency**: Avoid malloc/free overhead in hot paths
+- **Single-threaded design**: The scanner runs in one thread, so no race conditions
+- **Performance**: Network scanners send/receive millions of packets; allocation matters
+
+### 14.3 CORRECT Usage Pattern
+
+When you need to use the result of a static buffer function, **copy it immediately before calling the function again**:
+
+```c
+/* CORRECT: Copy before the next call */
+static int pgsql_insert_hop(const char *target_addr, const char *hop_addr) {
+    char esc_target[64], esc_hop[64];
+    char *tmp = NULL;
+
+    /* pgsql_escstr uses static buffer - copy before next call */
+    tmp = pgsql_escstr(target_addr);
+    if (tmp == NULL) return 0;
+    strncpy(esc_target, tmp, sizeof(esc_target) - 1);
+    esc_target[sizeof(esc_target) - 1] = '\0';
+
+    tmp = pgsql_escstr(hop_addr);
+    if (tmp == NULL) return 0;
+    strncpy(esc_hop, tmp, sizeof(esc_hop) - 1);
+    esc_hop[sizeof(esc_hop) - 1] = '\0';
+
+    snprintf(querybuf, sizeof(querybuf) - 1,
+        "INSERT INTO hops (target, hop) VALUES ('%s', '%s');",
+        esc_target, esc_hop);
+
+    return pgsql_exec(querybuf);
+}
+```
+
+### 14.4 WRONG Usage Pattern
+
+**DO NOT** save a pointer and then call the function again:
+
+```c
+/* WRONG: Second call clobbers first result */
+static int pgsql_insert_hop(const char *target_addr, const char *hop_addr) {
+    char *escaped_target = NULL;
+    char *escaped_hop = NULL;
+
+    escaped_target = pgsql_escstr(target_addr);  /* Returns pointer to static buf */
+    escaped_hop = pgsql_escstr(hop_addr);        /* CLOBBERS the static buf! */
+
+    /* BUG: escaped_target now points to hop_addr's escaped value */
+    snprintf(querybuf, sizeof(querybuf) - 1,
+        "INSERT INTO hops (target, hop) VALUES ('%s', '%s');",
+        escaped_target, escaped_hop);  /* Both strings are the same! */
+}
+```
+
+### 14.5 What Goes Wrong
+
+The static buffer is shared across all calls:
+1. First call to `pgsql_escstr("192.168.1.1")` writes "192.168.1.1" to static buffer, returns pointer
+2. Second call to `pgsql_escstr("10.0.0.1")` overwrites buffer with "10.0.0.1"
+3. Both `escaped_target` and `escaped_hop` now point to "10.0.0.1"
+4. Your SQL query uses the wrong data
+
+This bug was fixed in commit `64b9c54`.
+
+---
+
+## 15. SQL SECURITY
+
+### 15.1 String Escaping
+
+The codebase uses `PQescapeString()` from libpq for SQL escaping:
+
+```c
+/* From pgsql_escstr() */
+PQescapeString(outstr, in, inlen - 1);
+```
+
+**Note**: `PQescapeString()` is deprecated but retained for compatibility. It assumes a single-byte encoding and does not handle all edge cases. For new code, consider `PQescapeLiteral()` if the connection handle is available.
+
+### 15.2 Attacker-Controlled Data
+
+Banner data captured from remote hosts is **attacker-controlled**. Malicious hosts can send crafted banner responses. Always escape before database insertion:
+
+```c
+/* Banner comes from untrusted network data */
+char *banner = packet_data->banner;
+
+/* MUST escape before SQL insertion */
+char *escaped_banner = pgsql_escstr(banner);
+snprintf(querybuf, sizeof(querybuf) - 1,
+    "INSERT INTO results (banner) VALUES ('%s');",
+    escaped_banner);
+```
+
+Treat all received packet data as potentially malicious:
+- Banners from service probes
+- OS fingerprint responses
+- Any data extracted from network packets
+
+### 15.3 Query Building
+
+Use `snprintf()` with explicit buffer size limits:
+
+```c
+/* Good: explicit size limit */
+snprintf(querybuf, sizeof(querybuf) - 1, "SELECT ...");
+
+/* Avoid: potential truncation without check */
+sprintf(querybuf, "SELECT ...");  /* NO! */
+```
+
+---
+
+## 16. COMMON BUGS PREVENTION CHECKLIST
+
+Quick reference for preventing the most common bugs in this codebase:
+
+1. **Static buffer functions**: Copy the result immediately before calling the function again
+2. **SQL escaping**: Always escape attacker-controlled data (banners, fingerprints)
+3. **Memory allocation**: Use xmalloc/xfree; they panic on failure
+4. **Buffer sizes**: Always use sizeof() or explicit limits with snprintf()
+5. **Null checks**: Validate pointers at function entry
+
+When in doubt, look at how existing code in the same file handles similar situations.
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2026-01-05
+**Maintainer:** Unicornscan Development Team
