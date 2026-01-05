@@ -119,12 +119,12 @@ export function TTLHistogram({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="hsl(var(--border))"
+                stroke="var(--color-border)"
                 vertical={false}
               />
               <XAxis
                 dataKey="ttl"
-                stroke="hsl(var(--muted))"
+                stroke="var(--color-muted)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -133,11 +133,11 @@ export function TTLHistogram({
                   position: 'insideBottom',
                   offset: -5,
                   fontSize: 11,
-                  fill: 'hsl(var(--muted))',
+                  fill: 'var(--color-muted)',
                 }}
               />
               <YAxis
-                stroke="hsl(var(--muted))"
+                stroke="var(--color-muted)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -145,8 +145,8 @@ export function TTLHistogram({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--surface))',
-                  border: '1px solid hsl(var(--border))',
+                  backgroundColor: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: '6px',
                   fontSize: '12px',
                 }}
