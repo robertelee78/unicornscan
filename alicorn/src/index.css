@@ -204,22 +204,21 @@
   --color-palette-12: #7c3aed;     /* violet-600 */
 
   /* ==========================================================================
-   * Light Mode Heatmap Scale
-   * Shifted darker for visibility against light background
-   * Low intensity (0-2): subtle but visible
-   * Mid intensity (3-5): clear visibility
-   * High intensity (6-9): strong contrast
+   * Light Mode Heatmap Scale - Indigo
+   * Using indigo provides better contrast than green on light backgrounds
+   * Low intensity (0-3): subtle (semantically appropriate for minimal activity)
+   * Mid-high intensity (4-9): WCAG AA compliant (3:1 minimum for graphics)
    * ========================================================================== */
-  --color-heatmap-0: #dcfce7;      /* Minimal activity - subtle */
-  --color-heatmap-1: #bbf7d0;      /* 1.16:1 - very low */
-  --color-heatmap-2: #86efac;      /* 1.44:1 - low */
-  --color-heatmap-3: #4ade80;      /* 2.02:1 - low-mid */
-  --color-heatmap-4: #22c55e;      /* 2.26:1 - mid */
-  --color-heatmap-5: #16a34a;      /* 2.81:1 - mid-high */
-  --color-heatmap-6: #15803d;      /* 3.67:1 - high (WCAG AA graphics) */
-  --color-heatmap-7: #166534;      /* 4.77:1 - higher (WCAG AA text) */
-  --color-heatmap-8: #14532d;      /* 6.37:1 - very high */
-  --color-heatmap-9: #052e16;      /* 9.58:1 - maximum (WCAG AAA) */
+  --color-heatmap-0: #e0e7ff;      /* indigo-100: 1.18:1 - minimal activity (subtle) */
+  --color-heatmap-1: #c7d2fe;      /* indigo-200: 1.43:1 - very low */
+  --color-heatmap-2: #a5b4fc;      /* indigo-300: 1.91:1 - low */
+  --color-heatmap-3: #818cf8;      /* indigo-400: 2.86:1 - low-mid */
+  --color-heatmap-4: #6366f1;      /* indigo-500: 4.28:1 - mid (WCAG AA graphics) */
+  --color-heatmap-5: #4f46e5;      /* indigo-600: 6.02:1 - mid-high (WCAG AA text) */
+  --color-heatmap-6: #4338ca;      /* indigo-700: 7.57:1 - high */
+  --color-heatmap-7: #3730a3;      /* indigo-800: 9.52:1 - higher */
+  --color-heatmap-8: #312e81;      /* indigo-900: 10.94:1 - very high */
+  --color-heatmap-9: #1e1b4b;      /* indigo-950: 15.32:1 - maximum (WCAG AAA) */
 
   /* Light Mode Status Colors - Adjusted for contrast */
   --color-success: #15803d;        /* green-700: 3.67:1 */
