@@ -74,7 +74,7 @@ The project is now actively maintained with goals including:
 
 ## In Memoriam
 
-This modernization effort honors **Jack Louis** and his innovative work on unicornscan. The asynchronous, stimulus-based architecture he designed remains elegant and effective nearly two decades later.
+This modernization effort honors **Jack C. Louis** and his innovative work on unicornscan. The asynchronous, stimulus-based architecture he designed remains elegant and effective nearly two decades later.
 
 *For Jack.*
 

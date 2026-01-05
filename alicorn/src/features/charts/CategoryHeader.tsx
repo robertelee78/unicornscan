@@ -9,18 +9,25 @@ import * as LucideIcons from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import type { PortCategory, PortCategoryConfig } from './types'
+import type { PortCategoryConfig } from './types'
 
 // =============================================================================
 // Icon Mapping
 // =============================================================================
 
+/** Props accepted by Lucide icon components */
+interface IconProps {
+  className?: string
+  style?: React.CSSProperties
+  size?: number | string
+}
+
 /**
  * Get Lucide icon component by name
  * Falls back to CircleDot if icon not found
  */
-function getIconComponent(iconName: string): React.ComponentType<{ className?: string }> {
-  const icons = LucideIcons as Record<string, React.ComponentType<{ className?: string }>>
+function getIconComponent(iconName: string): React.ComponentType<IconProps> {
+  const icons = LucideIcons as unknown as Record<string, React.ComponentType<IconProps>>
   return icons[iconName] ?? icons.CircleDot
 }
 

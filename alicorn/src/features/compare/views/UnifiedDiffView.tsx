@@ -76,7 +76,7 @@ function formatScanRange(scans: Scan[]): string {
  */
 function generateHostDiff(
   host: MultiScanHostDiff,
-  scans: Scan[],
+  _scans: Scan[],
   showContext: boolean
 ): HostDiffBlock {
   const lines: DiffLine[] = []

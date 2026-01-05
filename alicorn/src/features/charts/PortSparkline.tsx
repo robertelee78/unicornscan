@@ -11,8 +11,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
-import type { TooltipProps } from 'recharts'
-import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
+import type { Payload, ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent'
 
 // =============================================================================
 // Types
@@ -46,10 +45,16 @@ export interface PortSparklineProps {
 // Custom Tooltip
 // =============================================================================
 
+/** Custom tooltip content props - subset of what Recharts passes */
+interface SparklineTooltipProps {
+  active?: boolean
+  payload?: ReadonlyArray<Payload<ValueType, NameType>>
+}
+
 function SparklineTooltip({
   active,
   payload,
-}: TooltipProps<ValueType, NameType>) {
+}: SparklineTooltipProps) {
   if (!active || !payload || !payload.length) return null
 
   const data = payload[0].payload as SparklineDataPoint
