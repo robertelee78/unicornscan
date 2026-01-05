@@ -1,6 +1,7 @@
 '\" t
-.\" Manual page created with latex2man on Tue Dec 20 20:16:14 PST 2005
-.\" NOTE: This file is generated, DO NOT EDIT.
+.\" Manual page for unicornscan
+.\" Copyright (C) 2004-2006 Jack Louis <jack@rapturesecurity.org>
+.\" Maintained by Robert E. Lee <robert@unicornscan.org> (2025-present)
 .de Vb
 .ft CW
 .nf
@@ -10,275 +11,387 @@
 
 .fi
 ..
-.TH "UNICORNSCAN" "1" "2025-12-23" "unicornscan 0.4.13" "Network Tools"
+.TH "UNICORNSCAN" "1" "2026-01-05" "unicornscan 0.4.38" "Network Tools"
 .SH NAME
 
 .PP
-unicornscan
-Version 0.4.13 is an asynchronous network stimulus delivery/response recording
-tool. 
+unicornscan \- asynchronous network stimulus delivery/response recording tool
 .PP
 .SH SYNOPSIS
 
 .PP
-unicornscan
-[\fB\-b, \-\-broken\-crc \fP\fIlayer\fP]
-[\fB\-B, \-\-source\-port \fP\fIport\fP]
-[\fB\-d, \-\-delay\-type \fP\fItype\fP]
-[\fB\-D, \-\-no\-defpayload \fP]
-[\fB\-e, \-\-enable\-module \fP\fImodules\fP]
-[\fB\-E, \-\-proc\-errors \fP]
-[\fB\-F, \-\-try\-frags \fP]
-[\fB\-G, \-\-payload\-group \fP\fIgroup\fP]
-[\fB\-h, \-\-help \fP]
-[\fB\-H, \-\-do\-dns \fP]
-[\fB\-i, \-\-interface \fP\fIinterface\fP]
-[\fB\-I, \-\-immediate \fP]
-[\fB\-j, \-\-ignore\-seq \fP\fIignore\fP]
-[\fB\-l, \-\-logfile \fP\fIfile\fP]
-[\fB\-L, \-\-packet\-timeout\fP\fIdelay\fP]
-[\fB\-m, \-\-mode \fP\fImode\fP]
-[\fB\-M, \-\-module\-dir \fP\fIdirectory\fP]
-[\fB\-p, \-\-ports \fP\fIstring\fP]
-[\fB\-P, \-\-pcap\-filter \fP\fIfilter\fP]
-[\fB\-q, \-\-covertness \fP\fIcovertness\fP]
-[\fB\-Q, \-\-quiet \fP]
-[\fB\-r, \-\-pps \fP\fIrate\fP]
-[\fB\-R, \-\-repeats \fP\fIrepeats\fP]
-[\fB\-s, \-\-source\-addr \fP\fIaddress\fP]
-[\fB\-S, \-\-no\-shuffle \fP]
-[\fB\-t, \-\-ip\-ttl \fP\fITTL\fP]
-[\fB\-T, \-\-ip\-tos \fP\fITOS\fP]
-[\fB\-w, \-\-safefile \fP\fIfile\fP]
-[\fB\-W, \-\-fingerprint \fP\fIfingerprint\fP]
-[\fB\-v, \-\-verbose \fP]
-[\fB\-V, \-\-version \fP]
-[\fB\-z, \-\-sniff \fP]
-[\fB\-Z, \-\-drone\-type \fP\fItype\fP]
-\fItarget list\fP
+.B unicornscan
+[\fIOPTIONS\fP]
+\fItarget\fP[:\fIports\fP] ...
 .PP
 .SH DESCRIPTION
 
 .PP
-unicornscan:
-\&.\&.\&. 
+Unicornscan is an asynchronous stateless network scanner designed for scalable,
+high-speed network reconnaissance and security auditing. It separates the sending
+and receiving of packets into separate processes, enabling packet rates of 25,000+
+packets per second on commodity hardware.
+.PP
+Key features include TCP SYN/connect scanning, UDP scanning with protocol payloads,
+ARP discovery, OS fingerprinting via p0f v3 signatures, source spoofing with phantom
+IPs, compound scan modes for efficient local network scanning, and TCP traceroute.
 .PP
 .SH OPTIONS
 
 .TP
-[\fB\-b, \-\-broken\-crc \fP\fILayer\fP]
- Break CRC sums on the following layers. N and T are valid, and both may be used without separator, 
-so NT would indicate both Network and Transport layers are to have invalid checksums. 
+\fB\-b, \-\-broken\-crc\fP \fIlayer\fP
+Generate invalid checksums on specified layers. Valid values are \fBN\fP (network/IP layer),
+\fBT\fP (transport layer), or \fBTN\fP (both). Useful for firewall and IDS testing.
 .TP
-[\fB\-B, \-\-source\-port \fP\fIPort\fP]
- Source port for sent packets, numeric value \-1 means to use a random source port (the default situation), 
-and other valid settings are 0 to 65535. normally this option will not be used, but sometimes it is useful to say 
-scan from port 53 into a network. 
+\fB\-B, \-\-source\-port\fP \fIport\fP
+Source port for outgoing packets. Use \fB\-1\fP for random (default), or \fB0\-65535\fP
+for a specific port. Scanning from port 53 or 80 may bypass some firewall rules.
 .TP
-[\fB\-d, \-\-delay\-type \fP\fIType\fP]
- Specify the timer used for pps calculations, the default is variable and will try and use something appropriate 
-for the rate you have selected. Note however, if available, the tsc timer and the gtod timer are very CPU intensive. 
-if you require unicornscan to not monopolize your system while running, consider using the sleep timer, normally 3. 
-it has been observed that the tsc timer and gtod timer are required for high packet rates, however this is highly 
-system dependent, and should be tested on each hardware/platform combination. The tsc timer may not be available 
-on every cpu. The sleep timer module is not recommended for scans where utmost accuracy is required. 
+\fB\-c, \-\-proc\-duplicates\fP
+Process duplicate responses. Normally duplicates are ignored; this option counts them.
 .TP
-[\fB\-D, \-\-no\-defpayload \fP]
- Do not use default payloads when one cannot be found. 
+\fB\-d, \-\-delay\-type\fP \fItype\fP
+Timer type for packet rate control. Options: \fB1\fP (tsc \- CPU timestamp counter),
+\fB2\fP (gtod \- gettimeofday), \fB3\fP (sleep \- nanosleep). TSC and GTOD are CPU-intensive
+but accurate at high rates. Sleep is recommended for background scanning.
 .TP
-[\fB\-e, \-\-enable\-module \fP\fIList\fP]
- A comma separated list of modules to activate (note: payload modules do not require explicit activation, as they are 
-enabled by default). an example would be `pgsqldb,foomod\&'\&. 
+\fB\-D, \-\-no\-defpayload\fP
+Do not send default payloads. Only probe ports with protocol-specific payloads defined.
 .TP
-[\fB\-E, \-\-proc\-errors \fP]
- Enable processing of errors such as icmp error messages and reset+ack messages (for example). If this option is set 
-then you will see responses that may or may not indicate the presence of a firewall, or other otherwise missed 
-information. 
+\fB\-e, \-\-enable\-module\fP \fImodules\fP
+Enable output/report modules. Comma-separated list, e.g., \fB\-epgsqldb,osdetect\fP.
+Common modules: \fBpgsqldb\fP (PostgreSQL export), \fBosdetect\fP (OS fingerprinting).
+Module parameters can follow the name: \fB\-epgsqldb,host=localhost,db=unicornscan\fP.
 .TP
-[\fB\-F, \-\-try\-frags \fP]
- It is likely that this option doesn\&'t work, don\&'t bother using it until it is fixed. 
+\fB\-E, \-\-proc\-errors\fP
+Process ICMP errors and TCP RST packets. Shows filtered ports, unreachable hosts,
+and other responses that indicate firewall presence.
 .TP
-[\fB\-G, \-\-payload\-group \fP\fIGroup\fP]
- activate payloads only from this numeric payload group. The default payload group is 1. 
+\fB\-F, \-\-try\-frags\fP
+Attempt IP fragmentation (experimental, may not work on all systems).
 .TP
-[\fB\-h, \-\-help \fP]
- if you don\&'t know what this means, perhaps you should consider not using this program. 
+\fB\-G, \-\-payload\-group\fP \fIgroup\fP
+Use only payloads from the specified numeric group. Default is 1 (all standard payloads).
 .TP
-[\fB\-H, \-\-do\-dns \fP]
- Resolve dns hostnames before and after the scan (but not during, as that would likely cause superfluous spurious 
-responses during the scan, especially if udp scanning). the hosts that will be resolved are (in order of resolution) 
-the low and high addresses of the range, and finally each host address that replied with something that would be 
-visible depending on other scan options. This option is not recommended for use during scans where utmost accuracy 
-is required. 
+\fB\-h, \-\-help\fP
+Display usage information and exit.
 .TP
-[\fB\-i, \-\-interface \fP\fIInterface\fP]
- string representation of the interface to use, overriding automatic detection. 
+\fB\-H, \-\-hardware\-address\fP \fIMAC\fP
+Spoof source MAC address. Format: \fBXX:XX:XX:XX:XX:XX\fP. Only affects local network
+traffic; upstream routers will use their own MAC.
 .TP
-[\fB\-I, \-\-immediate \fP]
- Display results immediately as they are found in a sort of meta report format (read: terse). This option is not 
-recommended for use during scans where the utmost accuracy is required. 
+\fB\-i, \-\-interface\fP \fIname\fP
+Network interface to use (e.g., eth0, wlan0). Normally auto-detected based on routing.
 .TP
-[\fB\-j, \-\-ignore\-seq \fP\fIType\fP]
- A string representing the intended sequence ignorance level. This affects the tcp header validity checking, normally 
-used to filter noise from the scan. If for example you wish to see reset packets with an ack+seq that is not set 
-or perhaps intended for something else appropriate use of this option would be R. A is normally used for more exotic 
-tcp scanning. normally the R option is associated with reset scanning. 
+\fB\-I, \-\-immediate\fP
+Display results immediately as they arrive. Output is terse but real-time.
+Not recommended when accuracy is critical, as processing may affect timing.
 .TP
-[\fB\-l, \-\-logfile \fP\fIFile\fP]
- Path to a file where flat text will be dumped that normally would go to the users terminal. A limitation of this option 
-currently is that it only logs the output of the `Main\&' thread and not the sender and receiver. 
+\fB\-j, \-\-ignore\-seq\fP \fItype\fP
+Ignore TCP sequence validation for specified packet types. \fBA\fP ignores all sequence
+checking, \fBR\fP ignores RST sequence numbers. Useful for reset scanning or analyzing
+responses from unusual TCP stacks.
 .TP
-[\fB\-L, \-\-packet\-timeout \fP\fISeconds\fP]
- Numeric value representing the number of seconds to wait before declaring the scan over. for connect scans sometimes 
-this option can be adjusted to get more accurate results, or if scanning a high\-latency target network; for example. 
+\fB\-l, \-\-logfile\fP \fIfile\fP
+Write output to file instead of terminal. Currently only logs main process output,
+not sender/receiver process messages.
 .TP
-[\fB\-m, \-\-mode \fP\fIMode\fP]
- String representation of the desired scanning mode. Basic modes are:
+\fB\-L, \-\-packet\-timeout\fP \fIseconds\fP
+Time to wait for responses after sending completes. Default is 7 seconds. Increase
+for high-latency networks or decrease for faster scans of reliable networks.
+.TP
+\fB\-m, \-\-mode\fP \fImode\fP
+Scan mode. See \fBSCAN MODES\fP section below for details.
+.TP
+\fB\-M, \-\-module\-dir\fP \fIdirectory\fP
+Directory containing unicornscan modules. Default is \fI/usr/lib/unicornscan/modules\fP.
+.TP
+\fB\-N, \-\-do\-dns\fP
+Resolve hostnames during reporting phase (after scanning completes).
+Not recommended when accuracy is critical.
+.TP
+\fB\-o, \-\-format\fP \fIstring\fP
+Custom output format. Specifiers: \fB%h\fP=host, \fB%p\fP=port, \fB%T\fP=type,
+\fB%t\fP=TTL, \fB%s\fP=service name. Example: \fB\-o "%h:%p %T ttl %t"\fP
+.TP
+\fB\-p, \-\-ports\fP \fIspec\fP
+Global port specification. Formats: \fB80\fP (single), \fB1\-1024\fP (range),
+\fB22,80,443\fP (list), \fBa\fP (all 65535), \fBp\fP (privileged 1\-1024),
+\fBq\fP (quick common ports). Can be overridden per-target.
+.TP
+\fB\-P, \-\-pcap\-filter\fP \fIfilter\fP
+Additional pcap filter expression for the listener. Combined with mode-specific
+default filter. Example: \fB\-P "not port 22"\fP to exclude SSH traffic.
+.TP
+\fB\-q, \-\-covertness\fP \fIlevel\fP
+Covertness level 0\-255 (currently unused, reserved for future stealth features).
+.TP
+\fB\-Q, \-\-quiet\fP
+Suppress terminal output. Use when output goes to a database or file only.
+.TP
+\fB\-r, \-\-pps\fP \fIrate\fP
+Packets per second. This is the total rate, not per-host. Higher rates may cause
+packet loss and incomplete results. Start conservatively (300\-1000) and increase
+based on network capacity. Maximum depends on hardware and kernel tuning.
+.TP
+\fB\-R, \-\-repeats\fP \fIn\fP
+Repeat the entire scan n times. Improves accuracy by sending multiple probes per port.
+Useful for unreliable networks or critical scans.
+.TP
+\fB\-s, \-\-source\-addr\fP \fIaddress\fP
+Source IP address for packets. Use \fBr\fP for random addresses. When spoofing,
+use \fBfantaip\fP(1) to respond to ARP for the phantom address and receive replies.
+.TP
+\fB\-S, \-\-no\-shuffle\fP
+Do not randomize port order. Ports are scanned sequentially. Default is shuffled
+to reduce detection and distribute load.
+.TP
+\fB\-t, \-\-ip\-ttl\fP \fIvalue\fP
+IP Time-To-Live. Formats: \fB64\fP (fixed), \fB32\-64\fP (range), \fBr32\-128\fP
+(random in range). Lower TTL may evade distant IDS; higher ensures packet delivery.
+.TP
+\fB\-T, \-\-ip\-tos\fP \fIvalue\fP
+IP Type-of-Service byte (0\-255). Affects packet priority and routing behavior.
+.TP
+\fB\-u, \-\-debug\fP \fImask\fP
+Debug output mask. Enables verbose internal logging for troubleshooting.
+.TP
+\fB\-U, \-\-no\-openclosed\fP
+Display raw response types instead of translating to "open" or "closed".
+.TP
+\fB\-v, \-\-verbose\fP
+Increase verbosity. Use multiple times (\-vvv) for more detail.
+.TP
+\fB\-V, \-\-version\fP
+Display version information and exit.
+.TP
+\fB\-w, \-\-savefile\fP \fIfile\fP
+Write captured packets to pcap file for later analysis with Wireshark, tcpdump, etc.
+.TP
+\fB\-W, \-\-fingerprint\fP \fIid\fP
+Emulate an OS TCP/IP stack when sending probes. This affects TCP options, window size,
+TTL, and other parameters that fingerprinting tools use to identify operating systems.
 .RS
+.TP
+\fB0\fP
+Cisco IOS (default) \- TTL 255, window 4128
+.TP
+\fB1\fP
+OpenBSD \- TTL 64, with timestamps
+.TP
+\fB2\fP
+Windows XP \- TTL 128, window 65535
+.TP
+\fB3\fP
+p0f SYN signature \- TTL 255, minimal options
+.TP
+\fB4\fP
+FreeBSD 5.1 \- TTL 64, with SACK and timestamps
+.TP
+\fB5\fP
+nmap-style \- varies based on target analysis
+.TP
+\fB6\fP
+Linux 2.4/2.6 \- TTL 64, window scale, timestamps
+.TP
+\fB7\fP
+Strange TCP \- BGP MD5 option for router evasion
+.TP
+\fB8\fP
+Windows 10/11/Server 2019+ \- TTL 128, modern options
+.TP
+\fB9\fP
+Linux 5.x/6.x \- TTL 64, modern kernel options
+.TP
+\fB10\fP
+macOS/iOS \- TTL 64, Apple-specific options
+.TP
+\fB11\fP
+Android \- TTL 64, Linux 4.x kernel base
+.RE
+.TP
+\fB\-z, \-\-sniff\fP
+Sniff mode \- capture and display packets without sending probes.
+.TP
+\fB\-Z, \-\-drone\-str\fP \fIstring\fP
+Drone configuration string for distributed scanning. See cluster documentation.
+.PP
+.SS GeoIP Options
+These options require libmaxminddb and GeoIP databases (see \fBunicornscan-geoip-update\fP(1)).
+.TP
+\fB\-\-geoip\fP
+Enable geographic lookups for discovered hosts.
+.TP
+\fB\-\-geoip\-provider\fP \fIname\fP
+Database provider: \fBmaxmind\fP (default), \fBip2location\fP, \fBipinfo\fP.
+.TP
+\fB\-\-geoip\-city\-db\fP \fIpath\fP
+Path to city database (e.g., /usr/share/GeoIP/dbip-city-lite.mmdb).
+.TP
+\fB\-\-geoip\-asn\-db\fP \fIpath\fP
+Path to ASN database (e.g., /usr/share/GeoIP/dbip-asn-lite.mmdb).
+.PP
+.SH SCAN MODES
+
+The \fB\-m\fP option selects the scan mode. Basic modes can be combined with
+modifiers, and compound modes chain multiple phases together.
+.SS Basic Modes
 .TP
 \fBT\fP
-TCP SYN scan (default). Optional flags follow: SFRPAU set flags, sfrpau clear flags.
+TCP SYN scan (default). Sends SYN packets and analyzes responses.
 .TP
 \fBU\fP
-UDP scan.
+UDP scan. Sends protocol-specific payloads where available.
 .TP
 \fBA\fP
-ARP scan (local network only).
+ARP scan. Discovers hosts on local network via ARP requests.
 .TP
 \fBsf\fP
-TCP connect scan.
-.RE
-.PP
-.B COMPOUND MODES
-.RS
-Modes can be chained with \fB+\fP delimiter to execute multiple scan phases sequentially.
-ARP discovery should be the first phase to enable host filtering.
+TCP connect scan. Completes full 3-way handshake for banner grabbing.
+.TP
+\fBtr\fP
+TCP traceroute. Maps network path using incrementing TTL values.
+.SS TCP Flag Modifiers
+For TCP modes, append flag characters to set or clear specific TCP flags.
+Uppercase sets the flag, lowercase clears it.
 .PP
 .nf
-\fB\-mA+T\fP     ARP discovery, then TCP SYN scan (only ARP responders)
-\fB\-mA+U\fP     ARP discovery, then UDP scan (only ARP responders)
-\fB\-mA+TSF\fP   ARP discovery, then TCP SYN+FIN scan
+\fBS\fP = SYN    \fBs\fP = no SYN
+\fBA\fP = ACK    \fBa\fP = no ACK
+\fBF\fP = FIN    \fBf\fP = no FIN
+\fBR\fP = RST    \fBr\fP = no RST
+\fBP\fP = PSH    \fBp\fP = no PSH
+\fBU\fP = URG    \fBu\fP = no URG
+.fi
+.PP
+Examples:
+.nf
+\fB\-mTSF\fP     SYN+FIN (XMAS-like)
+\fB\-mTsA\fP     ACK only (firewall mapping)
+\fB\-mTsFPU\fP   FIN+PSH+URG (classic XMAS)
+.fi
+.SS Compound Modes
+Chain modes with \fB+\fP to execute multiple phases sequentially. When ARP is the
+first phase, subsequent phases only scan hosts that responded to ARP.
+.PP
+.nf
+\fB\-mA+T\fP     ARP discovery, then TCP SYN (only ARP responders)
+\fB\-mA+U\fP     ARP discovery, then UDP scan
+\fB\-mA+sf\fP    ARP discovery, then TCP connect
 \fB\-mA+T+U\fP   ARP, then TCP, then UDP (all filtered by ARP)
 .fi
 .PP
-In phase 2+, only hosts that responded to ARP in phase 1 are scanned.
-This eliminates kernel ARP blocking delays on sparse local networks,
+Compound modes eliminate kernel ARP blocking delays on sparse local networks,
 enabling full packet rates even when most target IPs are unused.
+.SS Per-Phase Options
+Each phase can have independent rate, repeat, and timeout settings:
 .PP
-Compound modes require targets on the local network (same L2 broadcast domain).
-Remote targets will be rejected with an error message.
-.RE
+.nf
+\fB\-mA100:R3:L15+T500\fP
+    Phase 1: ARP at 100 PPS, 3 repeats, 15s timeout
+    Phase 2: TCP SYN at 500 PPS (uses global -R and -L)
+.fi
+.PP
+Modifiers:
 .TP
-[\fB\-M, \-\-module\-dir \fP\fIDirectory\fP]
- Path to a directory containing shared object `modules\&' for unicornscan to search. 
+\fB<pps>\fP
+Packets per second (number after mode letter)
 .TP
-[\fB\-p, \-\-ports \fP\fIPorts\fP]
- A global list of ports to scan, can be overridden in the target specification on a per target basis. 
+\fB:R<n>\fP
+Repeat scan n times
 .TP
-[\fB\-P, \-\-pcap\-filter \fP\fIFilter\fP]
- A pcap filter string to add to the listeners default pcap filter (that will be associated with the scan mode being used). 
+\fB:L<n>\fP
+Receive timeout in seconds
+.PP
+.SH TARGET SPECIFICATION
+
+Targets are specified as \fIaddress\fP[/\fIcidr\fP][:\fIports\fP].
 .TP
-[\fB\-c, \-\-covertness \fP\fILevel\fP]
- Numeric option that currently does nothing, except look cool. 
+\fBAddress formats\fP
+192.168.1.1, 10.0.0.0/24, hostname.example.com
 .TP
-[\fB\-Q, \-\-quiet \fP]
- This option is intended to make unicornscan play the `quiet game\&'\&. If you are unfamiliar with its rules, consult with 
-someone else who finds you irritating. 
-.TP
-[\fB\-r, \-\-pps \fP\fIRate\fP]
- This is arguably the most important option, it is a numeric option containing the desired packets per second for the 
-sender to use. choosing a rate too high will cause your scan results to be incomplete. choosing a rate too low will 
-likely make you feel as though you are using nmap. 
-.TP
-[\fB\-R, \-\-repeats \fP\fITimes\fP]
- The number of times to completely repeat the senders workload, this option is intended to improve accuracy during 
-critical scans, or with scans going over a highly unreliable network. 
-.TP
-[\fB\-s, \-\-source\-addr \fP\fIAddress\fP]
- The address to use to override the listeners default interfaces address. using this option often necessitates using 
-the helper program \fIfantaip\fP(1)
-to make sure the replies are routed back to the interface the listener has open. 
-.TP
-[\fB\-S, \-\-no\-shuffle \fP]
- \&.\&. 
-.TP
-[\fB\-t, \-\-ip\-ttl \fP\fINumber\fP]
- \&.\&. 
-.TP
-[\fB\-T, \-\-ip\-tos \fP\fINumber\fP]
- \&.\&. 
-.TP
-[\fB\-w, \-\-savefile \fP\fIFile\fP]
- \&.\&. 
-.TP
-[\fB\-W, \-\-fingerprint \fP\fIType\fP]
- \&.\&. 
-.TP
-[\fB\-v, \-\-verbose \fP]
- \&.\&. 
-.TP
-[\fB\-V, \-\-version \fP]
- \&.\&. 
-.TP
-[\fB\-z, \-\-sniff \fP]
- \&.\&. 
-.TP
-[\fB\-Z, \-\-drone\-type \fP\fIType\fP]
- \&.\&. 
+\fBPort formats\fP
+80 (single), 1-1024 (range), 22,80,443 (list), a (all), p (privileged), q (quick)
+.PP
+Examples:
+.nf
+192.168.1.0/24:80,443
+scanme.nmap.org:1-1024
+10.0.0.0/8:q
+.fi
 .PP
 .SH EXAMPLES
 
-\fBunicornscan \-msf \-s 5.4.3.2 \-r 340 \-Iv \-epgsqldb www.domain.tld/21:80,8080,443,81\fP
-runs unicornscan in connect mode with an apparent (to the target) source address of 5.4.3.2 at a rate
-of 340 packets per second. results will be displayed as they are found \fI\-I\fP
-and the output
-will be verbose \fI\-v\fP\&.
-The module `pgsqldb\&' will be activated \fI\-epgsqldb\fP
-and
-the target of this scan will be the /21 network that host www.domain.tld belongs to making attempts
-to connect to port 80, 8080, 443 and 81.
-.PP
-\fBunicornscan \-mA+T \-r 10000 \-Iv 192.168.1.0/24:22,80,443\fP
-runs a compound mode scan on local network 192.168.1.0/24. Phase 1 performs ARP discovery at
-10000 packets per second to identify live hosts. Phase 2 then runs a TCP SYN scan, but only
-against hosts that responded to ARP in phase 1. This eliminates kernel ARP blocking delays
-on sparse networks where most IPs are unused, enabling full packet rates. For a /24 with only
-13 live hosts out of 256 addresses, this achieves 95% packet reduction in phase 2. 
+.TP
+\fBunicornscan 192.168.1.0/24\fP
+Default TCP SYN scan of local /24 network on common ports.
+.TP
+\fBunicornscan -r 1000 -Iv 10.0.0.0/24:22,80,443\fP
+Fast scan at 1000 PPS with immediate verbose output.
+.TP
+\fBunicornscan -mU 192.168.1.0/24:53,161\fP
+UDP scan for DNS and SNMP services.
+.TP
+\fBunicornscan -mA+T -r 10000 192.168.1.0/24:1-1024\fP
+Compound mode: ARP discovery then TCP SYN on responders only.
+High packet rate is sustainable because non-existent hosts are filtered.
+.TP
+\fBunicornscan -epgsqldb,osdetect -I 192.168.1.0/24\fP
+Scan with OS detection, storing results in PostgreSQL database.
+.TP
+\fBunicornscan -mtr 8.8.8.8:443\fP
+TCP traceroute to Google DNS on port 443.
+.TP
+\fBunicornscan -W 9 -r 500 target.com:80\fP
+Scan emulating Linux 5/6 TCP fingerprint.
+.TP
+\fBfantaip -i eth0 192.168.1.250 &\fP
+.br
+\fBunicornscan -s 192.168.1.250 -I target.com:80\fP
+Scan from spoofed source address using phantom IP.
 .PP
 .SH FILES
 
 .TP
-unicorn.conf
- The file containing the default configuration options for usage. 
+\fI/etc/unicornscan/unicorn.conf\fP
+Main configuration file with default settings.
 .TP
-modules.conf
- The default file for module parameters. 
+\fI/etc/unicornscan/modules.conf\fP
+Module parameters including database connection settings.
 .TP
-oui.txt
- Contains the MAC prefix to vendor mapping used in Ethernet scanning. 
+\fI/etc/unicornscan/payloads.conf\fP
+Protocol payloads for TCP and UDP scanning.
 .TP
-payloads.conf
- The default file for tcp and udp payloads. 
+\fI/etc/unicornscan/ports.txt\fP
+Port number to service name mappings.
 .TP
-ports.txt
- The protocol/port number to name mapping. 
+\fI/etc/unicornscan/oui.txt\fP
+MAC address prefix to vendor mappings.
+.TP
+\fI/usr/share/GeoIP/*.mmdb\fP
+MaxMind-format GeoIP databases for geographic lookups.
 .PP
 .SH SEE ALSO
 
-\fIfantaip\fP(1)
-\fIunicfgtst\fP(1)
-\fIunicycle\fP(1)
-\fIunibrow\fP(1)
-\fIunicorn.conf\fP(5)
+\fBfantaip\fP(1), \fBunibrow\fP(1), \fBunicornscan-web\fP(1),
+\fBunicornscan-geoip-update\fP(1), \fBunicorn.conf\fP(5)
 .PP
 .SH REPORTING BUGS
 
-Report Bugs to osace\-users@lists.sourceforge.net 
+Report bugs at https://github.com/robertelee78/unicornscan/issues
 .PP
 .SH COPYRIGHT
 
-(C)2004 Jack Louis \fBjack@rapturesecurity.org\fP
-This is free software; see the source for copying conditions. There is NO warranty; not even for 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+Copyright (C) 2004-2006 Jack Louis <jack@rapturesecurity.org>
+.br
+Maintained by Robert E. Lee <robert@unicornscan.org> (2025-present)
 .PP
-.\" NOTE: This file is generated, DO NOT EDIT.
+This is free software; see the source for copying conditions. There is NO warranty;
+not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.PP
+.SH HISTORY
+
+Unicornscan was created by Jack Louis at Rapture Security (later Outpost24) as a
+high-performance asynchronous network scanner. Development resumed in 2025 with
+modernization for current Linux distributions and new features including compound
+scan modes, OS fingerprinting, GeoIP integration, and the Alicorn web interface.
