@@ -11,12 +11,19 @@ export { ComparisonSummary } from './ComparisonSummary'
 export { HostDiffTable } from './HostDiffTable'
 export { ComparisonView } from './ComparisonView'
 
-// Hooks
+// Hooks (legacy 2-scan comparison)
 export {
   useScanOptions,
   useScanComparison,
   useCompareUrlState,
 } from './hooks'
+
+// Hooks (multi-scan comparison)
+export {
+  useMultiScanComparison,
+  multiCompareKeys,
+  type UseMultiScanComparisonResult,
+} from './hooks/index'
 
 // Utilities
 export { compareScans, parseCompareUrl, buildCompareUrl } from './compare-utils'
