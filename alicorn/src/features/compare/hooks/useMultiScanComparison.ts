@@ -129,12 +129,27 @@ function computePortDiffs(
       }
     }
 
-    // Check for changes between consecutive scans
+    // Check for presence changes between consecutive scans
     let hasChanges = false
     for (let i = 1; i < presence.length; i++) {
       if (presence[i].status !== presence[i - 1].status) {
         hasChanges = true
         break
+      }
+    }
+
+    // Check for TTL changes between consecutive scans where port was present
+    let hasTtlChanges = false
+    const ttlValues: number[] = []
+    let lastTtl: number | null = null
+
+    for (const p of presence) {
+      if (p.status === 'present' && p.info) {
+        ttlValues.push(p.info.ttl)
+        if (lastTtl !== null && p.info.ttl !== lastTtl) {
+          hasTtlChanges = true
+        }
+        lastTtl = p.info.ttl
       }
     }
 
@@ -146,6 +161,8 @@ function computePortDiffs(
       lastSeenScanId,
       presentCount,
       hasChanges,
+      hasTtlChanges,
+      ttlValues,
     })
   }
 
@@ -239,6 +256,7 @@ function computeSummary(
   let totalPorts = 0
   let portsInAllScans = 0
   let portsWithChanges = 0
+  let portsWithTtlChanges = 0
 
   for (const host of hostDiffs) {
     if (host.presentCount === scanCount) {
@@ -257,6 +275,9 @@ function computeSummary(
       if (port.hasChanges) {
         portsWithChanges++
       }
+      if (port.hasTtlChanges) {
+        portsWithTtlChanges++
+      }
     }
   }
 
@@ -269,6 +290,7 @@ function computeSummary(
     totalPorts,
     portsInAllScans,
     portsWithChanges,
+    portsWithTtlChanges,
   }
 }
 
