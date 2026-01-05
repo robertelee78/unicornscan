@@ -545,7 +545,7 @@ export const COMMON_STARTING_TTLS = {
   SOLARIS: 255,      // Solaris
 } as const
 
-export type OsFamily = 'linux' | 'windows' | 'router' | 'unknown'
+export type OsFamily = 'linux' | 'windows' | 'apple' | 'router' | 'unknown'
 
 /**
  * Infer OS family from observed TTL
@@ -572,6 +572,7 @@ export function getOsFamilyColor(osFamily: OsFamily): string {
   switch (osFamily) {
     case 'linux': return 'var(--color-topo-host-linux)'      // Green (Tux)
     case 'windows': return 'var(--color-topo-host-windows)'  // Blue (Windows blue)
+    case 'apple': return 'var(--color-topo-host-apple)'      // Silver/white (Apple)
     case 'router': return 'var(--color-topo-router)'         // Amber (network infrastructure)
     case 'unknown': return 'var(--color-topo-host)'          // Gray
   }

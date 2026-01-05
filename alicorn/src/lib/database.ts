@@ -143,6 +143,7 @@ export interface DatabaseClient {
   getHopsForHosts(hostAddrs: string[]): Promise<Hop[]>
   getAllHops(): Promise<Hop[]>
   getScannerAddresses(): Promise<string[]>
+  getOsFamilyCounts(limit?: number): Promise<Array<{ os_family: string; count: number }>>
 
   // GeoIP (v6 schema)
   getGeoIPByHost(hostIp: string, scan_id?: number): Promise<GeoIPRecord | null>
@@ -1194,6 +1195,33 @@ class RestDatabase implements DatabaseClient {
       if (row.send_addr) unique.add(row.send_addr)
     }
     return Array.from(unique).sort()
+  }
+
+  async getOsFamilyCounts(limit: number = 5): Promise<Array<{ os_family: string; count: number }>> {
+    // Query v_hosts for OS family distribution
+    const { data, error } = await this.client
+      .from('v_hosts')
+      .select('os_family')
+      .not('os_family', 'is', null)
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.code === '42P01') return []
+      throw error
+    }
+
+    // Count occurrences of each OS family
+    const counts = new Map<string, number>()
+    for (const row of data || []) {
+      if (row.os_family) {
+        counts.set(row.os_family, (counts.get(row.os_family) || 0) + 1)
+      }
+    }
+
+    // Sort by count descending and return top N
+    return Array.from(counts.entries())
+      .map(([os_family, count]) => ({ os_family, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
   }
 
   // ===========================================================================

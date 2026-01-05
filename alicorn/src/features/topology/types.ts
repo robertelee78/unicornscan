@@ -4,7 +4,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import type { OsFamily } from '@/types/database'
+// OS family is stored as the raw string from database (e.g., "Windows", "Linux", "macOS")
 
 // =============================================================================
 // Graph Node Types
@@ -29,7 +29,7 @@ export interface TopologyNode {
 
   // Display properties
   label: string        // Usually IP, or hostname if known
-  osFamily: OsFamily
+  osFamily: string     // Raw OS family from database (e.g., "Windows", "Linux", "macOS")
   osGuess?: string     // Full OS guess string if available
 
   // Metrics for sizing/coloring
@@ -147,7 +147,7 @@ export interface TopologyFilters {
   scan_id?: number
   since?: number        // Unix timestamp
   minPorts?: number     // Only show hosts with >= N ports
-  osFamily?: OsFamily[] // Filter by OS family
+  osFamily?: string[]   // Filter by OS family
   subnet?: string       // Filter by subnet (e.g., "192.168.1.0/24")
 }
 
