@@ -15,9 +15,10 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useMemo } from 'react'
-import { Plus, Minus, RefreshCw } from 'lucide-react'
+import React, { useMemo, useState, useCallback } from 'react'
+import { Plus, Minus, RefreshCw, ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
@@ -151,7 +152,7 @@ interface PortBadgeProps {
   data: PortCellData
 }
 
-function PortBadge({ data }: PortBadgeProps) {
+const PortBadge = React.memo(function PortBadge({ data }: PortBadgeProps) {
   const tooltipContent = useMemo(() => {
     const lines = [`${data.port}/${data.protocol}`]
     if (data.status === 'new') {
@@ -207,14 +208,16 @@ function PortBadge({ data }: PortBadgeProps) {
       </TooltipContent>
     </Tooltip>
   )
-}
+})
+
+PortBadge.displayName = 'PortBadge'
 
 interface HostRowProps {
   host: MultiScanHostDiff
   scans: Scan[]
 }
 
-function HostRow({ host, scans }: HostRowProps) {
+const HostRow = React.memo(function HostRow({ host, scans }: HostRowProps) {
   // Check if host has any responses
   const hasAnyResponse = host.presence.some((p) => p.status === 'present')
   if (!hasAnyResponse) return null
@@ -259,7 +262,18 @@ function HostRow({ host, scans }: HostRowProps) {
       })}
     </tr>
   )
-}
+})
+
+HostRow.displayName = 'HostRow'
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/** Number of hosts to show initially (for performance with large datasets) */
+const INITIAL_HOST_LIMIT = 100
+/** Number of additional hosts to load when "Show more" is clicked */
+const HOST_PAGE_SIZE = 50
 
 // =============================================================================
 // Main Component
@@ -279,11 +293,26 @@ function HostRow({ host, scans }: HostRowProps) {
  */
 export function SideBySideView({ data, className }: SideBySideViewProps) {
   const { scans, hostDiffs } = data
+  const [displayLimit, setDisplayLimit] = useState(INITIAL_HOST_LIMIT)
 
   // Filter to only hosts with at least one response
   const activeHosts = useMemo(() => {
     return hostDiffs.filter((h) => h.presence.some((p) => p.status === 'present'))
   }, [hostDiffs])
+
+  // Get visible hosts (with pagination for performance)
+  const visibleHosts = useMemo(() => {
+    return activeHosts.slice(0, displayLimit)
+  }, [activeHosts, displayLimit])
+
+  // Check if there are more hosts to show
+  const hasMoreHosts = activeHosts.length > displayLimit
+  const remainingCount = activeHosts.length - displayLimit
+
+  // Handle show more
+  const handleShowMore = useCallback(() => {
+    setDisplayLimit((prev) => prev + HOST_PAGE_SIZE)
+  }, [])
 
   return (
     <TooltipProvider>
@@ -319,11 +348,29 @@ export function SideBySideView({ data, className }: SideBySideViewProps) {
             </tr>
           </thead>
           <tbody>
-            {activeHosts.map((host) => (
+            {visibleHosts.map((host) => (
               <HostRow key={host.ipAddr} host={host} scans={scans} />
             ))}
           </tbody>
         </table>
+
+        {/* Show more button for large datasets */}
+        {hasMoreHosts && (
+          <div className="flex justify-center py-4 border-t border-border bg-muted/10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShowMore}
+              className="gap-1"
+            >
+              <ChevronDown className="h-4 w-4" />
+              Show {Math.min(remainingCount, HOST_PAGE_SIZE)} more
+              <span className="text-muted-foreground ml-1">
+                ({remainingCount} remaining)
+              </span>
+            </Button>
+          </div>
+        )}
 
         {activeHosts.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">
