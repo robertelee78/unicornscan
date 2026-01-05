@@ -1,3 +1,18 @@
+unicornscan (0.4.40-1) unstable; urgency=medium
+
+  * Add GeoIP API Docker service for live IP lookups
+    - New geoip-api service on port 3001 for frontend live lookups
+    - Supports DB-IP, MaxMind GeoLite2/GeoIP2, IP2Location, IPinfo databases
+    - REST API: /health, /info, /lookup/:ip, POST /lookup (batch)
+    - Mounts /usr/share/GeoIP and /var/lib/GeoIP from host
+    - Auto-starts with unicornscan-web start
+
+  * Package fixes
+    - Add geoip-api directory to deb and rpm packages
+    - Add geoip service to docker-compose.standalone.yml
+
+ -- Robert E. Lee <robert@unicornscan.org>  Sun, 05 Jan 2026 14:30:00 -0800
+
 unicornscan (0.4.39-1) unstable; urgency=medium
 
   * Multi-Scan Comparison Feature (Major)
