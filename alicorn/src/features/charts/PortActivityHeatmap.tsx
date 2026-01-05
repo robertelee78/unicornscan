@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { AdaptiveHeatmapData, SparklineDataPoint, GroupedPortData, PortCategory } from './types'
+import type { AdaptiveHeatmapData, PortCategory } from './types'
+import type { SparklineDataPoint } from './PortSparkline'
 import { getHeatmapColor, getServiceName } from './types'
 import { PortActivityBar } from './PortActivityBar'
 import { CategoryHeader } from './CategoryHeader'

@@ -6,8 +6,6 @@
 // Components
 export { ComparisonDashboard, type ViewType } from './ComparisonDashboard'
 export { ComparisonHeader, type ExportFormat } from './ComparisonHeader'
-export { ComparisonSummary } from './ComparisonSummary'
-export { HostDiffTable } from './HostDiffTable'
 export { SavedComparisons } from './SavedComparisons'
 
 // Visualization Views
