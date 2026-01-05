@@ -16,7 +16,9 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Tooltip,
@@ -181,7 +183,7 @@ interface MatrixCellProps {
   onClick: () => void
 }
 
-function MatrixCell({ cell, onClick }: MatrixCellProps) {
+const MatrixCell = React.memo(function MatrixCell({ cell, onClick }: MatrixCellProps) {
   const title = getCellTitle(cell.status, cell.portCount)
 
   return (
@@ -217,7 +219,9 @@ function MatrixCell({ cell, onClick }: MatrixCellProps) {
       </TooltipContent>
     </Tooltip>
   )
-}
+})
+
+MatrixCell.displayName = 'MatrixCell'
 
 interface PortDetailsDialogProps {
   cell: SelectedCell | null
@@ -274,6 +278,15 @@ function PortDetailsDialog({ cell, onClose }: PortDetailsDialogProps) {
 }
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** Number of hosts to show initially (for performance with large datasets) */
+const INITIAL_HOST_LIMIT = 100
+/** Number of additional hosts to load when "Show more" is clicked */
+const HOST_PAGE_SIZE = 50
+
+// =============================================================================
 // Main Component
 // =============================================================================
 
@@ -294,17 +307,32 @@ function PortDetailsDialog({ cell, onClose }: PortDetailsDialogProps) {
 export function MatrixHeatmapView({ data, className }: MatrixHeatmapViewProps) {
   const { scans, hostDiffs } = data
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
+  const [displayLimit, setDisplayLimit] = useState(INITIAL_HOST_LIMIT)
 
   // Filter to only hosts with at least one response
   const activeHosts = useMemo(() => {
     return hostDiffs.filter((h) => h.presence.some((p) => p.status === 'present'))
   }, [hostDiffs])
 
-  // Build cell data matrix
+  // Get visible hosts (with pagination for performance)
+  const visibleHosts = useMemo(() => {
+    return activeHosts.slice(0, displayLimit)
+  }, [activeHosts, displayLimit])
+
+  // Check if there are more hosts to show
+  const hasMoreHosts = activeHosts.length > displayLimit
+  const remainingCount = activeHosts.length - displayLimit
+
+  // Handle show more
+  const handleShowMore = useCallback(() => {
+    setDisplayLimit((prev) => prev + HOST_PAGE_SIZE)
+  }, [])
+
+  // Build cell data matrix (using visibleHosts for pagination)
   const cellMatrix = useMemo(() => {
     const matrix: CellData[][] = []
 
-    for (const host of activeHosts) {
+    for (const host of visibleHosts) {
       const row: CellData[] = []
       for (let i = 0; i < scans.length; i++) {
         const scan = scans[i]
@@ -331,7 +359,7 @@ export function MatrixHeatmapView({ data, className }: MatrixHeatmapViewProps) {
     }
 
     return matrix
-  }, [activeHosts, scans])
+  }, [visibleHosts, scans])
 
   // Handle cell click
   const handleCellClick = (cell: CellData) => {
@@ -398,7 +426,7 @@ export function MatrixHeatmapView({ data, className }: MatrixHeatmapViewProps) {
                 <div
                   className="bg-surface sticky left-0 z-10 px-2 py-1 font-mono text-xs flex items-center"
                 >
-                  {row[0]?.hostAddr || activeHosts[rowIndex]?.ipAddr}
+                  {row[0]?.hostAddr || visibleHosts[rowIndex]?.ipAddr}
                 </div>
 
                 {/* Cells */}
@@ -414,6 +442,24 @@ export function MatrixHeatmapView({ data, className }: MatrixHeatmapViewProps) {
             ))}
           </div>
         </div>
+
+        {/* Show more button for large datasets */}
+        {hasMoreHosts && (
+          <div className="flex justify-center py-4 border-t border-border bg-muted/10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShowMore}
+              className="gap-1"
+            >
+              <ChevronDown className="h-4 w-4" />
+              Show {Math.min(remainingCount, HOST_PAGE_SIZE)} more
+              <span className="text-muted-foreground ml-1">
+                ({remainingCount} remaining)
+              </span>
+            </Button>
+          </div>
+        )}
 
         {/* Empty state */}
         {activeHosts.length === 0 && (
