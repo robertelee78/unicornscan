@@ -38,13 +38,17 @@
 
   /* Status colors */
   --color-success: #22c55e;
+  --color-success-foreground: #052e16;  /* dark green for 6.54:1 contrast on success */
   --color-warning: #f59e0b;
   --color-error: #f87171;
   --color-info: #60a5fa;
+  --color-info-foreground: #1e1b4b;     /* dark indigo for 4.93:1 contrast on info */
 
   /* Port state colors */
   --color-port-open: #22c55e;
+  --color-port-open-foreground: #052e16; /* dark green for 6.54:1 contrast */
   --color-port-closed: #ef4444;
+  --color-port-closed-foreground: #450a0a; /* dark red for contrast */
   --color-port-filtered: #f59e0b;
 
   /* ==========================================================================
@@ -222,8 +226,12 @@
 
   /* Light Mode Status Colors - Adjusted for contrast */
   --color-success: #15803d;        /* green-700: 3.67:1 */
+  --color-success-foreground: #ffffff; /* white on dark green: 5.02:1 */
   --color-warning: #b45309;        /* amber-700: 3.50:1 */
+  --color-info-foreground: #ffffff;    /* white on dark blue: good contrast */
   --color-port-open: #15803d;      /* green-700: 3.67:1 */
+  --color-port-open-foreground: #ffffff; /* white on dark green: 5.02:1 */
+  --color-port-closed-foreground: #ffffff; /* white on red: good contrast */
   --color-port-filtered: #b45309;  /* amber-700: 3.50:1 */
 
   /* Light Mode Topology Colors */
