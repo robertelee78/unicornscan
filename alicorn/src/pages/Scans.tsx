@@ -12,6 +12,7 @@ import {
   ScanTable,
   ScanFilterBar,
   Pagination,
+  CompareActionBar,
   useScanList,
   useCompatibleScans,
   DEFAULT_FILTERS,
@@ -261,6 +262,14 @@ export function Scans() {
         onConfirm={handleConfirmBulkDelete}
         isDeleting={isDeleting}
         progress={progress}
+      />
+
+      {/* Compare Action Bar - floating bar at bottom when 2+ scans selected */}
+      <CompareActionBar
+        selectedIds={selectedIds}
+        selectedCount={selectedCount}
+        canCompare={selectedCount >= 2}
+        onClearSelection={clearSelection}
       />
     </div>
   )

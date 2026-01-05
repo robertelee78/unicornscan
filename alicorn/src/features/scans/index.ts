@@ -33,6 +33,7 @@ export {
   FilterChipBar,
   FilterPanel,
   SavedFiltersSection,
+  CompareActionBar,
 } from './components'
 
 // Detail page components
