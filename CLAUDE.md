@@ -9,6 +9,56 @@
 
 Also remember, and this is critical -- DO NOT BE LAZY. We have plenty of time to do it right. No short cuts. Never make assumptions. Always dive deep and ensure you know the problem you're solving. Make use of search as needed.  Measure 3x, cut once.  No fallback. No stub (todo later) code.  Just pure excellence, done the right way the entire time. Also recall Chesterton's fence; always understand current fully before changing it.
 
+# CRITICAL: CODING STYLE ENFORCEMENT - JACK C. LOUIS STYLE GUIDE
+
+**MANDATORY: Before writing ANY C code for this project, you MUST read and follow:**
+`docs/jack-louis-coding-style-guide.md`
+
+## Pre-Coding Checklist (REQUIRED)
+Before writing C code, verify you will follow:
+
+### Naming Conventions
+- [ ] Variables: lowercase_with_underscores (e.g., `curttl`, `local_port`, `packets_sent`)
+- [ ] Functions: verb_noun pattern (e.g., `scan_getmode`, `decode_tcpflags`, `init_nexthost`)
+- [ ] Types: `typedef struct name_t { } name_t;` with `_t` or `_s` suffix
+- [ ] Macros: ALL_CAPS (e.g., `MODE_TCPSCAN`, `GET_SHUFFLE()`, `SET_OVERRIDE(x)`)
+- [ ] Magic numbers: 0xNaNbNcNd pattern (e.g., `0x1a1b1c1d`)
+
+### File Structure
+- [ ] GPL header with Jack's copyright (18 lines)
+- [ ] `#include <config.h>` ALWAYS first
+- [ ] System includes before project includes
+- [ ] Static function prototypes before definitions
+- [ ] Static variables after prototypes, before functions
+
+### Error Handling
+- [ ] Return 1 for success, -1 for error (NOT 0 for success)
+- [ ] PANIC() only for impossible conditions
+- [ ] ERR() for user-facing errors with return -1
+- [ ] DBG() with facility mask (M_WRK, M_SND, M_IPC, etc.)
+- [ ] Early validation, fail fast pattern
+
+### Memory Management
+- [ ] Use xmalloc/xfree/xstrdup wrappers (never raw malloc)
+- [ ] Always memset() to zero after allocation
+- [ ] Check NULL before free, set to NULL after
+- [ ] Copy static buffer results immediately before next call
+
+### Code Style
+- [ ] Comments: `/* */` style, not `//`
+- [ ] Box comments for major sections (72 chars wide)
+- [ ] Switch with break after each case, always default
+- [ ] Early returns for validation
+- [ ] Unions for type punning with `_u` suffix
+
+### Critical Anti-Patterns to Avoid
+- [ ] NEVER save pointer to static buffer then call function again
+- [ ] NEVER use 0 for success (use 1)
+- [ ] NEVER hardcode secrets
+- [ ] NEVER skip SQL escaping for untrusted data
+
+**VIOLATION CHECK:** If code doesn't match these patterns, STOP and revise before proceeding.
+
 # Archon Integration & Workflow
 
 **CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.**
