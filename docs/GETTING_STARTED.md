@@ -342,6 +342,11 @@ us -mT webserver:mTSF500:R2,80,443    # SYN+FIN, 500 pps, 2 repeats
 
 ## 4. Connect Scanning with fantaip
 
+The name? Legend has it this tool was born during a late-night hacking session
+with the TV on in the background when a [Fanta commercial](https://www.youtube.com/watch?v=eEb0cYq6dvI)
+came on. "Wanta Fanta?" became "fantaip"—a phantom IP. Check the source file
+header if you don't believe us.
+
 ### 4.1 The Problem
 
 If you send SYN packets with a source IP that the kernel owns, the kernel's TCP
