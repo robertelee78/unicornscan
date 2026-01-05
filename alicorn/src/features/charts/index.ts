@@ -44,6 +44,7 @@ export { PortTimeline } from './PortTimeline'
 // Statistics page components
 export { ServiceDistributionChart } from './ServiceDistributionChart'
 export { PortActivityHeatmap } from './PortActivityHeatmap'
+export { CategoryHeader } from './CategoryHeader'
 export { ScanPerformanceStatsCards } from './ScanPerformanceStatsCards'
 export { ProtocolBreakdownChart } from './ProtocolBreakdownChart'
 // OS Fingerprinting charts (available for future use, not currently in Statistics page)
