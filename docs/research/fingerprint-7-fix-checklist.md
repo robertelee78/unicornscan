@@ -298,8 +298,7 @@ sudo ./unicornscan -m Tf:7 -i eth0 <router-ip>:80   # Local router
 ```bash
 # Add fix notes to these files:
 # 1. CHANGELOG (if exists)
-# 2. docs/FINGERPRINT_PACKET_STRUCTURES.md
-# 3. Any release notes
+# 2. Any release notes
 ```
 
 ### Example Changelog Entry

@@ -316,11 +316,6 @@ TCP Options [40 bytes]:
 
 ## Related Documentation
 
-### Existing Unicornscan Docs
-- `docs/OS_FINGERPRINT_SPOOFING_ANALYSIS.md`
-- `docs/FINGERPRINT_PACKET_STRUCTURES.md`
-- `docs/FINGERPRINT_QUICK_REFERENCE.md`
-
 ### RFCs Referenced
 - **RFC 793:** Transmission Control Protocol (TCP basics)
 - **RFC 2018:** TCP Selective Acknowledgment (SACK)

@@ -109,7 +109,6 @@ All research documents follow these principles:
 ## Related Documentation
 
 - **[../MODERNIZATION.md](../MODERNIZATION.md)**: Overall project modernization plan
-- **[../OS_FINGERPRINT_SPOOFING_ANALYSIS.md](../OS_FINGERPRINT_SPOOFING_ANALYSIS.md)**: OS fingerprint analysis
 - **[../p0f-integration-recommendation.md](../p0f-integration-recommendation.md)**: p0f v3 integration
 
 ## Research Gaps and Future Work
