@@ -294,6 +294,56 @@ export interface PortActivityHeatmapData {
 }
 
 // =============================================================================
+// Port Categories (Enhanced Heatmap)
+// =============================================================================
+
+/**
+ * Port category types for semantic grouping in heatmap visualization
+ * Based on common network service categories
+ */
+export type PortCategory =
+  | 'web'           // HTTP, HTTPS, web servers
+  | 'database'      // MySQL, PostgreSQL, MongoDB, etc.
+  | 'email'         // SMTP, POP3, IMAP
+  | 'remote-access' // SSH, RDP, VNC, Telnet
+  | 'file-transfer' // FTP, TFTP, SMB, NFS
+  | 'directory'     // LDAP, Active Directory
+  | 'messaging'     // Message queues, brokers
+  | 'monitoring'    // SNMP, Syslog, monitoring tools
+  | 'other'         // Uncategorized ports
+
+/**
+ * Configuration for a port category
+ * Used to define grouping, display, and styling
+ */
+export interface PortCategoryConfig {
+  /** Category identifier */
+  id: PortCategory
+  /** Human-readable category name */
+  name: string
+  /** Short description of what this category contains */
+  description: string
+  /** Ports that belong to this category */
+  ports: number[]
+  /** Lucide icon name for display */
+  icon: string
+  /** CSS variable for category color */
+  color: string
+  /** Sort priority (lower = higher in list) */
+  sortOrder: number
+}
+
+/**
+ * Grouped port data for category-based heatmap rendering
+ */
+export interface GroupedPortData {
+  category: PortCategory
+  config: PortCategoryConfig
+  ports: number[]
+  totalActivity: number
+}
+
+// =============================================================================
 // Service Name Mapping (Phase 3.3)
 // =============================================================================
 

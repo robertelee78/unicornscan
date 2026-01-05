@@ -7,6 +7,19 @@
 // Types
 export * from './types'
 
+// Port category utilities
+export {
+  PORT_CATEGORIES,
+  getPortCategory,
+  getCategoryConfig,
+  getCategoryIcon,
+  getCategoryColor,
+  groupPortsByCategory,
+  getAllCategories,
+  isPortInCategory,
+  getPortsForCategory,
+} from './portCategories'
+
 // Hooks
 export {
   chartKeys,
