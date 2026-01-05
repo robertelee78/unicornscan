@@ -15,6 +15,7 @@ import { AppLayout } from '@/components/layout'
 import {
   Dashboard,
   Scans,
+  ScansCompare,
   ScanDetail,
   Hosts,
   HostDetail,
@@ -54,6 +55,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="/" element={<AppLayout />}>
                   <Route index element={<Dashboard />} />
                   <Route path="scans" element={<Scans />} />
+                  <Route path="scans/compare" element={<ScansCompare />} />
                   <Route path="scans/:id" element={<ScanDetail />} />
                   <Route path="hosts" element={<Hosts />} />
                   <Route path="hosts/:id" element={<HostDetail />} />
