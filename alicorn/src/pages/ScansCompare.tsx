@@ -9,6 +9,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, GitCompare, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ComparisonDashboard } from '@/features/compare'
 
 /**
  * Parse and validate scan IDs from URL query parameter
@@ -116,25 +117,8 @@ export function ScansCompare() {
         </div>
       </div>
 
-      {/* Placeholder for ComparisonDashboard component (Task 12) */}
-      <Card>
-        <CardContent className="py-12">
-          <div className="flex flex-col items-center justify-center text-center gap-4">
-            <div className="rounded-full bg-primary/10 p-4">
-              <GitCompare className="h-8 w-8 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold">Comparison Dashboard</h2>
-              <p className="text-muted-foreground max-w-md">
-                Comparing scans: {scanIds.join(', ')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                ComparisonDashboard component will be implemented in Task 12
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Comparison Dashboard with 4 visualization modes */}
+      <ComparisonDashboard scanIds={scanIds} />
     </div>
   )
 }
