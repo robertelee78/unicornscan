@@ -93,50 +93,53 @@ export function useScanGeoIP(scanId: number, options?: GeoIPQueryOptions) {
         const scanIds = await getRecentScanIds()
         if (scanIds.length === 0) return []
 
-        // Try stored data from all recent scans
+        // Get stored data from all recent scans
         const allRecords: GeoIPRecord[] = []
-        const seenIps = new Set<string>()
+        const ipsWithStoredData = new Set<string>()
         for (const sid of scanIds) {
           const records = await db.getGeoIPByScan(sid, options)
           records.forEach((r) => {
-            if (!seenIps.has(r.host_ip)) {
-              seenIps.add(r.host_ip)
+            if (!ipsWithStoredData.has(r.host_ip)) {
+              ipsWithStoredData.add(r.host_ip)
               allRecords.push(r)
             }
           })
         }
 
-        if (allRecords.length > 0) {
-          return allRecords
+        // Get all public IPs from scans and find ones missing GeoIP data
+        const allPublicIps = await getPublicIpsForScan(ALL_SCANS)
+        const ipsNeedingLookup = allPublicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+        // Do live lookups for IPs without stored data
+        if (ipsNeedingLookup.length > 0) {
+          const liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, 0)
+          allRecords.push(...(liveRecords as unknown as GeoIPRecord[]))
         }
 
-        // Fall back to live lookups for all IPs
-        const publicIps = await getPublicIpsForScan(ALL_SCANS)
-        if (publicIps.length === 0) return []
-
-        const ipsToLookup = options?.limit ? publicIps.slice(0, options.limit) : publicIps
-        const liveRecords = await fetchLiveGeoIPRecords(ipsToLookup, 0)
-        return liveRecords as unknown as GeoIPRecord[]
+        return allRecords
       }
 
-      // Single scan case - first try stored data
+      // Single scan case - get stored data first
       const storedRecords = await db.getGeoIPByScan(scanId, options)
-      if (storedRecords.length > 0) {
+      const ipsWithStoredData = new Set(storedRecords.map((r) => r.host_ip))
+
+      // Get all public IPs and find ones missing GeoIP data
+      const publicIps = await getPublicIpsForScan(scanId)
+      const ipsNeedingLookup = publicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+      // If all IPs have stored data, return stored records
+      if (ipsNeedingLookup.length === 0) {
         return storedRecords
       }
 
-      // No stored data - fall back to live lookups
-      const publicIps = await getPublicIpsForScan(scanId)
-      if (publicIps.length === 0) {
-        return []
-      }
-
       // Apply limit from options if specified
-      const ipsToLookup = options?.limit ? publicIps.slice(0, options.limit) : publicIps
+      const ipsToLookup = options?.limit
+        ? ipsNeedingLookup.slice(0, options.limit)
+        : ipsNeedingLookup
 
-      // Fetch live GeoIP data and convert to GeoIPRecord format
+      // Fetch live GeoIP data for missing IPs and combine
       const liveRecords = await fetchLiveGeoIPRecords(ipsToLookup, scanId)
-      return liveRecords as unknown as GeoIPRecord[]
+      return [...storedRecords, ...(liveRecords as unknown as GeoIPRecord[])]
     },
     enabled: true,
     staleTime: 60000,
@@ -316,7 +319,7 @@ function aggregateLiveRecordsToCountryStats(
 
 /**
  * Get country breakdown for a scan (from v_geoip_stats view)
- * Falls back to computing from live lookups if no stored data
+ * Combines stored data with live lookups for IPs missing stored data
  * When scanId is 0, aggregates from all recent scans
  */
 export function useGeoIPCountryBreakdown(scanId: number) {
@@ -328,59 +331,54 @@ export function useGeoIPCountryBreakdown(scanId: number) {
         const scanIds = await getRecentScanIds()
         if (scanIds.length === 0) return []
 
-        // Try stored data from all scans, aggregate by country
-        const countryAgg = new Map<string, GeoIPCountryStats>()
+        // Get stored GeoIP records and track which IPs have data
+        const ipsWithStoredData = new Set<string>()
+        const storedRecords: LiveGeoIPRecord[] = []
         for (const sid of scanIds) {
-          const stats = await db.getGeoIPCountryStats(sid)
-          stats.forEach((s) => {
-            if (s.country_code) {
-              const existing = countryAgg.get(s.country_code)
-              if (existing) {
-                existing.host_count += s.host_count
-                existing.unique_asns += s.unique_asns
-                existing.datacenter_count += s.datacenter_count
-                existing.residential_count += s.residential_count
-                existing.vpn_count += s.vpn_count
-                existing.proxy_count += s.proxy_count
-                existing.tor_count += s.tor_count
-                existing.mobile_count += s.mobile_count
-              } else {
-                countryAgg.set(s.country_code, { ...s, scan_id: 0 })
-              }
+          const records = await db.getGeoIPByScan(sid)
+          records.forEach((r) => {
+            if (!ipsWithStoredData.has(r.host_ip)) {
+              ipsWithStoredData.add(r.host_ip)
+              storedRecords.push(r as unknown as LiveGeoIPRecord)
             }
           })
         }
 
-        if (countryAgg.size > 0) {
-          return Array.from(countryAgg.values()).sort((a, b) => b.host_count - a.host_count)
+        // Get all public IPs and find ones missing GeoIP data
+        const allPublicIps = await getPublicIpsForScan(ALL_SCANS)
+        const ipsNeedingLookup = allPublicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+        // Do live lookups for IPs without stored data
+        let liveRecords: LiveGeoIPRecord[] = []
+        if (ipsNeedingLookup.length > 0) {
+          liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, 0)
         }
 
-        // Fall back to live lookups
-        const publicIps = await getPublicIpsForScan(ALL_SCANS)
-        if (publicIps.length === 0) return []
-
-        const liveRecords = await fetchLiveGeoIPRecords(publicIps, 0)
-        return aggregateLiveRecordsToCountryStats(liveRecords, 0)
+        // Combine and aggregate to country stats
+        const allRecords = [...storedRecords, ...liveRecords]
+        return aggregateLiveRecordsToCountryStats(allRecords, 0)
       }
 
-      // Single scan case - first try stored data from view
-      const storedStats = await db.getGeoIPCountryStats(scanId)
-      if (storedStats.length > 0) {
-        return storedStats
-      }
+      // Single scan case - get stored records and track which IPs have data
+      const storedRecords = await db.getGeoIPByScan(scanId)
+      const ipsWithStoredData = new Set(storedRecords.map((r) => r.host_ip))
 
-      // No stored data - compute from live lookups
+      // Get all public IPs and find ones missing GeoIP data
       const publicIps = await getPublicIpsForScan(scanId)
-      if (publicIps.length === 0) {
-        return []
+      const ipsNeedingLookup = publicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+      // Do live lookups for IPs without stored data
+      let liveRecords: LiveGeoIPRecord[] = []
+      if (ipsNeedingLookup.length > 0) {
+        liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, scanId)
       }
 
-      const liveRecords = await fetchLiveGeoIPRecords(publicIps, scanId)
-      if (liveRecords.length === 0) {
-        return []
-      }
-
-      return aggregateLiveRecordsToCountryStats(liveRecords, scanId)
+      // Combine and aggregate to country stats
+      const allRecords = [
+        ...(storedRecords as unknown as LiveGeoIPRecord[]),
+        ...liveRecords,
+      ]
+      return aggregateLiveRecordsToCountryStats(allRecords, scanId)
     },
     enabled: true,
     staleTime: 60000,
@@ -555,7 +553,7 @@ async function getPublicIpsForScan(scanId: number): Promise<string[]> {
 
 /**
  * Get GeoIP data as map points for visualization
- * Falls back to live lookups if no stored GeoIP data exists
+ * Combines stored data with live lookups for IPs missing stored data
  */
 export function useGeoIPMapPoints(scanId: number) {
   return useQuery({
@@ -566,9 +564,9 @@ export function useGeoIPMapPoints(scanId: number) {
         const scanIds = await getRecentScanIds()
         if (scanIds.length === 0) return []
 
-        // Try stored data from all scans
+        // Get stored data from all scans and track which IPs have data
         const allPoints: GeoIPMapPoint[] = []
-        const seenIps = new Set<string>()
+        const ipsWithStoredData = new Set<string>()
         for (const sid of scanIds) {
           const records = await db.getGeoIPByScan(sid, { hasCoordinates: true })
           records
@@ -576,8 +574,8 @@ export function useGeoIPMapPoints(scanId: number) {
               r.latitude !== null && r.longitude !== null
             )
             .forEach((r) => {
-              if (!seenIps.has(r.host_ip)) {
-                seenIps.add(r.host_ip)
+              if (!ipsWithStoredData.has(r.host_ip)) {
+                ipsWithStoredData.add(r.host_ip)
                 allPoints.push({
                   latitude: r.latitude,
                   longitude: r.longitude,
@@ -591,59 +589,63 @@ export function useGeoIPMapPoints(scanId: number) {
             })
         }
 
-        if (allPoints.length > 0) {
-          return allPoints
+        // Get all public IPs and find ones missing GeoIP data
+        const allPublicIps = await getPublicIpsForScan(ALL_SCANS)
+        const ipsNeedingLookup = allPublicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+        // Do live lookups for IPs without stored data
+        if (ipsNeedingLookup.length > 0) {
+          const liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, 0)
+          liveRecords
+            .filter((r): r is LiveGeoIPRecord & { latitude: number; longitude: number } =>
+              r.latitude !== null && r.longitude !== null
+            )
+            .forEach((r) => {
+              allPoints.push({
+                latitude: r.latitude,
+                longitude: r.longitude,
+                host_ip: r.host_ip,
+                country_code: r.country_code,
+                city: r.city,
+                ip_type: r.ip_type,
+                scan_id: r.scan_id,
+              })
+            })
         }
 
-        // Fall back to live lookups
-        const publicIps = await getPublicIpsForScan(ALL_SCANS)
-        if (publicIps.length === 0) return []
-
-        const liveRecords = await fetchLiveGeoIPRecords(publicIps, 0)
-        return liveRecords
-          .filter((r): r is LiveGeoIPRecord & { latitude: number; longitude: number } =>
-            r.latitude !== null && r.longitude !== null
-          )
-          .map((r) => ({
-            latitude: r.latitude,
-            longitude: r.longitude,
-            host_ip: r.host_ip,
-            country_code: r.country_code,
-            city: r.city,
-            ip_type: r.ip_type,
-            scan_id: r.scan_id,
-          }))
+        return allPoints
       }
 
-      // Single scan case - first try to get stored GeoIP data
+      // Single scan case - get stored data and track which IPs have it
       const records = await db.getGeoIPByScan(scanId, { hasCoordinates: true })
+      const ipsWithStoredData = new Set(records.map((r) => r.host_ip))
 
-      if (records.length > 0) {
-        // Use stored data
-        return records
-          .filter((r): r is GeoIPRecord & { latitude: number; longitude: number } =>
-            r.latitude !== null && r.longitude !== null
-          )
-          .map((r) => ({
-            latitude: r.latitude,
-            longitude: r.longitude,
-            host_ip: r.host_ip,
-            country_code: r.country_code,
-            city: r.city,
-            ip_type: r.ip_type,
-            scan_id: r.scan_id,
-          }))
-      }
+      const storedPoints: GeoIPMapPoint[] = records
+        .filter((r): r is GeoIPRecord & { latitude: number; longitude: number } =>
+          r.latitude !== null && r.longitude !== null
+        )
+        .map((r) => ({
+          latitude: r.latitude,
+          longitude: r.longitude,
+          host_ip: r.host_ip,
+          country_code: r.country_code,
+          city: r.city,
+          ip_type: r.ip_type,
+          scan_id: r.scan_id,
+        }))
 
-      // No stored data - fall back to live lookups
+      // Get all public IPs and find ones missing GeoIP data
       const publicIps = await getPublicIpsForScan(scanId)
-      if (publicIps.length === 0) {
-        return []
+      const ipsNeedingLookup = publicIps.filter((ip) => !ipsWithStoredData.has(ip))
+
+      // If no IPs need lookup, return stored points
+      if (ipsNeedingLookup.length === 0) {
+        return storedPoints
       }
 
-      // Fetch live GeoIP data and convert to map points
-      const liveRecords = await fetchLiveGeoIPRecords(publicIps, scanId)
-      return liveRecords
+      // Fetch live GeoIP data for missing IPs and combine
+      const liveRecords = await fetchLiveGeoIPRecords(ipsNeedingLookup, scanId)
+      const livePoints = liveRecords
         .filter((r): r is LiveGeoIPRecord & { latitude: number; longitude: number } =>
           r.latitude !== null && r.longitude !== null
         )
@@ -656,6 +658,8 @@ export function useGeoIPMapPoints(scanId: number) {
           ip_type: r.ip_type,
           scan_id: r.scan_id,
         }))
+
+      return [...storedPoints, ...livePoints]
     },
     enabled: true,
     staleTime: 60000,
