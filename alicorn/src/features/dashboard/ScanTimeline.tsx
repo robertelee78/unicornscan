@@ -117,7 +117,7 @@ export function ScanTimeline({ data, isLoading }: ScanTimelineProps) {
                 <Legend
                   verticalAlign="top"
                   height={36}
-                  wrapperStyle={{ fontSize: '12px' }}
+                  wrapperStyle={{ fontSize: '12px', color: 'hsl(var(--foreground))' }}
                 />
                 <Area
                   type="monotone"
