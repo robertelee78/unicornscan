@@ -9,7 +9,7 @@
 
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { SideBySideView } from '@/features/compare/views/SideBySideView'
@@ -348,7 +348,7 @@ describe('SideBySideView', () => {
 
   it('shows port badges with correct status colors', () => {
     const data = createSampleData()
-    const { container } = render(<SideBySideView data={data} />)
+    render(<SideBySideView data={data} />)
 
     // Should have port numbers displayed (as badge content)
     // Badges show port numbers like "80", "22", "443"

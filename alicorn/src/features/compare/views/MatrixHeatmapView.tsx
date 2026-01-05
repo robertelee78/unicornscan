@@ -16,7 +16,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   Tooltip,
@@ -27,6 +27,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -231,10 +232,13 @@ function PortDetailsDialog({ cell, onClose }: PortDetailsDialogProps) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-mono">{cell.hostAddr}</DialogTitle>
+          <DialogDescription>
+            Port details for scan #{cell.scan.scan_id}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="text-sm text-muted-foreground">
-            Scan #{cell.scan.scan_id} • {formatScanTimeFull(cell.scan)}
+            {formatScanTimeFull(cell.scan)}
           </div>
           {cell.ports.length > 0 ? (
             <div className="space-y-2">
@@ -389,10 +393,9 @@ export function MatrixHeatmapView({ data, className }: MatrixHeatmapViewProps) {
 
             {/* Data rows */}
             {cellMatrix.map((row, rowIndex) => (
-              <>
+              <React.Fragment key={`row-${rowIndex}`}>
                 {/* Host IP */}
                 <div
-                  key={`host-${rowIndex}`}
                   className="bg-surface sticky left-0 z-10 px-2 py-1 font-mono text-xs flex items-center"
                 >
                   {row[0]?.hostAddr || activeHosts[rowIndex]?.ipAddr}
@@ -400,14 +403,14 @@ export function MatrixHeatmapView({ data, className }: MatrixHeatmapViewProps) {
 
                 {/* Cells */}
                 {row.map((cell, colIndex) => (
-                  <div key={`cell-${rowIndex}-${colIndex}`} className="bg-surface p-0.5">
+                  <div key={`cell-${colIndex}`} className="bg-surface p-0.5">
                     <MatrixCell
                       cell={cell}
                       onClick={() => handleCellClick(cell)}
                     />
                   </div>
                 ))}
-              </>
+              </React.Fragment>
             ))}
           </div>
         </div>

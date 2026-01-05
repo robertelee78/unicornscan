@@ -16,6 +16,7 @@
  */
 
 import { useMemo } from 'react'
+import { Plus, Minus, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   Tooltip,
@@ -166,16 +167,38 @@ function PortBadge({ data }: PortBadgeProps) {
     return lines.join('\n')
   }, [data])
 
+  // Get status label for screen readers
+  const statusLabel = useMemo(() => {
+    switch (data.status) {
+      case 'new': return 'new port'
+      case 'lost': return 'removed port'
+      case 'changed': return 'modified port'
+      default: return 'port'
+    }
+  }, [data.status])
+
+  // Get icon for non-color accessibility
+  const StatusIcon = useMemo(() => {
+    switch (data.status) {
+      case 'new': return Plus
+      case 'lost': return Minus
+      case 'changed': return RefreshCw
+      default: return null
+    }
+  }, [data.status])
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge
           variant="outline"
           className={cn(
-            'text-xs font-mono cursor-default',
+            'text-xs font-mono cursor-default inline-flex items-center gap-0.5',
             getPortStatusClass(data.status)
           )}
+          aria-label={`${statusLabel} ${data.port}/${data.protocol}`}
         >
+          {StatusIcon && <StatusIcon className="h-2.5 w-2.5" aria-hidden="true" />}
           {data.port}
         </Badge>
       </TooltipTrigger>
@@ -199,9 +222,12 @@ function HostRow({ host, scans }: HostRowProps) {
   return (
     <tr className="border-b border-border hover:bg-muted/30 transition-colors">
       {/* Host IP column (sticky) */}
-      <td className="sticky left-0 z-10 bg-surface px-3 py-2 font-mono text-sm border-r border-border">
+      <th
+        scope="row"
+        className="sticky left-0 z-10 bg-surface px-3 py-2 font-mono text-sm font-normal text-left border-r border-border"
+      >
         {host.ipAddr}
-      </td>
+      </th>
 
       {/* Scan columns */}
       {scans.map((scan, scanIndex) => {
@@ -266,7 +292,10 @@ export function SideBySideView({ data, className }: SideBySideViewProps) {
           <thead className="sticky top-0 z-20 bg-surface-light">
             <tr>
               {/* Host column header */}
-              <th className="sticky left-0 z-30 bg-surface-light px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-r border-border">
+              <th
+                scope="col"
+                className="sticky left-0 z-30 bg-surface-light px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-r border-border"
+              >
                 Host
               </th>
 
@@ -274,6 +303,7 @@ export function SideBySideView({ data, className }: SideBySideViewProps) {
               {scans.map((scan) => (
                 <th
                   key={scan.scan_id}
+                  scope="col"
                   className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-r border-border last:border-r-0 min-w-[120px]"
                 >
                   <div className="flex flex-col gap-0.5">
