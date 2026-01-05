@@ -21,6 +21,11 @@ export {
 
 // Selection hooks for comparison workflow
 export { useScanSelection, type UseScanSelectionResult } from './hooks/useScanSelection'
+export {
+  useCompatibleScans,
+  type UseCompatibleScansResult,
+  type CompatibilityFilterCriteria,
+} from './hooks/useCompatibleScans'
 
 // Filter components
 export {
