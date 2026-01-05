@@ -21,7 +21,6 @@ import type {
 } from './types'
 import { DEFAULT_GEOIP_CONFIG, GEOIP_CONFIG_STORAGE_KEY } from './types'
 import { GeoIPCache } from './cache'
-import type { IpType } from '@/types/database'
 
 /**
  * Browser-based GeoIP service
@@ -81,6 +80,11 @@ class GeoIPService {
       return null
     }
 
+    // Skip private/RFC1918 addresses - they have no meaningful geolocation
+    if (this.isPrivateIp(ip)) {
+      return null
+    }
+
     // Check cache first
     const cached = this.cache.get(ip)
     if (cached) {
@@ -90,12 +94,43 @@ class GeoIPService {
     const startTime = performance.now()
 
     try {
-      // In demo mode or when API is not available, return mock data
-      const result = this.generateMockResult(ip)
-      result.lookup_time = performance.now() - startTime
+      // Call the GeoIP API
+      const apiUrl = import.meta.env.VITE_GEOIP_URL || 'http://localhost:3001'
+      const response = await fetch(`${apiUrl}/lookup/${encodeURIComponent(ip)}`)
 
-      // Cache the result
-      this.cache.set(ip, result)
+      if (!response.ok) {
+        // API returned error - return null (no data)
+        return null
+      }
+
+      const data = await response.json()
+
+      // Map API response to LiveGeoIPResult
+      const result: LiveGeoIPResult = {
+        country_code: data.country_code || null,
+        country_name: data.country_name || null,
+        region_code: data.region_code || null,
+        region_name: data.region_name || null,
+        city: data.city || null,
+        postal_code: data.postal_code || null,
+        latitude: data.latitude || null,
+        longitude: data.longitude || null,
+        timezone: data.timezone || null,
+        ip_type: data.ip_type || null,
+        isp: data.isp || null,
+        organization: data.organization || null,
+        asn: data.asn || null,
+        as_org: data.as_org || null,
+        provider: data.provider || 'unknown',
+        database_type: data.database_type || 'unknown',
+        lookup_time: performance.now() - startTime,
+        cached: false,
+      }
+
+      // Only cache if we got meaningful data
+      if (result.country_code || result.asn) {
+        this.cache.set(ip, result)
+      }
 
       return result
     } catch (error) {
@@ -285,54 +320,28 @@ class GeoIPService {
   }
 
   /**
-   * Generate mock result for demo/development
-   * In production, this would be replaced with actual MMDB lookups
-   * via a backend API or WASM-based reader
+   * Check if IP is a private/RFC1918 address (no meaningful geolocation)
    */
-  private generateMockResult(ip: string): LiveGeoIPResult {
-    // Use IP octets to generate deterministic mock data
-    const octets = ip.split('.').map(Number)
-    const hash = octets.reduce((acc, oct) => acc + oct, 0)
+  private isPrivateIp(ip: string): boolean {
+    const parts = ip.split('.').map(Number)
+    if (parts.length !== 4) return false
 
-    const countries = [
-      { code: 'US', name: 'United States', city: 'Mountain View', region: 'CA', tz: 'America/Los_Angeles' },
-      { code: 'GB', name: 'United Kingdom', city: 'London', region: 'ENG', tz: 'Europe/London' },
-      { code: 'DE', name: 'Germany', city: 'Frankfurt', region: 'HE', tz: 'Europe/Berlin' },
-      { code: 'JP', name: 'Japan', city: 'Tokyo', region: '13', tz: 'Asia/Tokyo' },
-      { code: 'AU', name: 'Australia', city: 'Sydney', region: 'NSW', tz: 'Australia/Sydney' },
-      { code: 'BR', name: 'Brazil', city: 'Sao Paulo', region: 'SP', tz: 'America/Sao_Paulo' },
-      { code: 'CA', name: 'Canada', city: 'Toronto', region: 'ON', tz: 'America/Toronto' },
-      { code: 'FR', name: 'France', city: 'Paris', region: 'IDF', tz: 'Europe/Paris' },
-    ]
+    // 10.0.0.0/8
+    if (parts[0] === 10) return true
 
-    const ipTypes: IpType[] = ['residential', 'datacenter', 'vpn', 'mobile', 'unknown']
-    const country = countries[hash % countries.length]
-    const ipType = ipTypes[hash % ipTypes.length]
+    // 172.16.0.0/12 (172.16.x.x - 172.31.x.x)
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
 
-    // Generate pseudo-random lat/lng based on country
-    const baseLat = { US: 37, GB: 51, DE: 50, JP: 35, AU: -33, BR: -23, CA: 43, FR: 48 }
-    const baseLng = { US: -122, GB: 0, DE: 8, JP: 139, AU: 151, BR: -46, CA: -79, FR: 2 }
+    // 192.168.0.0/16
+    if (parts[0] === 192 && parts[1] === 168) return true
 
-    return {
-      country_code: country.code,
-      country_name: country.name,
-      region_code: country.region,
-      region_name: country.region,
-      city: country.city,
-      postal_code: `${10000 + (hash % 90000)}`,
-      latitude: (baseLat[country.code as keyof typeof baseLat] || 0) + (hash % 10) / 10,
-      longitude: (baseLng[country.code as keyof typeof baseLng] || 0) + (hash % 10) / 10,
-      timezone: country.tz,
-      ip_type: ipType,
-      isp: `Mock ISP ${hash % 100}`,
-      organization: `Mock Org ${hash % 50}`,
-      asn: 10000 + (hash % 50000),
-      as_org: `AS${10000 + (hash % 50000)} Mock Organization`,
-      provider: this.config.provider,
-      database_type: 'Mock-Database',
-      lookup_time: 0,
-      cached: false,
-    }
+    // 127.0.0.0/8 (loopback)
+    if (parts[0] === 127) return true
+
+    // 169.254.0.0/16 (link-local)
+    if (parts[0] === 169 && parts[1] === 254) return true
+
+    return false
   }
 
   private mockDatabaseInfo(path: string, type: string): GeoIPDatabaseInfo {
