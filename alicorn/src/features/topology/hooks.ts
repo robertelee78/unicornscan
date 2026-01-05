@@ -16,6 +16,56 @@ import type { TopologyData, TopologyNode, TopologyEdge, TopologyFilters } from '
 const db = getDatabase()
 
 // =============================================================================
+// IP/CIDR Utilities
+// =============================================================================
+
+/**
+ * Check if an IP address is within a CIDR range
+ * @param ip - IP address to check (e.g., "192.168.1.100")
+ * @param cidr - CIDR notation (e.g., "192.168.1.0/24")
+ * @returns true if IP is in the CIDR range
+ */
+function isIpInCidr(ip: string, cidr: string): boolean {
+  const [cidrNetwork, prefixStr] = cidr.split('/')
+  const prefix = parseInt(prefixStr, 10)
+
+  if (isNaN(prefix) || prefix < 0 || prefix > 32) {
+    return false
+  }
+
+  const ipNum = ipToNumber(ip)
+  const networkNum = ipToNumber(cidrNetwork)
+
+  if (ipNum === null || networkNum === null) {
+    return false
+  }
+
+  // Create mask from prefix length
+  const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0
+
+  // Check if IP is in network
+  return (ipNum & mask) === (networkNum & mask)
+}
+
+/**
+ * Convert IP string to 32-bit number
+ */
+function ipToNumber(ip: string): number | null {
+  const parts = ip.split('.')
+  if (parts.length !== 4) return null
+
+  let num = 0
+  for (let i = 0; i < 4; i++) {
+    const octet = parseInt(parts[i], 10)
+    if (isNaN(octet) || octet < 0 || octet > 255) {
+      return null
+    }
+    num = (num << 8) | octet
+  }
+  return num >>> 0 // Convert to unsigned
+}
+
+// =============================================================================
 // Query Keys
 // =============================================================================
 
@@ -437,6 +487,37 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
       hosts = hosts.filter(h => parseTimestamp(h.last_seen) >= filters.since!)
     }
 
+    // Subnet filter - supports partial IP (192.168) or CIDR notation (192.168.1.0/24)
+    if (filters.subnet) {
+      const subnetFilter = filters.subnet.trim()
+      if (subnetFilter.includes('/')) {
+        // CIDR notation - check if host IP is in the subnet
+        hosts = hosts.filter(h => {
+          const hostIp = h.ip_addr ?? h.host_addr
+          return isIpInCidr(hostIp, subnetFilter)
+        })
+      } else {
+        // Partial IP prefix matching - e.g., "192.168" matches "192.168.1.1"
+        hosts = hosts.filter(h => {
+          const hostIp = h.ip_addr ?? h.host_addr
+          return hostIp.startsWith(subnetFilter)
+        })
+      }
+    }
+
+    // OS family filter - string comparison
+    if (filters.osFamily && filters.osFamily.length > 0) {
+      hosts = hosts.filter(h => {
+        // Check os_family field from database
+        const hostOsFamily = h.os_family?.toLowerCase() ?? ''
+        return filters.osFamily!.some(f => {
+          const filterLower = f.toLowerCase()
+          // Match exact or contains for flexibility
+          return hostOsFamily === filterLower || hostOsFamily.includes(filterLower)
+        })
+      })
+    }
+
     // Collect all scanned CIDRs from all scans for intelligent grouping
     const scannedCidrs: string[] = []
     if (scansQuery.data) {
@@ -451,7 +532,14 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
     }
 
     // Get hops data (empty array if still loading)
-    const hops = hopsQuery.data ?? []
+    let hops = hopsQuery.data ?? []
+
+    // Filter hops to only include those that connect to remaining hosts
+    // This removes orphaned router nodes when their target networks are filtered out
+    if (filters.subnet || (filters.osFamily && filters.osFamily.length > 0)) {
+      const remainingHostIps = new Set(hosts.map(h => h.ip_addr ?? h.host_addr))
+      hops = hops.filter(hop => remainingHostIps.has(hop.target_addr))
+    }
 
     // Use first scanner address for now (most installations have one scanner)
     // Multiple scanner nodes will still appear if they're in the hops data

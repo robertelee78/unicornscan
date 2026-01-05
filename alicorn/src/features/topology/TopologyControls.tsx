@@ -4,7 +4,7 @@
  * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,8 +15,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { useOsFamilyCounts } from './hooks'
 import type { TopologyFilters, TopologyConfig } from './types'
-import type { OsFamily } from '@/types/database'
 
 // =============================================================================
 // Props
@@ -47,6 +47,22 @@ export function TopologyControls({
 }: TopologyControlsProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // Local state for text inputs to prevent focus loss on every keystroke
+  const [subnetInput, setSubnetInput] = useState(filters.subnet ?? '')
+  const [minPortsInput, setMinPortsInput] = useState(filters.minPorts?.toString() ?? '')
+
+  // Fetch OS families from database for dropdown
+  const { data: osFamilyCounts } = useOsFamilyCounts(10)
+
+  // Sync local state when external filters change
+  useEffect(() => {
+    setSubnetInput(filters.subnet ?? '')
+  }, [filters.subnet])
+
+  useEffect(() => {
+    setMinPortsInput(filters.minPorts?.toString() ?? '')
+  }, [filters.minPorts])
+
   const updateFilter = useCallback(<K extends keyof TopologyFilters>(
     key: K,
     value: TopologyFilters[K]
@@ -60,6 +76,30 @@ export function TopologyControls({
   ) => {
     onConfigChange({ ...config, [key]: value })
   }, [config, onConfigChange])
+
+  // Apply subnet filter on blur or Enter
+  const applySubnetFilter = useCallback(() => {
+    const value = subnetInput.trim()
+    updateFilter('subnet', value || undefined)
+  }, [subnetInput, updateFilter])
+
+  // Apply min ports filter on blur or Enter
+  const applyMinPortsFilter = useCallback(() => {
+    const value = minPortsInput.trim()
+    updateFilter('minPorts', value ? parseInt(value) : undefined)
+  }, [minPortsInput, updateFilter])
+
+  const handleSubnetKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      applySubnetFilter()
+    }
+  }, [applySubnetFilter])
+
+  const handleMinPortsKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      applyMinPortsFilter()
+    }
+  }, [applyMinPortsFilter])
 
   return (
     <div className={cn('flex flex-col gap-4 p-4 bg-card border rounded-lg', className)}>
@@ -90,8 +130,10 @@ export function TopologyControls({
             type="number"
             min={0}
             placeholder="0"
-            value={filters.minPorts ?? ''}
-            onChange={e => updateFilter('minPorts', e.target.value ? parseInt(e.target.value) : undefined)}
+            value={minPortsInput}
+            onChange={e => setMinPortsInput(e.target.value)}
+            onBlur={applyMinPortsFilter}
+            onKeyDown={handleMinPortsKeyDown}
             className="h-8"
           />
         </div>
@@ -103,29 +145,32 @@ export function TopologyControls({
           </label>
           <Input
             id="subnet"
-            placeholder="e.g., 192.168.1.0/24"
-            value={filters.subnet ?? ''}
-            onChange={e => updateFilter('subnet', e.target.value || undefined)}
+            placeholder="e.g., 192.168 or 10.0.0.0/8"
+            value={subnetInput}
+            onChange={e => setSubnetInput(e.target.value)}
+            onBlur={applySubnetFilter}
+            onKeyDown={handleSubnetKeyDown}
             className="h-8"
           />
         </div>
 
-        {/* OS Family Filter */}
+        {/* OS Family Filter - Dynamic from database */}
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">OS Family</label>
           <Select
             value={filters.osFamily?.[0] ?? 'all'}
-            onValueChange={(v: string) => updateFilter('osFamily', v === 'all' ? undefined : [v as OsFamily])}
+            onValueChange={(v: string) => updateFilter('osFamily', v === 'all' ? undefined : [v])}
           >
             <SelectTrigger className="h-8">
               <SelectValue placeholder="All OS" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All OS</SelectItem>
-              <SelectItem value="linux">Linux/Unix</SelectItem>
-              <SelectItem value="windows">Windows</SelectItem>
-              <SelectItem value="router">Router</SelectItem>
-              <SelectItem value="unknown">Unknown</SelectItem>
+              {osFamilyCounts?.map(({ os_family, count }) => (
+                <SelectItem key={os_family} value={os_family}>
+                  {os_family} ({count})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
