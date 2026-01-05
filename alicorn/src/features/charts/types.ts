@@ -294,6 +294,76 @@ export interface PortActivityHeatmapData {
 }
 
 // =============================================================================
+// Adaptive Time Granularity (Enhanced Heatmap)
+// =============================================================================
+
+/**
+ * Time granularity for heatmap X-axis
+ * - 'hourly': Use when time range < 7 days (shows hourly buckets)
+ * - 'daily': Use when time range >= 7 days (shows daily buckets)
+ */
+export type TimeGranularity = 'hourly' | 'daily'
+
+/**
+ * Extended heatmap cell with optional hour field for hourly granularity
+ */
+export interface AdaptiveHeatmapCell extends HeatmapCell {
+  /** Hour of day (0-23) when granularity is 'hourly', undefined for 'daily' */
+  hour?: number
+  /** Combined date-hour key for hourly data (e.g., "2025-01-04T14") */
+  timeKey: string
+}
+
+/**
+ * Adaptive heatmap data with time granularity support
+ * Extends base heatmap data to support both hourly and daily views
+ */
+export interface AdaptiveHeatmapData {
+  /** All heatmap cells with time information */
+  cells: AdaptiveHeatmapCell[]
+  /** Sorted unique port numbers (Y-axis) */
+  ports: number[]
+  /** Sorted unique time keys (X-axis) - dates or date-hours depending on granularity */
+  timeKeys: string[]
+  /** Display labels for X-axis (formatted dates or hours) */
+  timeLabels: string[]
+  /** Maximum count across all cells for color intensity scaling */
+  maxCount: number
+  /** Time granularity of this dataset */
+  granularity: TimeGranularity
+  /** Original date range for reference */
+  dateRange: {
+    start: string  // ISO date string
+    end: string    // ISO date string
+    daySpan: number
+  }
+}
+
+/**
+ * Configuration for adaptive heatmap rendering
+ */
+export interface AdaptiveHeatmapConfig {
+  /** Threshold in days to switch from hourly to daily granularity */
+  hourlyThresholdDays: number
+  /** Maximum number of columns before enabling horizontal scroll */
+  maxVisibleColumns: number
+  /** Minimum cell size in pixels */
+  minCellSize: number
+  /** Maximum cell size in pixels */
+  maxCellSize: number
+}
+
+/**
+ * Default adaptive heatmap configuration
+ */
+export const DEFAULT_ADAPTIVE_HEATMAP_CONFIG: AdaptiveHeatmapConfig = {
+  hourlyThresholdDays: 7,
+  maxVisibleColumns: 24,
+  minCellSize: 12,
+  maxCellSize: 28,
+}
+
+// =============================================================================
 // Port Categories (Enhanced Heatmap)
 // =============================================================================
 
