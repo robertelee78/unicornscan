@@ -130,7 +130,7 @@ export function IpTypeChart({
                     <text
                       x={x}
                       y={y}
-                      fill="hsl(var(--foreground))"
+                      fill="var(--color-foreground)"
                       textAnchor={x > (cx ?? 0) ? 'start' : 'end'}
                       dominantBaseline="central"
                       fontSize={11}
