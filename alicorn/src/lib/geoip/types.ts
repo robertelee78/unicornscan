@@ -69,7 +69,7 @@ export const DEFAULT_GEOIP_CONFIG: GeoIPServiceConfig = {
   provider: 'maxmind',
   cacheSize: 1000,
   cacheTtlMs: 60000, // 1 minute
-  enabled: false,
+  enabled: true, // Enabled by default when GeoIP API container is available
 }
 
 /**
