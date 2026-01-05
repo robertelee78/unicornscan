@@ -1,0 +1,172 @@
+'\" t
+.\" Manual page for fantaip
+.\" Copyright (C) 2004-2006 Jack Louis <jack@rapturesecurity.org>
+.\" Maintained by Robert E. Lee <robert@unicornscan.org> (2025-present)
+.de Vb
+.ft CW
+.nf
+..
+.de Ve
+.ft R
+
+.fi
+..
+.TH "FANTAIP" "1" "2026-01-05" "unicornscan 0.4.38" "Network Tools"
+.SH NAME
+
+.PP
+fantaip \- ARP proxy for phantom (spoofed) IP addresses
+
+.SH SYNOPSIS
+
+.PP
+.B fantaip
+[\fB\-d\fP]
+[\fB\-H\fP \fIMAC\fP]
+[\fB\-h\fP]
+\fB\-i\fP \fIinterface\fP
+[\fB\-v\fP]
+[\fB\-g\fP \fIseconds\fP]
+\fIIP\fP[\fB/\fP\fICIDR\fP]
+
+.SH DESCRIPTION
+
+.PP
+\fBfantaip\fP (Phantom IP) is an ARP proxy that responds to ARP requests for
+IP addresses that do not exist on the network. This enables source IP spoofing
+in \fBunicornscan\fP by ensuring that responses to spoofed packets are routed
+back to your listening interface.
+
+.PP
+When scanning with a spoofed source IP address, target hosts send their responses
+to that spoofed address. Without \fBfantaip\fP, the network cannot resolve the
+spoofed IP via ARP, and responses are dropped. \fBfantaip\fP intercepts ARP
+requests for the phantom IP(s) and responds with your NIC's MAC address,
+causing response traffic to be delivered to your interface.
+
+.PP
+\fBfantaip\fP also sends periodic gratuitous ARP announcements to maintain the
+ARP cache entries on the local network segment.
+
+.SH OPTIONS
+
+.TP
+\fB\-d\fP
+Daemonize. Detach from the terminal and run in the background.
+.TP
+\fB\-H\fP \fIMAC\fP
+Hardware (MAC) address to use in ARP replies. Format: \fBXX:XX:XX:XX:XX:XX\fP.
+If not specified, the interface's actual MAC address is used.
+.TP
+\fB\-h\fP
+Display help message and exit.
+.TP
+\fB\-i\fP \fIinterface\fP
+Network interface to use (e.g., \fBeth0\fP, \fBwlan0\fP). This option is required.
+.TP
+\fB\-v\fP
+Verbose operation. Can be specified multiple times to increase verbosity.
+.TP
+\fB\-g\fP \fIseconds\fP
+Interval in seconds between gratuitous ARP broadcasts. Default is 30 seconds.
+Set to 0 to disable periodic gratuitous ARP.
+
+.SH ARGUMENTS
+
+.TP
+\fIIP\fP[\fB/\fP\fICIDR\fP]
+The phantom IP address or CIDR range to proxy. Examples:
+.RS
+.IP \(bu 2
+\fB192.168.1.100\fP \- Single IP address
+.IP \(bu 2
+\fB192.168.1.0/24\fP \- Entire /24 subnet (256 addresses)
+.IP \(bu 2
+\fB10.0.0.0/8\fP \- Large CIDR block
+.RE
+
+.SH EXAMPLES
+
+.PP
+Proxy a single phantom IP on eth0:
+.Vb
+fantaip -i eth0 192.168.1.100
+.Ve
+
+.PP
+Proxy an entire /24 subnet on wlan0:
+.Vb
+fantaip -i wlan0 192.168.1.0/24
+.Ve
+
+.PP
+Proxy with custom gratuitous ARP interval (60 seconds):
+.Vb
+fantaip -i eth0 -g 60 10.0.0.0/24
+.Ve
+
+.PP
+Disable periodic gratuitous ARP:
+.Vb
+fantaip -i wlan0 -g 0 192.168.1.50
+.Ve
+
+.PP
+Run in background (daemon mode):
+.Vb
+fantaip -d -i eth0 192.168.1.0/24
+.Ve
+
+.PP
+Use with unicornscan for spoofed source scanning:
+.Vb
+# Terminal 1: Start fantaip for the spoofed source
+fantaip -i eth0 192.168.1.250
+
+# Terminal 2: Scan with spoofed source address
+unicornscan -s 192.168.1.250 -i eth0 192.168.1.1:1-1024
+.Ve
+
+.SH STATISTICS
+
+.PP
+When interrupted (SIGINT/Ctrl+C), \fBfantaip\fP displays statistics:
+.IP \(bu 2
+ARP requests received
+.IP \(bu 2
+ARP replies sent
+.IP \(bu 2
+Gratuitous ARPs sent
+
+.SH SIGNALS
+
+.TP
+\fBSIGINT\fP, \fBSIGTERM\fP
+Clean shutdown. Print statistics and exit.
+
+.SH SECURITY CONSIDERATIONS
+
+.PP
+\fBfantaip\fP is a network security tool intended for authorized penetration testing,
+security research, and network troubleshooting. Unauthorized use to intercept or
+redirect network traffic may violate laws and regulations.
+
+.PP
+Running \fBfantaip\fP requires root privileges or CAP_NET_RAW capability.
+
+.SH SEE ALSO
+
+.PP
+\fBunicornscan\fP(1), \fBarp\fP(8), \fBtcpdump\fP(1)
+
+.SH AUTHOR
+
+.PP
+Original author: Jack Louis (gh0st) <jack@rapturesecurity.org>
+.br
+Modernized (2025): Robert E. Lee <robert@unicornscan.org>
+
+.SH COPYRIGHT
+
+.PP
+Copyright \(co 2004-2006 Jack Louis. Licensed under the GNU General Public License v2.
