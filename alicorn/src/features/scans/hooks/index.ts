@@ -4,3 +4,8 @@
  */
 
 export { useScanSelection, type UseScanSelectionResult } from './useScanSelection'
+export {
+  useCompatibleScans,
+  type UseCompatibleScansResult,
+  type CompatibilityFilterCriteria,
+} from './useCompatibleScans'
