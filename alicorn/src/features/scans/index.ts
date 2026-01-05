@@ -19,6 +19,9 @@ export {
   savedFilterKeys,
 } from './hooks'
 
+// Selection hooks for comparison workflow
+export { useScanSelection, type UseScanSelectionResult } from './hooks/useScanSelection'
+
 // Filter components
 export {
   CheckboxFilterGroup,
