@@ -11,6 +11,9 @@ export { ComparisonSummary } from './ComparisonSummary'
 export { HostDiffTable } from './HostDiffTable'
 export { ComparisonView } from './ComparisonView'
 
+// Visualization Views
+export { SideBySideView } from './views'
+
 // Hooks (legacy 2-scan comparison)
 export {
   useScanOptions,
