@@ -16,11 +16,10 @@ interface ScanTableProps {
   sort: SortState
   onSort: (field: SortField) => void
   isLoading: boolean
-  // Selection props (optional for backward compatibility)
-  selectedIds?: Set<number>
-  onSelectionChange?: (id: number) => void
-  onSelectAll?: (ids: number[]) => void
-  showSelection?: boolean
+  // Selection props - checkboxes are always visible per FR-2.1
+  selectedIds: Set<number>
+  onSelectionChange: (id: number) => void
+  onSelectAll: (ids: number[]) => void
 }
 
 export function ScanTable({
@@ -28,10 +27,9 @@ export function ScanTable({
   sort,
   onSort,
   isLoading,
-  selectedIds = new Set(),
+  selectedIds,
   onSelectionChange,
   onSelectAll,
-  showSelection = false,
 }: ScanTableProps) {
   if (isLoading) {
     return <div className="text-muted py-8 text-center">Loading scans...</div>
@@ -59,16 +57,14 @@ export function ScanTable({
       <table className="w-full">
         <thead>
           <tr className="border-b border-border text-left text-sm text-muted">
-            {showSelection && (
-              <th className="pb-3 px-2 w-10">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                  className={someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''}
-                />
-              </th>
-            )}
+            <th className="pb-3 px-2 w-10">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={handleSelectAll}
+                aria-label="Select all scans"
+                className={someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+              />
+            </th>
             <SortableHeader
               field="scan_id"
               label="ID"
@@ -118,15 +114,13 @@ export function ScanTable({
                 key={scan.scan_id}
                 className={`border-b border-border/50 hover:bg-surface-light/50 ${isSelected ? 'bg-primary/5' : ''}`}
               >
-                {showSelection && (
-                  <td className="py-3 px-2">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => onSelectionChange?.(scan.scan_id)}
-                      aria-label={`Select scan ${scan.scan_id}`}
-                    />
-                  </td>
-                )}
+                <td className="py-3 px-2">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => onSelectionChange(scan.scan_id)}
+                    aria-label={`Select scan ${scan.scan_id}`}
+                  />
+                </td>
                 <td className="py-3 px-2">
                   <Link
                     to={`/scans/${scan.scan_id}`}
