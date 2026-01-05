@@ -218,7 +218,7 @@ export function GeoIPWorldMap({
                               <div key={i}>{p.host_ip}</div>
                             ))}
                             {cluster.points.length > 10 && (
-                              <div className="text-gray-400">...and {cluster.points.length - 10} more</div>
+                              <div className="text-gray-500">...and {cluster.points.length - 10} more</div>
                             )}
                           </div>
                         </>
