@@ -2,7 +2,7 @@
 
 ## Origin (2004-2007)
 
-**Unicornscan** was created by **Jack Louis** while working at Rapture Security (later acquired by Outpost24). It represented a novel approach to network scanning:
+**Unicornscan** was created by **Jack C. Louis** while working at Dyad Security, Inc. (later acquired by Outpost24 AB). It represented a novel approach to network scanning:
 
 - **Asynchronous Architecture**: Separate sender and receiver processes communicating via IPC
 - **Stimulus-Based Design**: Send packets, record responses independently
@@ -19,7 +19,7 @@
 
 ### Final Original Release
 
-**Version 0.4.7** was released in December 2007. This was Jack Louis's last official release before the project went dormant.
+**Version 0.4.7** was released in December 2007. This was Jack's last official release before the project went dormant.
 
 ---
 
@@ -74,7 +74,7 @@ The project is now actively maintained with goals including:
 
 ## In Memoriam
 
-This modernization effort honors **Jack C. Louis** and his innovative work on unicornscan. The asynchronous, stimulus-based architecture he designed remains elegant and effective nearly two decades later.
+This modernization effort honors **Jack C. Louis** and his innovative work on unicornscan. The architecture he designed remains elegant and effective nearly two decades later.
 
 *For Jack.*
 
@@ -84,7 +84,7 @@ This modernization effort honors **Jack C. Louis** and his innovative work on un
 
 | Version | Date | Notes |
 |---------|------|-------|
-| 0.4.7 | December 2007 | Final release by Jack Louis |
+| 0.4.7 | December 2007 | Final release by Jack C. Louis |
 | 0.4.8 | December 2025 | GCC 14/15 compatibility, build fixes |
 | 0.4.9 | December 2025 | NIC offload handling, pcap fixes |
 | 0.4.10 | December 2025 | Package setcap, documentation |
