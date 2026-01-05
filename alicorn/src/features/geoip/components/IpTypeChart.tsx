@@ -162,6 +162,7 @@ export function IpTypeChart({
                 height={36}
                 iconType="circle"
                 iconSize={8}
+                wrapperStyle={{ color: 'hsl(var(--foreground))' }}
                 formatter={(value) => (
                   <span className="text-xs">{value}</span>
                 )}
