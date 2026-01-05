@@ -1,5 +1,6 @@
 export { Dashboard } from './Dashboard'
 export { Scans } from './Scans'
+export { ScansCompare } from './ScansCompare'
 export { ScanDetail } from './ScanDetail'
 export { Hosts } from './Hosts'
 export { HostDetail } from './HostDetail'

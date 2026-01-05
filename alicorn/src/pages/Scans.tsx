@@ -46,24 +46,11 @@ export function Scans() {
 
   const { data: scans, total, isLoading, error } = useScanList(filters, sort, pagination)
 
-  // Get the first selected scan ID to use as the base for compatibility filtering
-  const baseScanId = useMemo(() => {
-    if (selectedIds.size === 0) return null
-    // Get the first selected scan (the one that establishes filter criteria)
-    return Array.from(selectedIds)[0]
-  }, [selectedIds])
-
-  // Filter scans to only show compatible ones when a scan is selected
-  const { compatibleScans, isFiltering, filterCriteria } = useCompatibleScans(scans, baseScanId)
-
-  // Use compatible scans when filtering, otherwise use all scans
-  const displayedScans = isFiltering ? compatibleScans : scans
-
   // Export functionality
   const exportDialog = useExportDialog()
   const { exportScansList, isExporting } = useScansListExport(scans)
 
-  // Bulk deletion functionality
+  // Bulk deletion functionality (must be before baseScanId since it provides selectedIds)
   const {
     selectedIds,
     isDeleting,
@@ -98,6 +85,19 @@ export function Scans() {
       toastError(`Failed to delete scan #${scan_id}`, error.message)
     },
   })
+
+  // Get the first selected scan ID to use as the base for compatibility filtering
+  const baseScanId = useMemo(() => {
+    if (selectedIds.size === 0) return null
+    // Get the first selected scan (the one that establishes filter criteria)
+    return Array.from(selectedIds)[0]
+  }, [selectedIds])
+
+  // Filter scans to only show compatible ones when a scan is selected
+  const { compatibleScans, isFiltering, filterCriteria } = useCompatibleScans(scans, baseScanId)
+
+  // Use compatible scans when filtering, otherwise use all scans
+  const displayedScans = isFiltering ? compatibleScans : scans
 
   // Quick export handler
   const handleQuickExport = useCallback((format: ExportFormat) => {
