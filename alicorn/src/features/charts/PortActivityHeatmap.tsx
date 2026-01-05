@@ -6,6 +6,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import { LayoutGrid, Calendar, Info } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -480,10 +481,43 @@ export function PortActivityHeatmap({
         </CardHeader>
         <CardContent>
           <div
-            className="flex items-center justify-center text-muted-foreground text-sm"
+            className="flex flex-col items-center justify-center text-center"
             style={{ height }}
           >
-            No port activity data available
+            {/* Icon illustration */}
+            <div className="rounded-full bg-muted p-4 mb-4">
+              <LayoutGrid className="h-8 w-8 text-muted-foreground" />
+            </div>
+
+            {/* Title */}
+            <h3 className="text-lg font-semibold mb-2">No Port Activity Data</h3>
+
+            {/* Explanation */}
+            <p className="text-muted-foreground text-sm max-w-md mb-4">
+              No port activity was recorded in the selected time range. This could happen if:
+            </p>
+
+            {/* Possible reasons */}
+            <ul className="text-muted-foreground text-sm text-left space-y-1 mb-4">
+              <li className="flex items-center gap-2">
+                <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>No scans were run during this period</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>Scans did not discover any open ports</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>The time filter is too narrow</span>
+              </li>
+            </ul>
+
+            {/* Suggestion */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+              <Calendar className="h-4 w-4" />
+              <span>Try expanding the time range or running new scans</span>
+            </div>
           </div>
         </CardContent>
       </Card>
