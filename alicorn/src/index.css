@@ -31,15 +31,15 @@
   --color-accent-hover: #f472b6;
   --color-accent-foreground: #fdf2f8;
 
-  /* Destructive */
-  --color-destructive: #ef4444;
-  --color-destructive-hover: #dc2626;
-  --color-destructive-foreground: #fef2f2;
+  /* Destructive (WCAG AA compliant) */
+  --color-destructive: #f87171;
+  --color-destructive-hover: #fca5a5;
+  --color-destructive-foreground: #450a0a;
 
   /* Status colors */
   --color-success: #22c55e;
   --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  --color-error: #f87171;
   --color-info: #3b82f6;
 
   /* Port state colors */
