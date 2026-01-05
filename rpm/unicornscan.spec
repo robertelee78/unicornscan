@@ -97,6 +97,12 @@ cp -r alicorn/public/* %{buildroot}/opt/unicornscan-web/public/
 # CLI / Setup wizard
 install -m 644 alicorn/cli/setup.ts %{buildroot}/opt/unicornscan-web/cli/
 
+# GeoIP API service
+mkdir -p %{buildroot}/opt/unicornscan-web/geoip-api
+install -m 644 alicorn/geoip-api/Dockerfile %{buildroot}/opt/unicornscan-web/geoip-api/
+install -m 644 alicorn/geoip-api/package.json %{buildroot}/opt/unicornscan-web/geoip-api/
+install -m 644 alicorn/geoip-api/server.js %{buildroot}/opt/unicornscan-web/geoip-api/
+
 # PostgREST configuration
 mkdir -p %{buildroot}/opt/unicornscan-web/postgrest
 install -m 644 alicorn/postgrest/Dockerfile %{buildroot}/opt/unicornscan-web/postgrest/

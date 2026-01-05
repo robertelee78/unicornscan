@@ -1,0 +1,16 @@
+{
+  "name": "geoip-api",
+  "version": "1.0.0",
+  "description": "GeoIP lookup API for Alicorn using MMDB databases",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "maxmind": "^4.3.22"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

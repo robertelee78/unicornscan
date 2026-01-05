@@ -48,6 +48,12 @@ override_dh_auto_install:
 	install -d debian/unicornscan/opt/unicornscan-web/cli
 	install -m 644 alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-web/cli/
 
+	# GeoIP API service
+	install -d debian/unicornscan/opt/unicornscan-web/geoip-api
+	install -m 644 alicorn/geoip-api/Dockerfile debian/unicornscan/opt/unicornscan-web/geoip-api/
+	install -m 644 alicorn/geoip-api/package.json debian/unicornscan/opt/unicornscan-web/geoip-api/
+	install -m 644 alicorn/geoip-api/server.js debian/unicornscan/opt/unicornscan-web/geoip-api/
+
 	# SQL schema
 	install -m 644 src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
 
