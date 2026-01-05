@@ -227,3 +227,27 @@ export interface MultiScanComparisonResult {
 // =============================================================================
 
 export type HostFilterType = 'all' | 'added' | 'removed' | 'changed' | 'unchanged'
+
+// =============================================================================
+// Saved Comparison Types
+// =============================================================================
+
+/**
+ * A saved comparison stored in localStorage
+ */
+export interface SavedComparison {
+  /** Unique identifier (UUID) */
+  id: string
+  /** Scan IDs being compared */
+  scanIds: number[]
+  /** User-provided note/description */
+  note: string
+  /** Target string from first scan (for display) */
+  targetStr?: string
+  /** Mode string from first scan (for display) */
+  modeStr?: string
+  /** When the comparison was first saved (ISO timestamp) */
+  createdAt: string
+  /** When the comparison was last updated (ISO timestamp) */
+  updatedAt: string
+}
