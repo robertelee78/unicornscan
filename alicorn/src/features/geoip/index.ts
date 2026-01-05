@@ -43,7 +43,7 @@ export {
   initializeGeoIPService,
 } from '@/lib/geoip'
 
-// Hooks - Database GeoIP
+// Hooks - Database GeoIP (scan-based)
 export {
   geoipKeys,
   useGeoIP,
@@ -55,6 +55,13 @@ export {
   useGeoIPMapPoints,
   useGeoIPAsnBreakdown,
   useHasGeoIP,
+  // Time-range-based hooks for Statistics page
+  useHasGeoIPForTimeRange,
+  useGeoIPCountryBreakdownForTimeRange,
+  useGeoIPMapPointsForTimeRange,
+  useGeoIPTypeBreakdownForTimeRange,
+  useGeoIPAsnBreakdownForTimeRange,
+  useGeoIPStatsForTimeRange,
 } from './hooks'
 
 // Hooks - Live GeoIP Lookups
