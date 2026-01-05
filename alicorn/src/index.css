@@ -55,6 +55,13 @@
   --color-port-closed-foreground: #450a0a; /* dark red for contrast */
   --color-port-filtered: #f59e0b;
 
+  /* Activity Matrix Status Colors */
+  --color-status-new: #22c55e;        /* green-500: 8.67:1 on dark */
+  --color-status-removed: #ef4444;    /* red-500: 5.25:1 on dark */
+  --color-status-mixed: #f59e0b;      /* amber-500: 9.20:1 on dark */
+  --color-status-unchanged: #9ca3af;  /* gray-400: 7.78:1 on dark */
+  --color-status-first: #3b82f6;      /* blue-500: 5.37:1 on dark */
+
   /* ==========================================================================
    * Chart Colors - Protocol Distribution
    * Used in: ProtocolDistribution.tsx, types.ts CHART_COLORS
@@ -239,6 +246,13 @@
   --color-port-open-foreground: #ffffff; /* white on dark green: 5.02:1 */
   --color-port-closed-foreground: #ffffff; /* white on red: good contrast */
   --color-port-filtered: #b45309;  /* amber-700: 3.50:1 */
+
+  /* Light Mode Activity Matrix Status Colors - WCAG AA compliant */
+  --color-status-new: #15803d;        /* green-700: 4.81:1 */
+  --color-status-removed: #dc2626;    /* red-600: 4.63:1 */
+  --color-status-mixed: #b45309;      /* amber-700: 4.81:1 */
+  --color-status-unchanged: #4b5563;  /* gray-600: 7.24:1 */
+  --color-status-first: #1d4ed8;      /* blue-700: 6.42:1 */
 
   /* Light Mode Topology Colors */
   --color-topo-scanner: #dc2626;   /* red-600: 3.58:1 */
