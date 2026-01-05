@@ -47,13 +47,14 @@ function getProtocolName(proto: number): string {
   }
 }
 
-function reportToPortInfo(report: IpReport): PortInfo {
+function reportToPortInfo(report: IpReport, banner?: string): PortInfo {
   return {
     port: report.sport,
     protocol: getProtocolName(report.proto),
     ttl: report.ttl,
     flags: report.subtype,
     sport: report.sport,
+    banner,
   }
 }
 
@@ -82,7 +83,8 @@ function groupReportsByHost(reports: IpReport[]): Map<string, IpReport[]> {
 function computePortDiffs(
   hostAddr: string,
   scans: Scan[],
-  reportsByScan: Map<number, Map<string, IpReport[]>>
+  reportsByScan: Map<number, Map<string, IpReport[]>>,
+  bannersByScan: Map<number, Map<number, string>>
 ): MultiScanPortDiff[] {
   // Collect all unique ports for this host across all scans
   const allPorts = new Map<string, { port: number; protocol: string }>()
@@ -116,10 +118,17 @@ function computePortDiffs(
 
       const status: PresenceStatus = portReport ? 'present' : 'absent'
 
+      // Get banner for this report if available
+      let banner: string | undefined
+      if (portReport) {
+        const scanBanners = bannersByScan.get(scan.scan_id)
+        banner = scanBanners?.get(portReport.ipreport_id)
+      }
+
       presence.push({
         scanId: scan.scan_id,
         status,
-        info: portReport ? reportToPortInfo(portReport) : undefined,
+        info: portReport ? reportToPortInfo(portReport, banner) : undefined,
       })
 
       if (portReport) {
@@ -153,6 +162,27 @@ function computePortDiffs(
       }
     }
 
+    // Check for banner changes between consecutive scans where port was present
+    let hasBannerChanges = false
+    let hasBanner = false
+    let lastBanner: string | null = null
+
+    for (const p of presence) {
+      if (p.status === 'present' && p.info) {
+        if (p.info.banner) {
+          hasBanner = true
+          if (lastBanner !== null && p.info.banner !== lastBanner) {
+            hasBannerChanges = true
+          }
+          lastBanner = p.info.banner
+        } else if (lastBanner !== null) {
+          // Banner disappeared (was present, now absent)
+          hasBannerChanges = true
+          lastBanner = null
+        }
+      }
+    }
+
     portDiffs.push({
       port,
       protocol,
@@ -163,6 +193,8 @@ function computePortDiffs(
       hasChanges,
       hasTtlChanges,
       ttlValues,
+      hasBannerChanges,
+      hasBanner,
     })
   }
 
@@ -175,7 +207,8 @@ function computePortDiffs(
  */
 function computeHostDiffs(
   scans: Scan[],
-  reportsByScan: Map<number, Map<string, IpReport[]>>
+  reportsByScan: Map<number, Map<string, IpReport[]>>,
+  bannersByScan: Map<number, Map<number, string>>
 ): MultiScanHostDiff[] {
   // Collect all unique hosts across all scans
   const allHosts = new Set<string>()
@@ -222,7 +255,7 @@ function computeHostDiffs(
     }
 
     // Compute port diffs for this host
-    const portDiffs = computePortDiffs(hostAddr, scans, reportsByScan)
+    const portDiffs = computePortDiffs(hostAddr, scans, reportsByScan, bannersByScan)
 
     hostDiffs.push({
       ipAddr: hostAddr,
@@ -257,6 +290,8 @@ function computeSummary(
   let portsInAllScans = 0
   let portsWithChanges = 0
   let portsWithTtlChanges = 0
+  let portsWithBannerChanges = 0
+  let portsWithBanners = 0
 
   for (const host of hostDiffs) {
     if (host.presentCount === scanCount) {
@@ -278,6 +313,12 @@ function computeSummary(
       if (port.hasTtlChanges) {
         portsWithTtlChanges++
       }
+      if (port.hasBannerChanges) {
+        portsWithBannerChanges++
+      }
+      if (port.hasBanner) {
+        portsWithBanners++
+      }
     }
   }
 
@@ -291,6 +332,8 @@ function computeSummary(
     portsInAllScans,
     portsWithChanges,
     portsWithTtlChanges,
+    portsWithBannerChanges,
+    portsWithBanners,
   }
 }
 
@@ -311,9 +354,14 @@ async function compareMultipleScans(scanIds: number[]): Promise<MultiScanCompari
   // Sort scans chronologically by start time
   scans.sort((a, b) => a.s_time - b.s_time)
 
-  // Fetch all IP reports in parallel
+  // Fetch all IP reports and banners in parallel
   const reportsPromises = scans.map((s) => db.getIpReports(s.scan_id))
-  const reportsArrays = await Promise.all(reportsPromises)
+  const bannersPromises = scans.map((s) => db.getBannersForScan(s.scan_id))
+
+  const [reportsArrays, bannersArrays] = await Promise.all([
+    Promise.all(reportsPromises),
+    Promise.all(bannersPromises),
+  ])
 
   // Build a map: scan_id -> (host_addr -> IpReport[])
   const reportsByScan = new Map<number, Map<string, IpReport[]>>()
@@ -322,8 +370,14 @@ async function compareMultipleScans(scanIds: number[]): Promise<MultiScanCompari
     reportsByScan.set(scans[i].scan_id, hostReportsMap)
   }
 
+  // Build a map: scan_id -> (ipreport_id -> banner)
+  const bannersByScan = new Map<number, Map<number, string>>()
+  for (let i = 0; i < scans.length; i++) {
+    bannersByScan.set(scans[i].scan_id, bannersArrays[i])
+  }
+
   // Compute host diffs
-  const hostDiffs = computeHostDiffs(scans, reportsByScan)
+  const hostDiffs = computeHostDiffs(scans, reportsByScan, bannersByScan)
 
   // Compute summary
   const summary = computeSummary(scans.length, hostDiffs)
