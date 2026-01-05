@@ -6,7 +6,7 @@
 
 Asynchronous stateless network stimulus/response tool for scalable, high-speed reconnaissance.
 
-[Watch Introduction Video](docs/unicornscan_intro.mp4)
+[![Watch Introduction Video](https://img.youtube.com/vi/_h2_np0_bIg/maxresdefault.jpg)](https://www.youtube.com/watch?v=_h2_np0_bIg)
 
 ## Quick Start
 
