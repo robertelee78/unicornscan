@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import * as d3 from 'd3'
 import { cn } from '@/lib/utils'
-import { getOsFamilyColor } from '@/types/database'
+import { getOsFamilyDisplayColor } from './hooks'
 import {
   DEFAULT_TOPOLOGY_CONFIG,
   type TopologyData,
@@ -80,7 +80,7 @@ function getDiamondPath(cx: number, cy: number, size: number): string {
 function getNodeColor(node: TopologyNode): string {
   if (node.type === 'scanner') return 'var(--color-topo-scanner)' // Red - scanner is the origin
   if (node.type === 'router') return 'var(--color-topo-router)'   // Amber - network infrastructure
-  return getOsFamilyColor(node.osFamily)
+  return getOsFamilyDisplayColor(node.osFamily)
 }
 
 /**

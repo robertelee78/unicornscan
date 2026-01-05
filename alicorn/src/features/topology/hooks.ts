@@ -9,7 +9,7 @@ import { useMemo } from 'react'
 import { getDatabase } from '@/lib/database'
 import { parseTimestamp } from '@/lib/utils'
 import { getCIDRGroup, parseCIDRTarget, determineIPGroup } from '@/lib/cidr'
-import { inferOsFromTtl } from '@/types/database'
+import { inferOsFromTtl, type OsFamily } from '@/types/database'
 import type { Host, Hop, IpReport } from '@/types/database'
 import type { TopologyData, TopologyNode, TopologyEdge, TopologyFilters } from './types'
 
@@ -23,6 +23,58 @@ export const topologyKeys = {
   all: ['topology'] as const,
   forScan: (scan_id: number) => [...topologyKeys.all, 'scan', scan_id] as const,
   global: (filters: TopologyFilters) => [...topologyKeys.all, 'global', filters] as const,
+  osFamilyCounts: () => [...topologyKeys.all, 'osFamilyCounts'] as const,
+}
+
+// =============================================================================
+// OS Family Color Mapping
+// =============================================================================
+
+/**
+ * Get color for an OS family string from the database
+ * Maps exact database values to colors
+ */
+export function getOsFamilyDisplayColor(osFamily: string): string {
+  const lower = osFamily.toLowerCase()
+
+  // Windows - Windows Blue
+  if (lower === 'windows' || lower.includes('windows')) {
+    return '#0078D4'
+  }
+
+  // macOS/iOS - Apple Aluminum
+  if (lower === 'macos' || lower === 'ios' || lower.includes('mac') || lower.includes('ios') || lower.includes('apple') || lower.includes('darwin')) {
+    return '#A8A9AD'
+  }
+
+  // Linux/Unix - Terminal Green
+  if (lower === 'linux' || lower.includes('linux') || lower.includes('unix') || lower.includes('bsd') || lower.includes('android')) {
+    return '#00FF00'
+  }
+
+  // Network Device - Dark Gray
+  if (lower === 'network device' || lower.includes('router') || lower.includes('switch') || lower.includes('cisco') || lower.includes('juniper')) {
+    return '#444444'
+  }
+
+  // Printer - Beige
+  if (lower.includes('printer') || lower.includes('print')) {
+    return '#F5F5DC'
+  }
+
+  // Unknown/Other - Medium Gray
+  return '#888888'
+}
+
+/**
+ * Hook to fetch top OS families by host count
+ */
+export function useOsFamilyCounts(limit: number = 5) {
+  return useQuery({
+    queryKey: topologyKeys.osFamilyCounts(),
+    queryFn: () => db.getOsFamilyCounts(limit),
+    staleTime: 300000, // 5 minutes - this data doesn't change often
+  })
 }
 
 // =============================================================================
@@ -76,19 +128,25 @@ function buildTopologyData(
       ? Math.round(hostReports.reduce((sum, r) => sum + r.ttl, 0) / hostReports.length)
       : undefined
 
-    const { osFamily, estimatedHops } = avgTtl
+    const { osFamily: ttlOsFamily, estimatedHops } = avgTtl
       ? inferOsFromTtl(avgTtl)
-      : { osFamily: 'unknown' as const, estimatedHops: 0 }
+      : { osFamily: 'unknown' as OsFamily, estimatedHops: 0 }
 
     // Determine CIDR group based on scanned targets
     const cidrGroup = determineIPGroup(hostIp, scannedCidrs) ?? undefined
+
+    // Use actual OS family from database, or fallback to TTL-inferred label
+    // Priority: os_family > os_name (extract family) > TTL inference
+    const osFamily = host.os_family
+      || (host.os_name ? extractOsFamilyFromName(host.os_name) : null)
+      || ttlFamilyToLabel(ttlOsFamily)
 
     nodeMap.set(hostIp, {
       id: hostIp,
       type: 'host',
       label: host.hostname || hostIp,
-      osFamily: host.os_guess ? inferOsFamilyFromGuess(host.os_guess) : osFamily,
-      osGuess: host.os_guess || undefined,
+      osFamily,
+      osGuess: host.os_name || host.os_family || host.os_guess || undefined,
       portCount,
       connectionCount: 0,
       observedTtl: avgTtl,
@@ -234,20 +292,32 @@ function buildTopologyData(
 }
 
 /**
- * Infer OS family from os_guess string
+ * Extract OS family label from os_name string
+ * Returns a user-friendly label like "Windows", "Linux", "macOS"
  */
-function inferOsFamilyFromGuess(guess: string): TopologyNode['osFamily'] {
-  const lower = guess.toLowerCase()
-  if (lower.includes('linux') || lower.includes('unix') || lower.includes('bsd') || lower.includes('mac')) {
-    return 'linux'
+function extractOsFamilyFromName(osName: string): string {
+  const lower = osName.toLowerCase()
+  if (lower.includes('windows')) return 'Windows'
+  if (lower.includes('macos') || lower.includes('mac os') || lower.includes('os x') || lower.includes('darwin')) return 'macOS'
+  if (lower.includes('ios') || lower.includes('iphone') || lower.includes('ipad')) return 'iOS'
+  if (lower.includes('linux')) return 'Linux'
+  if (lower.includes('android')) return 'Android'
+  if (lower.includes('freebsd') || lower.includes('openbsd') || lower.includes('netbsd')) return 'BSD'
+  if (lower.includes('cisco') || lower.includes('juniper')) return 'Network Device'
+  return osName // Return as-is if no pattern matches
+}
+
+/**
+ * Convert TTL-inferred OsFamily enum to display label
+ */
+function ttlFamilyToLabel(family: OsFamily): string {
+  switch (family) {
+    case 'linux': return 'Linux'
+    case 'windows': return 'Windows'
+    case 'router': return 'Network Device'
+    case 'apple': return 'macOS'
+    default: return 'Unknown'
   }
-  if (lower.includes('windows')) {
-    return 'windows'
-  }
-  if (lower.includes('cisco') || lower.includes('router') || lower.includes('switch')) {
-    return 'router'
-  }
-  return 'unknown'
 }
 
 // =============================================================================

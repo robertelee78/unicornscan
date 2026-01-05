@@ -13,8 +13,10 @@ export { TopologyControls } from './TopologyControls'
 export {
   useTopologyForScan,
   useGlobalTopology,
+  useOsFamilyCounts,
   topologyKeys,
   aggregateBySubnet,
+  getOsFamilyDisplayColor,
 } from './hooks'
 
 // Types
