@@ -46,6 +46,7 @@ export { ServiceDistributionChart } from './ServiceDistributionChart'
 export { PortActivityHeatmap } from './PortActivityHeatmap'
 export { CategoryHeader } from './CategoryHeader'
 export { PortSparkline, type SparklineDataPoint, type PortSparklineProps } from './PortSparkline'
+export { PortActivityBar, type PortActivityBarProps } from './PortActivityBar'
 export { ScanPerformanceStatsCards } from './ScanPerformanceStatsCards'
 export { ProtocolBreakdownChart } from './ProtocolBreakdownChart'
 // OS Fingerprinting charts (available for future use, not currently in Statistics page)
