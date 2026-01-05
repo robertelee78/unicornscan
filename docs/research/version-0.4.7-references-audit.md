@@ -56,11 +56,7 @@ This audit identifies all occurrences of version "0.4.7" in the codebase and cat
 All files contain references to version 0.4.7 as part of technical analysis and file path documentation.
 
 #### Main Documentation Files:
-1. **FINGERPRINT_PACKET_STRUCTURES.md** (Lines 602, 605, 608)
-   - File path references: `/opt/unicornscan-0.4.7/src/scan_progs/init_packet.c`
-   - Action: KEEP - Technical documentation of existing code
-
-2. **MODERNIZATION.md** (Lines 1, 5, 394)
+1. **MODERNIZATION.md** (Lines 1, 5, 394)
    - Title: "Unicornscan 0.4.7 Modernization Analysis"
    - References analyzing the 0.4.7 codebase
    - Action: KEEP - Historical analysis document

@@ -86,8 +86,7 @@ AFTER:  src/scan_progs/init_packet.c
 
 #### Files to Update
 
-**Main Documentation (5 files)**:
-- `docs/FINGERPRINT_PACKET_STRUCTURES.md`
+**Main Documentation (4 files)**:
 - `docs/MODERNIZATION.md`
 - `docs/BUILD_VERIFICATION_REPORT.md`
 - `docs/p0f-v3-research-analysis.md`
