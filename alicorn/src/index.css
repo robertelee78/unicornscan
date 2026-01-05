@@ -152,7 +152,7 @@
   --color-muted-foreground: #52525b;
   --color-surface: #ffffff;
   --color-surface-light: #f4f4f5;
-  --color-border: #e4e4e7;
+  --color-border: #a1a1aa;            /* zinc-400: 2.46:1 contrast (2x better than zinc-200) */
   --color-primary-foreground: #ffffff;
   --color-ring: #0891b2;
 
