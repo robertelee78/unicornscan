@@ -10,6 +10,7 @@ Build-Depends: debhelper (>= 13),
                libdumbnet-dev,
                libltdl-dev,
                libpq-dev,
+               libmaxminddb-dev,
                flex,
                bison
 Standards-Version: 4.6.0
@@ -19,7 +20,7 @@ Rules-Requires-Root: no
 Package: unicornscan
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: docker.io, docker-compose-v2
+Recommends: docker.io, docker-compose-v2, libmaxminddb0
 Suggests: nodejs
 Description: Asynchronous stateless TCP/UDP network scanner
  Unicornscan is an asynchronous network scanner designed for

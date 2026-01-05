@@ -12,11 +12,15 @@ install: all
 	@for g in $(SUBDIRS); do \
 		cd $$g && @USE_MAKE@ install || exit 1 && cd ..; \
 	done
+	@echo "Installing unicornscan-geoip-update..."
+	mkdir -p $(DESTDIR)$(bindir)
+	$(INSTALL_PROGRAM) scripts/unicornscan-geoip-update $(DESTDIR)$(bindir)/unicornscan-geoip-update
 
 uninstall:
 	@for g in $(SUBDIRS); do \
 		cd $$g && @USE_MAKE@ uninstall || exit 1 && cd ..; \
 	done
+	rm -f $(DESTDIR)$(bindir)/unicornscan-geoip-update
 
 slack:
 	./scripts/mkslackpkg
