@@ -51,6 +51,7 @@ jobs:
             libdumbnet-dev \
             libltdl-dev \
             libpq-dev \
+            libmaxminddb-dev \
             flex \
             bison \
             git \
@@ -219,7 +220,7 @@ jobs:
         run: |
           dnf install -y rpm-build rpmdevtools autoconf automake libtool \
             libtool-ltdl-devel libpcap-devel libdnet-devel postgresql-devel \
-            flex bison gcc make git
+            libmaxminddb-devel flex bison gcc make git
 
       - name: Install build dependencies (Rocky)
         if: startsWith(matrix.distro, 'rocky')
@@ -228,7 +229,7 @@ jobs:
           dnf config-manager --set-enabled crb
           dnf install -y rpm-build rpmdevtools autoconf automake libtool \
             libtool-ltdl-devel libpcap-devel libdnet-devel postgresql-devel \
-            flex bison gcc make git
+            libmaxminddb-devel flex bison gcc make git
 
       - name: Checkout code
         uses: actions/checkout@v4
