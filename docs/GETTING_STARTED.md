@@ -1,10 +1,86 @@
 # Getting Started with Unicornscan
 
+## Philosophy: More Than a Port Scanner
+
+Unicornscan is not merely a port scanner—it's a **distributed stimulus/response
+framework**. The fundamental design philosophy, remains core to its identity:
+
+> "You supply the stimulus. We supply the delivery mechanism."
+
+This distinction is critical. Traditional scanners simply enumerate open ports.
+Unicornscan provides a scalable, accurate, and flexible platform for introducing
+network stimulus and recording responses—whether that stimulus is a SYN packet,
+a protocol-specific UDP payload, or an exploitation payload delivered post-handshake.
+
+### Fundamental Design Goals
+
+1. **Scalability** - Efficient use of resources, not just "going faster." Think of
+   it like a bus system: the goal is optimal throughput, not maximum speed.
+
+2. **Accuracy** - Invalid data collection leads to invalid analysis. Tools should
+   introduce stimulus and record response; humans analyze the results.
+
+3. **Flexibility** - Dynamic "just in time" decision control. The framework adapts
+   to what it discovers during scanning.
+
+4. **Security** - Implementation follows privilege separation principles. Each
+   process runs with minimal required privileges.
+
+### The Scatter Connect Architecture
+
+Traditional TCP scans require the kernel to maintain connection state for every socket.
+At high volumes, this becomes a bottleneck—kernel socket limits, memory exhaustion,
+and context switching overhead all conspire against scalability.
+
+Unicornscan's **Scatter Connect** architecture solves this by moving TCP state
+tracking entirely to userspace via a 3-process model:
+
+```
+                         THE 3-PROCESS MODEL
+
+                    ┌──────────────────────────────────────┐
+                    │              TARGETS                 │
+                    │     192.168.1.0/24:22,80,443         │
+                    └──────────────────────────────────────┘
+                           ▲                    │
+                           │ SYN                │ SYN/ACK
+                           │ packets            │ responses
+                           │                    ▼
+    ┌────────────┐   workunits   ┌────────────┐     ┌────────────┐
+    │   MASTER   │ ────────────► │   SENDER   │     │  LISTENER  │
+    │    (us)    │               │ (unisend)  │     │(unilisten) │
+    │            │               │            │     │            │
+    │ • parses   │               │ • crafts   │     │ • captures │
+    │   targets  │               │   packets  │     │   via pcap │
+    │ • creates  │               │ • rate     │     │ • decodes  │
+    │   workunits│               │   limiting │     │   responses│
+    │ • tracks   │               │ • transmits│     │ • correlates
+    │   state    │               │   on wire  │     │   via seqno│
+    └─────┬──────┘               └────────────┘     └──────┬─────┘
+          │                                                │
+          │                    results                     │
+          └────────────────────────────────────────────────┘
+                              (IPC)
+```
+
+**Why processes, not threads?** Separation of Duties (SoD). A compromise of the
+Sender doesn't automatically give access to the Listener's captured data. Each
+process runs with only the privileges it needs. This was a deliberate security
+architecture decision from 2005, not a performance choice.
+
+**The TCPHASHTRACK Trick:** How does the Listener correlate responses with probes
+if there's no shared connection state? Unicornscan encodes target information
+directly into TCP sequence numbers. When a SYN/ACK arrives, the acknowledgment
+number reveals which probe triggered it—no state table lookup required. This
+enables truly stateless scanning with full connection support.
+
 ## 1. My First Scan
 
-Unicornscan implements its own userspace TCP/IP stack. This stateless design
-separates packet transmission from response collection into independent
-processes, achieving high throughput on reliable networks.
+Unicornscan implements its own userspace TCP/IP stack—a **distributed user space
+TCP/IP stack** that enables asynchronous stateless TCP/UDP scanning with full
+connection support. This stateless design separates packet transmission from
+response collection into independent processes, achieving high throughput on
+reliable networks.
 
 ### 1.1 Basic TCP SYN Scan
 
@@ -266,13 +342,26 @@ stack will see the incoming SYN/ACK responses and send RST because it doesn't
 know about unicornscan's connections. This terminates the handshake before
 unicornscan can complete it.
 
-### 4.2 The Solution: fantaip
+This is a fundamental conflict: we want full TCP connections (for banner grabbing,
+protocol interaction, payload delivery), but we've moved the TCP state machine
+out of the kernel to achieve scalability. The kernel and userspace are fighting
+over the same connections.
+
+### 4.2 The Solution: fantaip (The Phantom ARP Responder)
+
+`fantaip` was Jack's elegant solution to this problem: claim IP addresses that
+don't exist on any interface. The name comes from "phantom IP"—an IP address
+that appears on the network (answers ARP) but belongs to no real host.
 
 `fantaip` responds to ARP requests for an IP address not bound to any local
 interface. Incoming frames reach the NIC (the MAC address is in the sender's
 ARP cache), but the kernel's IP layer discards them as the destination IP doesn't
 match any configured interface. Meanwhile, unicornscan captures the raw frames
 via libpcap and handles the TCP state machine in userspace.
+
+**From the DC13 presentation:** fantaip enables Unicornscan to operate as a
+completely userspace TCP/IP stack—the kernel sees the frames, but since the IP
+isn't "ours," it stays out of the way. All TCP logic happens in unilisten.
 
 ```
 +------------------+     ARP Request: Who has 192.168.1.200?
@@ -843,3 +932,138 @@ us -s 192.168.1.134/32 -Ivr1000 -mA50:R3:L15+sf -R2 192.168.1.0/24:q -eosdetect 
 | `unicornscan -h`                  | Quick option reference         |
 | `/etc/unicornscan/payloads.conf`  | UDP payload definitions        |
 | `/etc/unicornscan/modules.conf`   | Module configuration           |
+
+---
+
+## 10. Payload Delivery
+
+Unicornscan can deliver arbitrary payloads after completing TCP handshakes.
+The module system processes responses and can trigger follow-up actions.
+
+### 10.1 Payload Modules
+
+Nine payload modules are included (`src/payload_modules/`):
+
+| Module | Proto | Port | Group | Purpose |
+|--------|-------|------|-------|---------|
+| http | TCP | 80 | 1 | HTTP GET request |
+| dhcp | UDP | 67 | 1 | DHCP DISCOVER |
+| rdns | UDP | 53 | 1 | Reverse DNS PTR query |
+| nbns | UDP | 137 | 1 | NetBIOS name query |
+| sip | UDP | 5060 | 1 | SIP OPTIONS |
+| stun | UDP | 3478 | 1 | STUN binding request |
+| upnp | UDP | 1900 | 1 | UPnP M-SEARCH |
+| ntalk | UDP | 518 | 1 | ntalk announce |
+| **httpexp** | TCP | 80 | 3 | **OS-specific HTTP exploit** |
+
+Select payload group with `-G<n>`. Default is group 1.
+
+### 10.2 Inter-Module Data Flow
+
+Report modules share data via a FIFO queue (`od_q`) attached to each `ip_report_t`:
+
+```
+SYN/ACK received
+       ↓
+┌─────────────────┐
+│    osdetect     │ → pushes OD_TYPE_OS to od_q
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│  payload module │ → fifo_walk(od_q) retrieves OS string
+└────────┬────────┘
+         ↓
+    create_payload() generates OS-specific payload
+```
+
+The `ip_report_t` structure passed to payload modules contains:
+- `host_addr` - target IP
+- `dport`, `sport` - ports
+- `od_q` - FIFO queue of `output_data_t` (OS strings, banners)
+- TTL, TCP window, timestamps, TCP options
+
+### 10.3 The Pipeline
+
+**Stage 1: Live host detection (ARP)**
+```bash
+us -mA50:R2:L10 192.168.1.0/24 -epgsqldb
+```
+Identifies which hosts respond. Results stored in database.
+
+**Stage 2: Open port detection (TCP)**
+```bash
+sudo fantaip -i eth0 192.168.1.134 &
+us -s 192.168.1.134/32 -msf 192.168.1.0/24:q -epgsqldb -L15
+```
+Full TCP handshake reveals open ports. Connect mode (`-msf`) required for stage 3.
+
+**Stage 3: Service identification (banner grab)**
+
+Connect mode completes the handshake, allowing banner collection. The `osdetect`
+module fingerprints the OS via TTL and TCP options. Service banners identify
+software versions (e.g., "Apache/2.4.41", "OpenSSH_8.2").
+
+```bash
+us -s 192.168.1.134/32 -msf 192.168.1.0/24:22,80,443 -eosdetect,pgsqldb -L15
+```
+
+**Stage 4: Target selection**
+```sql
+SELECT host_addr, port, os_guess, banner FROM scan_results
+WHERE port = 80
+  AND os_guess LIKE '%Windows%'
+  AND banner LIKE '%IIS/10%';
+```
+
+**Stage 5: Payload delivery**
+
+With OS and service version known, deliver exploitation payloads. The included
+`httpexp.so` module demonstrates this pattern:
+
+```bash
+us -s 192.168.1.134/32 -msf 192.168.1.0/24:80 -eosdetect,httpexp -L15
+```
+
+How `httpexp` works (see `src/payload_modules/httpexp.c`):
+
+```c
+fifo_walk(ir->od_q, httpexp_find_os);  /* retrieve OS from osdetect */
+if (strstr(os_str, "Linux")) {
+    fd = open("/tmp/linux-stage1.bin", O_RDONLY);
+    /* ... */
+    sc = encode(scbuf, sb.st_size, BANNED, ENC_XOR,
+                FLG_RAND|FLG_RANDP, PLT_LINXX86, &sc_len);
+}
+```
+
+1. Walks `od_q` FIFO to find `OD_TYPE_OS` pushed by osdetect
+2. Loads shellcode from `/tmp/<os>-stage1.bin`
+3. Encodes via `libunirainbow`:
+   - `rand_nops()` fills buffer with random valid x86 NOPs
+   - `encode()` XOR-encodes shellcode with random key + metamorphic loader
+   - Output avoids BANNED characters (`?&#+ \t\f\v\r\n%<>"`)
+4. Builds HTTP GET request with encoded payload in query string
+5. Returns to sender for transmission
+
+**libunirainbow** (`src/payload_modules/libunirainbow/`) generates per-target
+unique payloads: random XOR key, random loader stub, random NOP sled. Supports
+Linux, FreeBSD, NetBSD, OpenBSD x86.
+
+### 10.4 Workunit Dispatch
+
+Two dispatch modes:
+
+**Batch mode** (`send_workunit_t`): Template containing target CIDR + port list.
+Sender iterates and generates packets. Efficient for scanning.
+
+**Priority mode** (`send_pri_workunit_t`): Single packet with inline payload.
+Used in connect mode - when SYN/ACK arrives, ACK+payload workunit is queued
+immediately. Enables multi-stage protocols.
+
+```
+Connect mode flow:
+  SYN/ACK received → create_payload() called with ip_report_t
+                   → payload attached to send_pri_workunit_t
+                   → queued to priority FIFO
+                   → sender transmits ACK, then ACK+PSH with payload
+```
