@@ -18,6 +18,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - distro: ubuntu-20.04
+            container: ubuntu:20.04
+            codename: focal
           - distro: ubuntu-22.04
             container: ubuntu:22.04
             codename: jammy
@@ -35,11 +38,27 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
+      - name: Setup repositories (Ubuntu 20.04)
+        if: matrix.codename == 'focal'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          # Ubuntu 20.04 needs universe repo for libdumbnet-dev
+          # and focal-backports for debhelper 13
+          apt-get update
+          apt-get install -y --no-install-recommends software-properties-common
+          add-apt-repository -y universe
+          echo "deb http://archive.ubuntu.com/ubuntu focal-backports main universe" >> /etc/apt/sources.list
+
       - name: Install build dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update
+          # Install debhelper from backports on Ubuntu 20.04 (needs version 13)
+          if [ "${{ matrix.codename }}" = "focal" ]; then
+            apt-get install -y -t focal-backports debhelper
+          fi
           apt-get install -y --no-install-recommends \
             build-essential \
             debhelper \
