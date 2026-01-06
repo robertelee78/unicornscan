@@ -147,10 +147,22 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_li
 
 # Display post-install message
 echo ""
-echo "Unicornscan installed successfully!"
-echo ""
-echo "OPTIONAL: Enable GeoIP city, region, and ASN lookups:"
-echo "  sudo unicornscan-geoip-update"
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║              Unicornscan installed successfully!               ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
+echo "║                                                                ║"
+echo "║  RECOMMENDED: Enable GeoIP for location and network lookups:   ║"
+echo "║                                                                ║"
+echo "║    sudo unicornscan-geoip-update                               ║"
+echo "║                                                                ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
+echo "║                                                                ║"
+echo "║  RECOMMENDED: Alicorn Web UI for visualizing scan results:     ║"
+echo "║                                                                ║"
+echo "║    unicornscan-web start            # Start (requires Docker)  ║"
+echo "║    http://localhost:31337           # Open in browser          ║"
+echo "║                                                                ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
 %files
