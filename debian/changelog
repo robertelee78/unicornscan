@@ -1,3 +1,14 @@
+unicornscan (0.4.41-1) unstable; urgency=high
+
+  * CRITICAL: Fix geoip-api missing from .deb packages built by GitHub Actions
+    - GitHub Actions workflow was NOT using debian/rules for package creation
+    - It had inline manual file copying that was never updated for geoip-api
+    - Added geoip-api directory and files to release.yml workflow
+    - Added unicornscan-geoip-update script to release.yml workflow
+    - Fixed geoip-api source file permissions (were 0600, now 0644)
+
+ -- Robert E. Lee <robert@unicornscan.org>  Mon, 06 Jan 2026 03:30:00 -0800
+
 unicornscan (0.4.40-1) unstable; urgency=medium
 
   * Add GeoIP API Docker service for live IP lookups
