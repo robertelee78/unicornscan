@@ -131,6 +131,15 @@ jobs:
           # CLI / Setup wizard
           cp alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-web/cli/
 
+          # GeoIP API service
+          mkdir -p debian/unicornscan/opt/unicornscan-web/geoip-api
+          cp alicorn/geoip-api/Dockerfile debian/unicornscan/opt/unicornscan-web/geoip-api/
+          cp alicorn/geoip-api/package.json debian/unicornscan/opt/unicornscan-web/geoip-api/
+          cp alicorn/geoip-api/server.js debian/unicornscan/opt/unicornscan-web/geoip-api/
+
+          # GeoIP database update script
+          install -m 755 scripts/unicornscan-geoip-update debian/unicornscan/usr/bin/
+
           # SQL schema
           cp src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
 
