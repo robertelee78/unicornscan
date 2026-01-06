@@ -43,24 +43,22 @@ case "$1" in
         # Note: Non-root users use XDG_RUNTIME_DIR for sockets (e.g., /run/user/$UID/unicornscan/)
         # The /var/unicornscan directory is only used when running as root
 
-        # Notify about web UI and GeoIP setup
+        # Notify about GeoIP and web UI setup
         echo ""
         echo "╔════════════════════════════════════════════════════════════════╗"
         echo "║              Unicornscan installed successfully!               ║"
         echo "╠════════════════════════════════════════════════════════════════╣"
         echo "║                                                                ║"
-        echo "║  OPTIONAL: Enable GeoIP city, region, and ASN lookups:         ║"
+        echo "║  RECOMMENDED: Enable GeoIP for location and network lookups:   ║"
+        echo "║                                                                ║"
         echo "║    sudo unicornscan-geoip-update                               ║"
         echo "║                                                                ║"
-        echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
+        echo "╠════════════════════════════════════════════════════════════════╣"
         echo "║                                                                ║"
-        echo "║    1. Start the web UI:    unicornscan-web start               ║"
-        echo "║    2. Open browser:        http://localhost:31337              ║"
-        echo "║    3. Run a scan:          unicornscan -edb,host=localhost,    ║"
-        echo "║                            user=alicorn,pass=alicorn_secret,   ║"
-        echo "║                            db=unicornscan <target>             ║"
+        echo "║  RECOMMENDED: Alicorn Web UI for visualizing scan results:     ║"
         echo "║                                                                ║"
-        echo "║  Requires Docker. Install with: curl -fsSL https://get.docker.com | sh ║"
+        echo "║    unicornscan-web start            # Start (requires Docker)  ║"
+        echo "║    http://localhost:31337           # Open in browser          ║"
         echo "║                                                                ║"
         echo "╚════════════════════════════════════════════════════════════════╝"
         echo ""
