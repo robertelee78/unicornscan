@@ -128,9 +128,45 @@ export function exportMultiScanToCSV(
   lines.push(`Ports with Changes,${summary.portsWithChanges}`)
   lines.push('')
 
-  // Host summary
+  // Check if any hosts have ASN data
+  const hostsWithAsn = hostDiffs.filter(h => h.asnNumber !== undefined)
+  const hasAsnData = hostsWithAsn.length > 0
+
+  // ASN Summary (if ASN data available)
+  if (hasAsnData) {
+    // Group hosts by ASN
+    const asnMap = new Map<number, typeof hostDiffs>()
+    for (const host of hostDiffs) {
+      if (host.asnNumber !== undefined) {
+        const existing = asnMap.get(host.asnNumber)
+        if (existing) {
+          existing.push(host)
+        } else {
+          asnMap.set(host.asnNumber, [host])
+        }
+      }
+    }
+
+    lines.push('# ASN Summary')
+    lines.push('ASN,Organization,Host Count')
+    const asnEntries = Array.from(asnMap.entries()).sort(([a], [b]) => a - b)
+    for (const [asn, hosts] of asnEntries) {
+      lines.push([
+        `AS${asn}`,
+        escapeCSV(hosts[0].asnOrg || ''),
+        hosts.length,
+      ].join(','))
+    }
+    lines.push('')
+  }
+
+  // Host summary (now includes ASN columns)
   lines.push('# Host Summary')
-  lines.push('Host,Status,Present In,First Seen Scan,Last Seen Scan,Port Count')
+  const hostHeaders = hasAsnData
+    ? 'Host,ASN,ASN Org,CIDR Group,Status,Present In,First Seen Scan,Last Seen Scan,Port Count'
+    : 'Host,Status,Present In,First Seen Scan,Last Seen Scan,Port Count'
+  lines.push(hostHeaders)
+
   for (const host of hostDiffs) {
     const status = host.presentCount === scans.length ? 'all' :
       host.presentCount === 1 ? 'one' : 'some'
@@ -139,35 +175,66 @@ export function exportMultiScanToCSV(
       .map(p => p.scanId)
       .join(';')
 
-    lines.push([
-      escapeCSV(host.ipAddr),
-      status,
-      presentIn,
-      host.firstSeenScanId,
-      host.lastSeenScanId,
-      host.portDiffs.length,
-    ].join(','))
+    if (hasAsnData) {
+      lines.push([
+        escapeCSV(host.ipAddr),
+        host.asnNumber !== undefined ? `AS${host.asnNumber}` : '',
+        escapeCSV(host.asnOrg || ''),
+        escapeCSV(host.cidrGroup || ''),
+        status,
+        presentIn,
+        host.firstSeenScanId,
+        host.lastSeenScanId,
+        host.portDiffs.length,
+      ].join(','))
+    } else {
+      lines.push([
+        escapeCSV(host.ipAddr),
+        status,
+        presentIn,
+        host.firstSeenScanId,
+        host.lastSeenScanId,
+        host.portDiffs.length,
+      ].join(','))
+    }
   }
   lines.push('')
 
   // Port-level details (main data table)
   lines.push('# Port Details')
-  lines.push('Host,Port,Protocol,Status,Present In Scans,TTL Values,First Seen Scan,Last Seen Scan')
+  const portHeaders = hasAsnData
+    ? 'Host,ASN,Port,Protocol,Status,Present In Scans,TTL Values,First Seen Scan,Last Seen Scan'
+    : 'Host,Port,Protocol,Status,Present In Scans,TTL Values,First Seen Scan,Last Seen Scan'
+  lines.push(portHeaders)
 
   for (const host of hostDiffs) {
     for (const port of host.portDiffs) {
       const status = getPortStatus(port, scans.length)
 
-      lines.push([
-        escapeCSV(host.ipAddr),
-        port.port,
-        escapeCSV(port.protocol),
-        status,
-        escapeCSV(getPresenceString(port)),
-        escapeCSV(getTtlString(port)),
-        port.firstSeenScanId,
-        port.lastSeenScanId,
-      ].join(','))
+      if (hasAsnData) {
+        lines.push([
+          escapeCSV(host.ipAddr),
+          host.asnNumber !== undefined ? `AS${host.asnNumber}` : '',
+          port.port,
+          escapeCSV(port.protocol),
+          status,
+          escapeCSV(getPresenceString(port)),
+          escapeCSV(getTtlString(port)),
+          port.firstSeenScanId,
+          port.lastSeenScanId,
+        ].join(','))
+      } else {
+        lines.push([
+          escapeCSV(host.ipAddr),
+          port.port,
+          escapeCSV(port.protocol),
+          status,
+          escapeCSV(getPresenceString(port)),
+          escapeCSV(getTtlString(port)),
+          port.firstSeenScanId,
+          port.lastSeenScanId,
+        ].join(','))
+      }
     }
   }
 

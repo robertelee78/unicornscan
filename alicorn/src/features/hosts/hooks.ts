@@ -37,6 +37,7 @@ export const hostListKeys = {
   bannerIndex: () => [...hostListKeys.all, 'bannerIndex'] as const,
   notesIndex: () => [...hostListKeys.all, 'notesIndex'] as const,
   portsIndex: () => [...hostListKeys.all, 'portsIndex'] as const,
+  asnIndex: () => [...hostListKeys.all, 'asnIndex'] as const,
 }
 
 // =============================================================================
@@ -85,6 +86,21 @@ export function useHostPortsIndex(enabled = true) {
   })
 }
 
+/**
+ * Hook to fetch all host ASN data indexed by host address.
+ * Data comes from uni_geoip table (stored at scan time).
+ * Required for ASN search filtering.
+ */
+export function useHostAsnIndex(enabled = true) {
+  return useQuery({
+    queryKey: hostListKeys.asnIndex(),
+    queryFn: () => db.getHostAsnIndex(),
+    enabled,
+    staleTime: 60000, // ASN data changes slowly
+    gcTime: 300000,
+  })
+}
+
 // =============================================================================
 // List Hook
 // =============================================================================
@@ -100,14 +116,15 @@ interface UseHostListResult {
 
 /**
  * Check if a host matches the parsed search query.
- * Handles all search types: text, port, cidr, ip-prefix, mac, regex
+ * Handles all search types: text, port, cidr, ip-prefix, mac, asn, regex
  */
 function hostMatchesSearch(
   host: Host,
   search: ParsedSearch,
   bannerIndex: Map<string, string[]> | undefined,
   notesIndex: Map<string, string[]> | undefined,
-  portsIndex: Map<string, number[]> | undefined
+  portsIndex: Map<string, number[]> | undefined,
+  asnIndex: Map<string, number> | undefined
 ): boolean {
   const hostAddr = host.ip_addr ?? host.host_addr
 
@@ -117,6 +134,13 @@ function hostMatchesSearch(
       if (!portsIndex || !search.port) return false
       const hostPorts = portsIndex.get(hostAddr)
       return hostPorts ? hostPorts.includes(search.port) : false
+    }
+
+    case 'asn': {
+      // Match hosts in this Autonomous System Number
+      if (!asnIndex || !search.asn) return false
+      const hostAsn = asnIndex.get(hostAddr)
+      return hostAsn === search.asn
     }
 
     case 'cidr':
@@ -184,6 +208,7 @@ export function useHostList(
   const needsBannerIndex = parsedSearch?.type === 'regex' || parsedSearch?.type === 'text' || filters.hasBanner !== null
   const needsNotesIndex = parsedSearch?.type === 'text'
   const needsPortsIndex = parsedSearch?.type === 'port'
+  const needsAsnIndex = parsedSearch?.type === 'asn'
 
   // Fetch hosts
   const { data: hosts, isLoading: hostsLoading, error: hostsError } = useQuery({
@@ -199,12 +224,14 @@ export function useHostList(
   const { data: bannerIndex, isLoading: bannersLoading } = useHostBannerIndex(needsBannerIndex)
   const { data: notesIndex, isLoading: notesLoading } = useHostNotesIndex(needsNotesIndex)
   const { data: portsIndex, isLoading: portsLoading } = useHostPortsIndex(needsPortsIndex)
+  const { data: asnIndex, isLoading: asnLoading } = useHostAsnIndex(needsAsnIndex)
 
   // Combined loading state
   const isLoading = hostsLoading ||
     (needsBannerIndex && bannersLoading) ||
     (needsNotesIndex && notesLoading) ||
-    (needsPortsIndex && portsLoading)
+    (needsPortsIndex && portsLoading) ||
+    (needsAsnIndex && asnLoading)
 
   // Apply filters, sort, and pagination client-side
   const result = useMemo(() => {
@@ -213,7 +240,7 @@ export function useHostList(
     // Apply smart search filter
     if (parsedSearch) {
       filtered = filtered.filter((h) =>
-        hostMatchesSearch(h, parsedSearch, bannerIndex, notesIndex, portsIndex)
+        hostMatchesSearch(h, parsedSearch, bannerIndex, notesIndex, portsIndex, asnIndex)
       )
     }
 
@@ -292,7 +319,7 @@ export function useHostList(
     const paged = filtered.slice(start, start + pagination.pageSize)
 
     return { data: paged, total }
-  }, [hosts, parsedSearch, bannerIndex, notesIndex, portsIndex, filters.hasOpenPorts, filters.hasBanner, filters.vendorFilter, sort, pagination])
+  }, [hosts, parsedSearch, bannerIndex, notesIndex, portsIndex, asnIndex, filters.hasOpenPorts, filters.hasBanner, filters.vendorFilter, sort, pagination])
 
   return {
     data: result.data,

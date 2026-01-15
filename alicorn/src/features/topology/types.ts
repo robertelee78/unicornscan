@@ -46,6 +46,10 @@ export interface TopologyNode {
   // CIDR group for clustering (computed by grouping algorithm, e.g., "192.168.1.0/24")
   cidrGroup?: string
 
+  // ASN group for outer clustering (public IPs only, from GeoIP stored/JIT)
+  asnNumber?: number      // e.g., 13335
+  asnOrg?: string         // e.g., "Cloudflare, Inc."
+
   // True if this host is the target endpoint of a traceroute path
   isTracerouteTarget?: boolean
 
@@ -149,6 +153,7 @@ export interface TopologyFilters {
   minPorts?: number     // Only show hosts with >= N ports
   osFamily?: string[]   // Filter by OS family
   subnet?: string       // Filter by subnet (e.g., "192.168.1.0/24")
+  asn?: number          // Filter by ASN (e.g., 13335)
 }
 
 // =============================================================================

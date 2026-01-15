@@ -203,12 +203,38 @@ function computePortDiffs(
 }
 
 /**
+ * Compute CIDR group for an IP address (e.g., "192.168.1.0/24")
+ */
+function computeCidrGroup(ipAddr: string): string {
+  const octets = ipAddr.split('.')
+  if (octets.length !== 4) return ipAddr
+
+  // Use /24 for typical networks, /16 for 10.x.x.x
+  const firstOctet = parseInt(octets[0], 10)
+  if (firstOctet === 10) {
+    // Class A private: use /16
+    return `${octets[0]}.${octets[1]}.0.0/16`
+  }
+  // Default: use /24
+  return `${octets[0]}.${octets[1]}.${octets[2]}.0/24`
+}
+
+/**
+ * ASN data for a host
+ */
+interface AsnInfo {
+  asn: number
+  as_org: string | null
+}
+
+/**
  * Compare hosts across all scans
  */
 function computeHostDiffs(
   scans: Scan[],
   reportsByScan: Map<number, Map<string, IpReport[]>>,
-  bannersByScan: Map<number, Map<number, string>>
+  bannersByScan: Map<number, Map<number, string>>,
+  asnByHost: Map<string, AsnInfo>
 ): MultiScanHostDiff[] {
   // Collect all unique hosts across all scans
   const allHosts = new Set<string>()
@@ -257,8 +283,14 @@ function computeHostDiffs(
     // Compute port diffs for this host
     const portDiffs = computePortDiffs(hostAddr, scans, reportsByScan, bannersByScan)
 
+    // Get ASN info if available
+    const asnInfo = asnByHost.get(hostAddr)
+
     hostDiffs.push({
       ipAddr: hostAddr,
+      ...(asnInfo?.asn !== undefined && { asnNumber: asnInfo.asn }),
+      ...(asnInfo?.as_org && { asnOrg: asnInfo.as_org }),
+      cidrGroup: computeCidrGroup(hostAddr),
       presence,
       firstSeenScanId,
       lastSeenScanId,
@@ -354,13 +386,15 @@ async function compareMultipleScans(scanIds: number[]): Promise<MultiScanCompari
   // Sort scans chronologically by start time
   scans.sort((a, b) => a.s_time - b.s_time)
 
-  // Fetch all IP reports and banners in parallel
+  // Fetch all IP reports, banners, and GeoIP data in parallel
   const reportsPromises = scans.map((s) => db.getIpReports(s.scan_id))
   const bannersPromises = scans.map((s) => db.getBannersForScan(s.scan_id))
+  const geoipPromises = scans.map((s) => db.getGeoIPByScan(s.scan_id))
 
-  const [reportsArrays, bannersArrays] = await Promise.all([
+  const [reportsArrays, bannersArrays, geoipArrays] = await Promise.all([
     Promise.all(reportsPromises),
     Promise.all(bannersPromises),
+    Promise.all(geoipPromises),
   ])
 
   // Build a map: scan_id -> (host_addr -> IpReport[])
@@ -376,8 +410,22 @@ async function compareMultipleScans(scanIds: number[]): Promise<MultiScanCompari
     bannersByScan.set(scans[i].scan_id, bannersArrays[i])
   }
 
+  // Build ASN map from GeoIP data (most recent scan takes precedence)
+  const asnByHost = new Map<string, AsnInfo>()
+  for (let i = geoipArrays.length - 1; i >= 0; i--) {
+    const geoipRecords = geoipArrays[i]
+    for (const record of geoipRecords) {
+      if (record.asn !== null && record.asn !== undefined && !asnByHost.has(record.host_addr)) {
+        asnByHost.set(record.host_addr, {
+          asn: record.asn,
+          as_org: record.as_org ?? null,
+        })
+      }
+    }
+  }
+
   // Compute host diffs
-  const hostDiffs = computeHostDiffs(scans, reportsByScan, bannersByScan)
+  const hostDiffs = computeHostDiffs(scans, reportsByScan, bannersByScan, asnByHost)
 
   // Compute summary
   const summary = computeSummary(scans.length, hostDiffs)
