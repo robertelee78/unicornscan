@@ -16,6 +16,7 @@ export type SearchType =
   | 'cidr'      // CIDR notation (e.g., 192.168.1.0/24), matches IP ranges
   | 'ip-prefix' // IP prefix (e.g., 192.168.), matches IP addresses starting with
   | 'mac'       // MAC address (various formats), matches MAC addresses
+  | 'asn'       // ASN number (e.g., AS13335), matches Autonomous System Numbers
   | 'regex'     // Regex pattern (starts with / or ~), matches banners
   | 'text'      // Plain text (default), matches IP, hostname, MAC, banner
 
@@ -35,6 +36,8 @@ export interface ParsedSearch {
   cidr?: CIDRInfo
   /** For port: parsed port number */
   port?: number
+  /** For ASN: parsed AS number */
+  asn?: number
 }
 
 /**
@@ -78,6 +81,9 @@ const MAC_PARTIAL_REGEX = /^([0-9a-f]{2}[:-]?){1,5}[0-9a-f]{0,2}$/i // Partial M
 const REGEX_SLASH_PREFIX = '/'
 const REGEX_TILDE_PREFIX = '~'
 
+/** ASN pattern: AS followed by 1-10 digits (ASNs range up to ~4 billion) */
+const ASN_REGEX = /^[Aa][Ss](\d{1,10})$/
+
 // =============================================================================
 // Detection Functions
 // =============================================================================
@@ -88,11 +94,12 @@ const REGEX_TILDE_PREFIX = '~'
  *
  * Detection priority:
  * 1. Port number (pure digits 1-65535)
- * 2. CIDR notation (IP/prefix)
- * 3. IP prefix (partial IP ending with dot)
- * 4. MAC address (various formats)
- * 5. Regex (starts with / or ~)
- * 6. Text (default fallback)
+ * 2. ASN (AS followed by digits, e.g., AS13335)
+ * 3. CIDR notation (IP/prefix)
+ * 4. IP prefix (partial IP ending with dot)
+ * 5. MAC address (various formats)
+ * 6. Regex (starts with / or ~)
+ * 7. Text (default fallback)
  */
 export function detectSearchType(input: string): SearchType {
   const trimmed = input.trim()
@@ -103,27 +110,32 @@ export function detectSearchType(input: string): SearchType {
     return 'port'
   }
 
-  // 2. Check for CIDR notation
+  // 2. Check for ASN (AS followed by digits)
+  if (isASN(trimmed)) {
+    return 'asn'
+  }
+
+  // 3. Check for CIDR notation
   if (isCIDR(trimmed)) {
     return 'cidr'
   }
 
-  // 3. Check for IP prefix (partial IP ending with dot)
+  // 4. Check for IP prefix (partial IP ending with dot)
   if (isIPPrefix(trimmed)) {
     return 'ip-prefix'
   }
 
-  // 4. Check for MAC address (full or partial)
+  // 5. Check for MAC address (full or partial)
   if (isMAC(trimmed)) {
     return 'mac'
   }
 
-  // 5. Check for regex pattern
+  // 6. Check for regex pattern
   if (isRegexPattern(trimmed)) {
     return 'regex'
   }
 
-  // 6. Default to text search
+  // 7. Default to text search
   return 'text'
 }
 
@@ -200,6 +212,26 @@ export function isRegexPattern(value: string): boolean {
   return value.startsWith(REGEX_SLASH_PREFIX) || value.startsWith(REGEX_TILDE_PREFIX)
 }
 
+/**
+ * Check if value is an ASN (Autonomous System Number)
+ * Accepts formats: AS13335, as13335 (case-insensitive)
+ */
+export function isASN(value: string): boolean {
+  return ASN_REGEX.test(value)
+}
+
+/**
+ * Parse an ASN string and return the numeric value
+ */
+export function parseASN(value: string): number | undefined {
+  const match = value.match(ASN_REGEX)
+  if (!match) return undefined
+  const num = parseInt(match[1], 10)
+  // ASNs can be up to 4,294,967,295 (32-bit)
+  if (num < 0 || num > 4294967295) return undefined
+  return num
+}
+
 // =============================================================================
 // Parsing Functions
 // =============================================================================
@@ -222,6 +254,10 @@ export function parseSearch(input: string): ParsedSearch {
   switch (type) {
     case 'port':
       result.port = parseInt(trimmed, 10)
+      break
+
+    case 'asn':
+      result.asn = parseASN(trimmed)
       break
 
     case 'cidr':
@@ -524,6 +560,8 @@ export function getSearchTypeDescription(type: SearchType): string {
   switch (type) {
     case 'port':
       return 'Port number - matches hosts with this port'
+    case 'asn':
+      return 'ASN - matches hosts in this Autonomous System'
     case 'cidr':
       return 'CIDR range - matches IPs within network'
     case 'ip-prefix':
@@ -544,6 +582,8 @@ export function getSearchTypeExamples(type: SearchType): string[] {
   switch (type) {
     case 'port':
       return ['22', '80', '443', '8080']
+    case 'asn':
+      return ['AS13335', 'AS15169', 'AS32934', 'AS16509']
     case 'cidr':
       return ['192.168.1.0/24', '10.0.0.0/8', '172.16.0.0/12']
     case 'ip-prefix':

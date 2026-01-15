@@ -13,6 +13,17 @@ import { inferOsFromTtl, type OsFamily } from '@/types/database'
 import type { Host, Hop, IpReport } from '@/types/database'
 import type { TopologyData, TopologyNode, TopologyEdge, TopologyFilters } from './types'
 
+// =============================================================================
+// ASN Resolution Types
+// =============================================================================
+
+export interface AsnInfo {
+  asn: number
+  as_org: string | null
+}
+
+export type IpAsnMap = Map<string, AsnInfo | null>
+
 const db = getDatabase()
 
 // =============================================================================
@@ -63,6 +74,27 @@ function ipToNumber(ip: string): number | null {
     num = (num << 8) | octet
   }
   return num >>> 0 // Convert to unsigned
+}
+
+/**
+ * Check if an IP address is private/RFC1918 (no meaningful ASN)
+ */
+function isPrivateIp(ip: string): boolean {
+  const parts = ip.split('.').map(Number)
+  if (parts.length !== 4) return false
+
+  // 10.0.0.0/8
+  if (parts[0] === 10) return true
+  // 172.16.0.0/12 (172.16.x.x - 172.31.x.x)
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+  // 192.168.0.0/16
+  if (parts[0] === 192 && parts[1] === 168) return true
+  // 127.0.0.0/8 (loopback)
+  if (parts[0] === 127) return true
+  // 169.254.0.0/16 (link-local)
+  if (parts[0] === 169 && parts[1] === 254) return true
+
+  return false
 }
 
 // =============================================================================
@@ -140,13 +172,15 @@ export function useOsFamilyCounts(limit: number = 5) {
  * @param reports - IP reports from scans
  * @param scannerAddr - Scanner's IP address (center node)
  * @param scannedCidrs - Array of normalized CIDR targets from scans for intelligent grouping
+ * @param asnMap - Optional map of IP -> ASN info for hierarchical grouping
  */
 function buildTopologyData(
   hosts: Host[],
   hops: Hop[],
   reports: IpReport[],
   scannerAddr?: string,
-  scannedCidrs: string[] = []
+  scannedCidrs: string[] = [],
+  asnMap?: IpAsnMap
 ): TopologyData {
   const nodeMap = new Map<string, TopologyNode>()
   const edges: TopologyEdge[] = []
@@ -155,6 +189,7 @@ function buildTopologyData(
   // Scanner DOES get CIDR-grouped so it appears in its local network cluster
   if (scannerAddr) {
     const scannerCidrGroup = determineIPGroup(scannerAddr, scannedCidrs) ?? undefined
+    const scannerAsn = asnMap?.get(scannerAddr)
     nodeMap.set(scannerAddr, {
       id: scannerAddr,
       type: 'scanner',
@@ -165,6 +200,8 @@ function buildTopologyData(
       estimatedHops: 0,
       topologySource: 'static',
       cidrGroup: scannerCidrGroup,
+      asnNumber: scannerAsn?.asn,
+      asnOrg: scannerAsn?.as_org ?? undefined,
     })
   }
 
@@ -185,6 +222,9 @@ function buildTopologyData(
     // Determine CIDR group based on scanned targets
     const cidrGroup = determineIPGroup(hostIp, scannedCidrs) ?? undefined
 
+    // Get ASN info from map (if available)
+    const hostAsn = asnMap?.get(hostIp)
+
     // Use actual OS family from database, or fallback to TTL-inferred label
     // Priority: os_family > os_name (extract family) > TTL inference
     const osFamily = host.os_family
@@ -203,6 +243,8 @@ function buildTopologyData(
       estimatedHops,
       topologySource: 'inferred',
       cidrGroup,
+      asnNumber: hostAsn?.asn,
+      asnOrg: hostAsn?.as_org ?? undefined,
       firstSeen: parseTimestamp(host.first_seen),
       lastSeen: parseTimestamp(host.last_seen),
     })
@@ -403,6 +445,28 @@ export function useTopologyForScan(scan_id: number) {
     staleTime: 60000,
   })
 
+  // Collect all IPs that need ASN resolution (hosts + scanner)
+  const allIps = useMemo(() => {
+    if (!hostsQuery.data || !reportsQuery.data) return []
+
+    const scanHosts = reportsQuery.data.map(r => r.host_addr)
+    const uniqueHosts = new Set(scanHosts)
+    const hostIps = hostsQuery.data
+      .filter(h => uniqueHosts.has(h.ip_addr ?? h.host_addr))
+      .map(h => h.ip_addr ?? h.host_addr)
+
+    // Include scanner address if available
+    const scannerAddr = reportsQuery.data[0]?.send_addr
+    if (scannerAddr) {
+      hostIps.push(scannerAddr)
+    }
+
+    return [...new Set(hostIps)] // Deduplicate
+  }, [hostsQuery.data, reportsQuery.data])
+
+  // Fetch ASN data for all IPs (hybrid stored + JIT)
+  const asnMapQuery = useIpAsnMap(scan_id, allIps)
+
   // Build topology data from fetched data
   const topologyData = useMemo(() => {
     if (!hostsQuery.data || !hopsQuery.data || !reportsQuery.data) {
@@ -431,15 +495,16 @@ export function useTopologyForScan(scan_id: number) {
       hopsQuery.data,
       reportsQuery.data,
       scannerAddr,
-      scannedCidrs
+      scannedCidrs,
+      asnMapQuery.data // Pass ASN map to builder
     )
-  }, [hostsQuery.data, hopsQuery.data, reportsQuery.data, scanQuery.data])
+  }, [hostsQuery.data, hopsQuery.data, reportsQuery.data, scanQuery.data, asnMapQuery.data])
 
   return {
     data: topologyData,
     scan: scanQuery.data,
-    isLoading: hostsQuery.isLoading || hopsQuery.isLoading || reportsQuery.isLoading,
-    error: hostsQuery.error || hopsQuery.error || reportsQuery.error,
+    isLoading: hostsQuery.isLoading || hopsQuery.isLoading || reportsQuery.isLoading || asnMapQuery.isLoading,
+    error: hostsQuery.error || hopsQuery.error || reportsQuery.error || asnMapQuery.error,
   }
 }
 
@@ -473,6 +538,52 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
     queryFn: () => db.getScannerAddresses(),
     staleTime: 60000,
   })
+
+  // Collect all IPs that need ASN resolution (after applying filters)
+  const allIps = useMemo(() => {
+    if (!hostsQuery.data) return []
+
+    let hosts = hostsQuery.data
+
+    // Apply same filters as in topology building (must match!)
+    if (filters.minPorts !== undefined) {
+      hosts = hosts.filter(h => (h.port_count ?? 0) >= filters.minPorts!)
+    }
+    if (filters.since !== undefined) {
+      hosts = hosts.filter(h => parseTimestamp(h.last_seen) >= filters.since!)
+    }
+    if (filters.subnet) {
+      const subnetFilter = filters.subnet.trim()
+      if (subnetFilter.includes('/')) {
+        hosts = hosts.filter(h => isIpInCidr(h.ip_addr ?? h.host_addr, subnetFilter))
+      } else {
+        hosts = hosts.filter(h => (h.ip_addr ?? h.host_addr).startsWith(subnetFilter))
+      }
+    }
+    if (filters.osFamily && filters.osFamily.length > 0) {
+      hosts = hosts.filter(h => {
+        const hostOsFamily = h.os_family?.toLowerCase() ?? ''
+        return filters.osFamily!.some(f => {
+          const filterLower = f.toLowerCase()
+          return hostOsFamily === filterLower || hostOsFamily.includes(filterLower)
+        })
+      })
+    }
+
+    const hostIps = hosts.map(h => h.ip_addr ?? h.host_addr)
+
+    // Include scanner address if available
+    const scannerAddr = scannersQuery.data?.[0]
+    if (scannerAddr) {
+      hostIps.push(scannerAddr)
+    }
+
+    return [...new Set(hostIps)] // Deduplicate
+  }, [hostsQuery.data, scannersQuery.data, filters])
+
+  // Fetch ASN data for all IPs (hybrid stored + JIT)
+  // Use scanId=0 for global/cross-scan lookups
+  const asnMapQuery = useIpAsnMap(0, allIps)
 
   const topologyData = useMemo(() => {
     if (!hostsQuery.data) return null
@@ -518,6 +629,15 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
       })
     }
 
+    // ASN filter (new) - filter hosts by ASN if specified
+    if (filters.asn !== undefined && asnMapQuery.data) {
+      hosts = hosts.filter(h => {
+        const hostIp = h.ip_addr ?? h.host_addr
+        const asnInfo = asnMapQuery.data.get(hostIp)
+        return asnInfo?.asn === filters.asn
+      })
+    }
+
     // Collect all scanned CIDRs from all scans for intelligent grouping
     const scannedCidrs: string[] = []
     if (scansQuery.data) {
@@ -536,7 +656,7 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
 
     // Filter hops to only include those that connect to remaining hosts
     // This removes orphaned router nodes when their target networks are filtered out
-    if (filters.subnet || (filters.osFamily && filters.osFamily.length > 0)) {
+    if (filters.subnet || (filters.osFamily && filters.osFamily.length > 0) || filters.asn !== undefined) {
       const remainingHostIps = new Set(hosts.map(h => h.ip_addr ?? h.host_addr))
       hops = hops.filter(hop => remainingHostIps.has(hop.target_addr))
     }
@@ -545,13 +665,13 @@ export function useGlobalTopology(filters: TopologyFilters = {}) {
     // Multiple scanner nodes will still appear if they're in the hops data
     const scannerAddr = scannersQuery.data?.[0]
 
-    return buildTopologyData(hosts, hops, [], scannerAddr, scannedCidrs)
-  }, [hostsQuery.data, scansQuery.data, hopsQuery.data, scannersQuery.data, filters])
+    return buildTopologyData(hosts, hops, [], scannerAddr, scannedCidrs, asnMapQuery.data)
+  }, [hostsQuery.data, scansQuery.data, hopsQuery.data, scannersQuery.data, filters, asnMapQuery.data])
 
   return {
     data: topologyData,
-    isLoading: hostsQuery.isLoading || scansQuery.isLoading || hopsQuery.isLoading,
-    error: hostsQuery.error || scansQuery.error || hopsQuery.error,
+    isLoading: hostsQuery.isLoading || scansQuery.isLoading || hopsQuery.isLoading || asnMapQuery.isLoading,
+    error: hostsQuery.error || scansQuery.error || hopsQuery.error || asnMapQuery.error,
   }
 }
 
@@ -616,4 +736,148 @@ export function aggregateBySubnet(
     edgeCount: 0,
     needsAggregation: nodes.length > 1000,
   }
+}
+
+// =============================================================================
+// ASN Resolution Hook (Hybrid Stored + JIT)
+// =============================================================================
+
+/**
+ * Get ASN mapping for a list of IPs
+ * Uses hybrid pattern: stored uni_geoip data + live JIT lookups
+ *
+ * @param scanId - Scan ID (0 for global/all scans)
+ * @param ips - List of IP addresses to resolve
+ * @returns Map of IP -> AsnInfo (or null for private IPs / unavailable)
+ */
+export function useIpAsnMap(scanId: number, ips: string[]) {
+  return useQuery({
+    queryKey: [...topologyKeys.all, 'asnMap', scanId, ips.length],
+    queryFn: async (): Promise<IpAsnMap> => {
+      const asnMap: IpAsnMap = new Map()
+
+      // Filter to public IPs only (private IPs have no ASN)
+      const publicIps = ips.filter(ip => !isPrivateIp(ip))
+
+      // Set null for all private IPs upfront
+      for (const ip of ips) {
+        if (isPrivateIp(ip)) {
+          asnMap.set(ip, null)
+        }
+      }
+
+      if (publicIps.length === 0) {
+        return asnMap
+      }
+
+      // Step 1: Try to get stored GeoIP records from database
+      const storedRecords = await fetchStoredGeoIPRecords(scanId, publicIps)
+      const ipsWithStoredData = new Set<string>()
+
+      for (const record of storedRecords) {
+        if (record.asn) {
+          asnMap.set(record.host_ip, {
+            asn: record.asn,
+            as_org: record.as_org || null,
+          })
+          ipsWithStoredData.add(record.host_ip)
+        }
+      }
+
+      // Step 2: For IPs without stored ASN data, do live lookups (JIT)
+      const ipsNeedingLookup = publicIps.filter(ip => !ipsWithStoredData.has(ip))
+
+      if (ipsNeedingLookup.length > 0) {
+        const liveResults = await fetchLiveAsnData(ipsNeedingLookup)
+        for (const [ip, asnInfo] of liveResults) {
+          asnMap.set(ip, asnInfo)
+        }
+      }
+
+      return asnMap
+    },
+    enabled: ips.length > 0,
+    staleTime: 60000, // Cache for 1 minute
+  })
+}
+
+/**
+ * Fetch stored GeoIP records from database
+ */
+async function fetchStoredGeoIPRecords(
+  scanId: number,
+  ips: string[]
+): Promise<Array<{ host_ip: string; asn: number | null; as_org: string | null }>> {
+  try {
+    // Query database for GeoIP records
+    // For scan-specific, filter by scan_id; for global, get all records for these IPs
+    if (scanId > 0) {
+      const records = await db.getGeoIPByScan(scanId)
+      return records
+        .filter(r => ips.includes(r.host_ip))
+        .map(r => ({
+          host_ip: r.host_ip,
+          asn: r.asn,
+          as_org: r.as_org,
+        }))
+    } else {
+      // Global case - get GeoIP for all provided IPs
+      const results: Array<{ host_ip: string; asn: number | null; as_org: string | null }> = []
+      for (const ip of ips) {
+        try {
+          const record = await db.getGeoIPByHost(ip)
+          if (record) {
+            results.push({
+              host_ip: record.host_ip,
+              asn: record.asn,
+              as_org: record.as_org,
+            })
+          }
+        } catch {
+          // Skip IPs that fail lookup
+        }
+      }
+      return results
+    }
+  } catch {
+    // Database might not have GeoIP table (v5 schema)
+    return []
+  }
+}
+
+/**
+ * Fetch live ASN data from GeoIP API (JIT calculation)
+ */
+async function fetchLiveAsnData(ips: string[]): Promise<IpAsnMap> {
+  const results: IpAsnMap = new Map()
+  const apiUrl = import.meta.env.VITE_GEOIP_URL || 'http://localhost:3001'
+
+  // Batch lookups with concurrency limit
+  const batchSize = 20
+  for (let i = 0; i < ips.length; i += batchSize) {
+    const batch = ips.slice(i, i + batchSize)
+    const batchPromises = batch.map(async (ip) => {
+      try {
+        const response = await fetch(`${apiUrl}/lookup/${encodeURIComponent(ip)}`)
+        if (!response.ok) {
+          results.set(ip, null)
+          return
+        }
+        const data = await response.json()
+        if (data.asn) {
+          results.set(ip, {
+            asn: data.asn,
+            as_org: data.as_org || null,
+          })
+        } else {
+          results.set(ip, null)
+        }
+      } catch {
+        results.set(ip, null)
+      }
+    })
+    await Promise.all(batchPromises)
+  }
+
+  return results
 }
