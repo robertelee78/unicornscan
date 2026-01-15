@@ -121,6 +121,33 @@ export function exportMultiScanToMarkdown(
   lines.push(`| Ports with Changes | ${summary.portsWithChanges} |`)
   lines.push('')
 
+  // ASN Summary (if ASN data available)
+  const hostsWithAsn = hostDiffs.filter(h => h.asnNumber !== undefined)
+  if (hostsWithAsn.length > 0) {
+    // Group hosts by ASN
+    const asnMap = new Map<number, typeof hostDiffs>()
+    for (const host of hostDiffs) {
+      if (host.asnNumber !== undefined) {
+        const existing = asnMap.get(host.asnNumber)
+        if (existing) {
+          existing.push(host)
+        } else {
+          asnMap.set(host.asnNumber, [host])
+        }
+      }
+    }
+
+    lines.push('## ASN Distribution')
+    lines.push('')
+    lines.push('| ASN | Organization | Host Count |')
+    lines.push('|-----|--------------|------------|')
+    const asnEntries = Array.from(asnMap.entries()).sort(([a], [b]) => a - b)
+    for (const [asn, hosts] of asnEntries) {
+      lines.push(`| AS${asn} | ${hosts[0].asnOrg || 'Unknown'} | ${hosts.length} |`)
+    }
+    lines.push('')
+  }
+
   // Collect all change events
   const allEvents: string[] = []
   for (const host of hostDiffs) {
@@ -192,13 +219,26 @@ export function exportMultiScanToMarkdown(
   // Detailed host table
   lines.push('## Host Details')
   lines.push('')
-  lines.push('| Host | Status | Port Count | First Seen | Last Seen |')
-  lines.push('|------|--------|------------|------------|-----------|')
-  for (const host of hostDiffs) {
-    const status = host.presentCount === scans.length ? 'All' :
-      host.presentCount === 1 ? 'One' : 'Some'
-    const portCount = host.portDiffs.length
-    lines.push(`| \`${host.ipAddr}\` | ${status} | ${portCount} | #${host.firstSeenScanId} | #${host.lastSeenScanId} |`)
+  const hasAsnInDetails = hostDiffs.some(h => h.asnNumber !== undefined)
+  if (hasAsnInDetails) {
+    lines.push('| Host | ASN | Status | Port Count | First Seen | Last Seen |')
+    lines.push('|------|-----|--------|------------|------------|-----------|')
+    for (const host of hostDiffs) {
+      const status = host.presentCount === scans.length ? 'All' :
+        host.presentCount === 1 ? 'One' : 'Some'
+      const portCount = host.portDiffs.length
+      const asnStr = host.asnNumber !== undefined ? `AS${host.asnNumber}` : '-'
+      lines.push(`| \`${host.ipAddr}\` | ${asnStr} | ${status} | ${portCount} | #${host.firstSeenScanId} | #${host.lastSeenScanId} |`)
+    }
+  } else {
+    lines.push('| Host | Status | Port Count | First Seen | Last Seen |')
+    lines.push('|------|--------|------------|------------|-----------|')
+    for (const host of hostDiffs) {
+      const status = host.presentCount === scans.length ? 'All' :
+        host.presentCount === 1 ? 'One' : 'Some'
+      const portCount = host.portDiffs.length
+      lines.push(`| \`${host.ipAddr}\` | ${status} | ${portCount} | #${host.firstSeenScanId} | #${host.lastSeenScanId} |`)
+    }
   }
   lines.push('')
 

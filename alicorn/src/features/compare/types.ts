@@ -93,6 +93,12 @@ export interface MultiScanHostDiff {
   ipAddr: string
   /** Hostname if available */
   hostname?: string
+  /** Autonomous System Number (if available from GeoIP) */
+  asnNumber?: number
+  /** ASN organization name (if available from GeoIP) */
+  asnOrg?: string
+  /** CIDR group for subnet clustering (e.g., "192.168.1.0/24") */
+  cidrGroup?: string
   /** Presence in each scan (ordered chronologically) */
   presence: MultiScanHostPresence[]
   /** First scan ID where host was seen */

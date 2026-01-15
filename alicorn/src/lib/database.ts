@@ -134,6 +134,7 @@ export interface DatabaseClient {
   getHostBannerIndex(): Promise<Map<string, string[]>>
   getHostNotesIndex(): Promise<Map<string, string[]>>
   getHostPortsIndex(): Promise<Map<string, number[]>>
+  getHostAsnIndex(): Promise<Map<string, number>>
 
   // Dashboard (time-filtered)
   getDashboardStats(options: { since: number | null }): Promise<DashboardStats>
@@ -872,6 +873,39 @@ class RestDatabase implements DatabaseClient {
     const result = new Map<string, number[]>()
     for (const [host, ports] of hostPorts) {
       result.set(host, Array.from(ports).sort((a, b) => a - b))
+    }
+
+    return result
+  }
+
+  /**
+   * Get ASN (Autonomous System Number) index for all hosts.
+   * Returns a map of host_addr -> ASN number.
+   * Data comes from uni_geoip table (stored at scan time).
+   *
+   * This enables "find hosts in AS13335" type queries.
+   */
+  async getHostAsnIndex(): Promise<Map<string, number>> {
+    // Query uni_geoip for all records with ASN data
+    const { data: geoipData, error } = await this.client
+      .from('uni_geoip')
+      .select('host_addr, asn')
+      .not('asn', 'is', null)
+
+    if (error) {
+      // Table might not exist or be empty
+      if (error.code === 'PGRST116' || error.code === '42P01') {
+        return new Map()
+      }
+      throw error
+    }
+
+    // Build index of host_addr -> ASN (use most recent if multiple records)
+    const result = new Map<string, number>()
+    for (const record of geoipData || []) {
+      if (record.asn != null && !result.has(record.host_addr)) {
+        result.set(record.host_addr, record.asn)
+      }
     }
 
     return result

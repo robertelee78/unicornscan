@@ -95,7 +95,7 @@ function getNodeStroke(node: TopologyNode, maxConnections: number): string {
 }
 
 // =============================================================================
-// CIDR Cluster Force
+// Clustering Forces (CIDR and ASN)
 // =============================================================================
 
 /**
@@ -164,6 +164,72 @@ function forceCluster(strength: number = 0.3): d3.Force<SimulationNode, undefine
   return force
 }
 
+/**
+ * Custom D3 force that clusters nodes by their ASN (Autonomous System Number).
+ * Creates a coarser grouping layer outside of CIDR clusters.
+ *
+ * Weaker than CIDR clustering (0.15 vs 0.3) to allow CIDR to dominate
+ * while still providing outer cohesion for nodes belonging to the same AS.
+ *
+ * @param strength - Force strength (0-1). Default 0.15 is gentler than CIDR.
+ */
+function forceAsnCluster(strength: number = 0.15): d3.Force<SimulationNode, undefined> {
+  let nodes: SimulationNode[] = []
+
+  function force(alpha: number) {
+    // Group nodes by asnNumber
+    const groups = new Map<number, SimulationNode[]>()
+
+    for (const node of nodes) {
+      const asn = node.asnNumber
+      if (!asn) continue // Private IPs, routers without ASN
+
+      if (!groups.has(asn)) {
+        groups.set(asn, [])
+      }
+      groups.get(asn)!.push(node)
+    }
+
+    // For each ASN group, compute centroid and apply gentle pull
+    for (const groupNodes of groups.values()) {
+      if (groupNodes.length < 2) continue // No clustering for single nodes
+
+      // Compute centroid of current positions
+      let cx = 0
+      let cy = 0
+      for (const n of groupNodes) {
+        cx += n.x ?? 0
+        cy += n.y ?? 0
+      }
+      cx /= groupNodes.length
+      cy /= groupNodes.length
+
+      // Apply force toward centroid (weaker than CIDR)
+      for (const n of groupNodes) {
+        const dx = cx - (n.x ?? 0)
+        const dy = cy - (n.y ?? 0)
+
+        // Velocity adjustment (D3 convention)
+        n.vx = (n.vx ?? 0) + dx * strength * alpha
+        n.vy = (n.vy ?? 0) + dy * strength * alpha
+      }
+    }
+  }
+
+  // D3 force interface
+  force.initialize = function(_nodes: SimulationNode[]) {
+    nodes = _nodes
+  }
+
+  // Chainable strength setter
+  force.strength = function(s: number) {
+    strength = s
+    return force
+  }
+
+  return force
+}
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -220,9 +286,11 @@ export function NetworkGraph({
     // Clear previous render
     svg.selectAll('*').remove()
 
-    // Create container groups for layering (order matters: clusters behind edges behind nodes)
+    // Create container groups for layering
+    // Order matters: ASN hulls (back) → CIDR hulls → edges → nodes → labels (front)
     const container = svg.append('g').attr('class', 'topology-container')
-    const clusterGroup = container.append('g').attr('class', 'clusters')
+    const asnHullGroup = container.append('g').attr('class', 'asn-clusters')  // Outermost hulls
+    const clusterGroup = container.append('g').attr('class', 'cidr-clusters') // CIDR hulls inside ASN
     const edgeGroup = container.append('g').attr('class', 'edges')
     const nodeGroup = container.append('g').attr('class', 'nodes')
     const labelGroup = container.append('g').attr('class', 'labels')
@@ -397,6 +465,80 @@ export function NetworkGraph({
       .attr('text-anchor', 'middle')
       .text(d => `${d.cidr} (Inferred)`)
 
+    // =======================================================================
+    // ASN Hull Visualization (outer layer containing CIDR clusters)
+    // =======================================================================
+
+    // Collect unique ASNs for cluster visualization
+    const asnGroups = new Map<number, { asn: number; as_org: string | null; nodes: SimulationNode[] }>()
+    for (const node of nodes) {
+      if (node.asnNumber) {
+        if (!asnGroups.has(node.asnNumber)) {
+          asnGroups.set(node.asnNumber, {
+            asn: node.asnNumber,
+            as_org: node.asnOrg ?? null,
+            nodes: [],
+          })
+        }
+        asnGroups.get(node.asnNumber)!.nodes.push(node)
+      }
+    }
+
+    // Convert to array and filter to groups with 2+ nodes
+    interface AsnClusterData {
+      asn: number
+      as_org: string | null
+      nodes: SimulationNode[]
+    }
+    const asnClusterData: AsnClusterData[] = Array.from(asnGroups.values())
+      .filter(g => g.nodes.length >= 2)
+      .sort((a, b) => a.asn - b.asn)
+
+    // Color scale for ASN clusters (softer Set3 palette)
+    const asnColorScale = d3.scaleOrdinal<number, string>()
+      .domain(asnClusterData.map(d => d.asn))
+      .range(d3.schemeSet3)
+
+    // Create ASN hull paths (for 3+ nodes)
+    const asnHullPaths = asnHullGroup
+      .selectAll<SVGPathElement, AsnClusterData>('path.asn-hull')
+      .data(asnClusterData.filter(c => c.nodes.length >= 3), d => d.asn.toString())
+      .join('path')
+      .attr('class', 'asn-hull')
+      .attr('fill', d => asnColorScale(d.asn))
+      .attr('fill-opacity', 0.05)  // Very light - background layer
+      .attr('stroke', d => asnColorScale(d.asn))
+      .attr('stroke-opacity', 0.2)
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '8,4')  // Longer dashes than CIDR
+
+    // Create ASN ellipses (for 2 nodes)
+    const asnHullEllipses = asnHullGroup
+      .selectAll<SVGEllipseElement, AsnClusterData>('ellipse.asn-ellipse')
+      .data(asnClusterData.filter(c => c.nodes.length === 2), d => d.asn.toString())
+      .join('ellipse')
+      .attr('class', 'asn-ellipse')
+      .attr('fill', d => asnColorScale(d.asn))
+      .attr('fill-opacity', 0.05)
+      .attr('stroke', d => asnColorScale(d.asn))
+      .attr('stroke-opacity', 0.2)
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '8,4')
+
+    // Create ASN labels (positioned above the ASN hull)
+    const asnLabels = asnHullGroup
+      .selectAll<SVGTextElement, AsnClusterData>('text.asn-label')
+      .data(asnClusterData, d => d.asn.toString())
+      .join('text')
+      .attr('class', 'asn-label')
+      .attr('font-size', '12px')
+      .attr('font-weight', '500')
+      .attr('fill', d => asnColorScale(d.asn))
+      .attr('fill-opacity', 0.7)
+      .attr('pointer-events', 'none')
+      .attr('text-anchor', 'middle')
+      .text(d => `AS${d.asn}${d.as_org ? `: ${d.as_org}` : ''}`)
+
     // PIN router positions along a straight horizontal line from scanner to targets
     // This creates the "connect the dots" path the user wants
     const maxHops = Math.max(...nodes.filter(n => n.type === 'router').map(n => n.estimatedHops || 1), 1)
@@ -430,7 +572,9 @@ export function NetworkGraph({
         .strength(config.centerStrength))
       .force('collision', d3.forceCollide<SimulationNode>()
         .radius(d => getNodeRadius(d, config.minNodeRadius, config.maxNodeRadius, maxPorts) + 2))
-      // CIDR cluster force: gently group nodes by network
+      // ASN cluster force: coarse outer grouping (weaker, runs first conceptually)
+      .force('asnCluster', forceAsnCluster(0.15))
+      // CIDR cluster force: fine inner grouping (stronger, dominates)
       .force('cluster', forceCluster(0.3))
 
     simulationRef.current = simulation
@@ -560,15 +704,73 @@ export function NetworkGraph({
         .text(d => d.label)
     }
 
+    // Helper: compute hull with larger padding for ASN (outer layer)
+    function computeAsnHullPath(points: [number, number][]): string | null {
+      if (points.length < 3) return null
+
+      const hull = d3.polygonHull(points)
+      if (!hull) return null
+
+      // Expand hull outward by larger padding for ASN (40px vs 20px for CIDR)
+      const padding = 40
+      const centroid = d3.polygonCentroid(hull)
+      const expandedHull = hull.map(([x, y]) => {
+        const dx = x - centroid[0]
+        const dy = y - centroid[1]
+        const len = Math.sqrt(dx * dx + dy * dy)
+        if (len === 0) return [x, y] as [number, number]
+        return [
+          x + (dx / len) * padding,
+          y + (dy / len) * padding,
+        ] as [number, number]
+      })
+
+      const lineGenerator = d3.line<[number, number]>()
+        .x(d => d[0])
+        .y(d => d[1])
+        .curve(d3.curveCardinalClosed.tension(0.7))
+
+      return lineGenerator(expandedHull)
+    }
+
     // Update positions on tick
     simulation.on('tick', () => {
-      // Update cluster boundaries (convex hulls for 3+ nodes)
+      // Update ASN hull boundaries (convex hulls for 3+ nodes) - OUTER layer
+      asnHullPaths.attr('d', d => {
+        const points: [number, number][] = d.nodes.map(n => [n.x ?? 0, n.y ?? 0])
+        return computeAsnHullPath(points) ?? ''
+      })
+
+      // Update ASN ellipses (for 2 nodes)
+      asnHullEllipses.each(function(d) {
+        if (d.nodes.length !== 2) return
+        const p1: [number, number] = [d.nodes[0].x ?? 0, d.nodes[0].y ?? 0]
+        const p2: [number, number] = [d.nodes[1].x ?? 0, d.nodes[1].y ?? 0]
+        const ellipse = computeEllipse(p1, p2, 40) // Larger padding for ASN
+        d3.select(this)
+          .attr('cx', ellipse.cx)
+          .attr('cy', ellipse.cy)
+          .attr('rx', ellipse.rx)
+          .attr('ry', ellipse.ry)
+          .attr('transform', `rotate(${ellipse.angle}, ${ellipse.cx}, ${ellipse.cy})`)
+      })
+
+      // Update ASN labels (position at top of ASN hull)
+      asnLabels.attr('x', d => {
+        const xs = d.nodes.map(n => n.x ?? 0)
+        return (Math.min(...xs) + Math.max(...xs)) / 2
+      }).attr('y', d => {
+        const ys = d.nodes.map(n => n.y ?? 0)
+        return Math.min(...ys) - 50 // Further above than CIDR labels
+      })
+
+      // Update CIDR cluster boundaries (convex hulls for 3+ nodes) - INNER layer
       clusterPaths.attr('d', d => {
         const points: [number, number][] = d.nodes.map(n => [n.x ?? 0, n.y ?? 0])
         return computeHullPath(points) ?? ''
       })
 
-      // Update cluster ellipses (for 2 nodes)
+      // Update CIDR cluster ellipses (for 2 nodes)
       clusterEllipses.each(function(d) {
         if (d.nodes.length !== 2) return
         const p1: [number, number] = [d.nodes[0].x ?? 0, d.nodes[0].y ?? 0]
@@ -582,7 +784,7 @@ export function NetworkGraph({
           .attr('transform', `rotate(${ellipse.angle}, ${ellipse.cx}, ${ellipse.cy})`)
       })
 
-      // Update cluster labels (position at top of cluster)
+      // Update CIDR cluster labels (position at top of cluster)
       clusterLabels.attr('x', d => {
         const xs = d.nodes.map(n => n.x ?? 0)
         return (Math.min(...xs) + Math.max(...xs)) / 2
@@ -750,6 +952,14 @@ function NodeTooltip({ node }: NodeTooltipProps) {
           <div className="flex justify-between gap-4">
             <span>Network:</span>
             <span className="font-mono font-medium text-foreground">{node.cidrGroup}</span>
+          </div>
+        )}
+        {node.asnNumber && (
+          <div className="flex justify-between gap-4">
+            <span>ASN:</span>
+            <span className="font-mono font-medium text-foreground">
+              AS{node.asnNumber}{node.asnOrg ? ` (${node.asnOrg})` : ''}
+            </span>
           </div>
         )}
         {node.osGuess && (
