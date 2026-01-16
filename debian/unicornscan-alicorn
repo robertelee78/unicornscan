@@ -87,9 +87,42 @@ check_ports() {
     return 0
 }
 
+# Sync password to modules.conf
+sync_modules_conf() {
+    local password="$1"
+    if [ -f "$MODULES_CONF" ]; then
+        if grep -q 'module "pgsqldb"' "$MODULES_CONF"; then
+            # Check if password already matches
+            if grep -q "password=${password}" "$MODULES_CONF"; then
+                return 0  # Already synced
+            fi
+            # Update password in existing pgsqldb config
+            if [ -w "$MODULES_CONF" ]; then
+                sed -i "s/password=[^;[:space:]\"]*/password=${password}/" "$MODULES_CONF"
+                # Verify the update worked
+                if grep -q "password=${password}" "$MODULES_CONF"; then
+                    print_success "Updated $MODULES_CONF with database password"
+                else
+                    print_warning "Failed to update password in $MODULES_CONF"
+                    print_warning "Manually update: password=${password}"
+                fi
+            else
+                print_warning "Cannot write to $MODULES_CONF (run with sudo)"
+                print_warning "Manually update: password=${password}"
+            fi
+        else
+            print_warning "$MODULES_CONF exists but has no pgsqldb module configured"
+        fi
+    else
+        print_warning "$MODULES_CONF not found - unicornscan may not export to database"
+    fi
+}
+
 # Initialize environment with random password if not exists
 init_env() {
-    if [ -f "$ENV_FILE" ]; then
+    # If env already exists, just sync modules.conf and return
+    if [ -f "$ENV_FILE" ] && [ -f "$PASSWORD_FILE" ]; then
+        sync_modules_conf "$(cat "$PASSWORD_FILE")"
         return 0
     fi
 
@@ -124,29 +157,8 @@ EOF
     echo "$PASSWORD" > "$PASSWORD_FILE"
     chmod 600 "$PASSWORD_FILE"
 
-    # Update modules.conf if it exists
-    if [ -f "$MODULES_CONF" ]; then
-        if grep -q 'module "pgsqldb"' "$MODULES_CONF"; then
-            # Update password in existing pgsqldb config
-            if [ -w "$MODULES_CONF" ]; then
-                sed -i "s/password=[^;[:space:]]*/password=${PASSWORD}/" "$MODULES_CONF"
-                # Verify the update worked
-                if grep -q "password=${PASSWORD}" "$MODULES_CONF"; then
-                    print_success "Updated $MODULES_CONF with new password"
-                else
-                    print_warning "Failed to update password in $MODULES_CONF"
-                    print_warning "Manually update: password=${PASSWORD}"
-                fi
-            else
-                print_warning "Cannot write to $MODULES_CONF (run with sudo)"
-                print_warning "Manually update: password=${PASSWORD}"
-            fi
-        else
-            print_warning "$MODULES_CONF exists but has no pgsqldb module configured"
-        fi
-    else
-        print_warning "$MODULES_CONF not found - unicornscan may not export to database"
-    fi
+    # Update modules.conf
+    sync_modules_conf "$PASSWORD"
 
     print_success "Generated secure password (saved to $PASSWORD_FILE)"
 }
