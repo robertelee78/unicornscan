@@ -276,15 +276,15 @@ sudo unicornscan-alicorn start
 
 This will:
 - Generate a secure random 32-character password
-- Save credentials to `/opt/unicornscan-alicorn/.env` (for Docker)
+- Save credentials to `/var/lib/unicornscan/alicorn/.env` (for Docker)
 - Update `/etc/unicornscan/modules.conf` with the password (for unicornscan)
 - Start PostgreSQL in a Docker container
 - Initialize the database schema
 - Start the PostgREST API and Alicorn web server
 
 The password is stored in three places:
-- `/opt/unicornscan-alicorn/.env` - Docker Compose environment
-- `/opt/unicornscan-alicorn/.db_password` - Plain text for easy retrieval
+- `/var/lib/unicornscan/alicorn/.env` - Docker Compose environment
+- `/var/lib/unicornscan/alicorn/.db_password` - Plain text for easy retrieval
 - `/etc/unicornscan/modules.conf` - Unicornscan pgsqldb module config
 
 Because `modules.conf` is auto-configured, you can run scans with database
