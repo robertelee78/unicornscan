@@ -59,51 +59,54 @@ package() {
   install -dm755 "$pkgdir/var/unicornscan"
 
   # =========================================================================
-  # Install Alicorn Web UI
+  # Install Alicorn Web UI to FHS-compliant paths
+  # Static files: /usr/share/unicornscan/alicorn
+  # Runtime data: /var/lib/unicornscan/alicorn (created by unicornscan-web on first run)
   # =========================================================================
-  install -dm755 "$pkgdir/opt/unicornscan-web"
-  install -dm755 "$pkgdir/opt/unicornscan-web/src"
-  install -dm755 "$pkgdir/opt/unicornscan-web/public"
-  install -dm755 "$pkgdir/opt/unicornscan-web/cli"
-  install -dm755 "$pkgdir/opt/unicornscan-web/sql"
-  install -dm755 "$pkgdir/opt/unicornscan-web/geoip-api"
-  install -dm755 "$pkgdir/opt/unicornscan-web/postgrest"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/src"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/public"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/cli"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/sql"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/geoip-api"
+  install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/postgrest"
+  install -dm755 "$pkgdir/var/lib/unicornscan/alicorn"
 
   # Docker configuration
-  install -Dm644 alicorn/docker-compose.standalone.yml "$pkgdir/opt/unicornscan-web/docker-compose.yml"
-  install -Dm644 alicorn/Dockerfile "$pkgdir/opt/unicornscan-web/Dockerfile"
-  install -Dm644 alicorn/nginx.conf "$pkgdir/opt/unicornscan-web/nginx.conf"
+  install -Dm644 alicorn/docker-compose.standalone.yml "$pkgdir/usr/share/unicornscan/alicorn/docker-compose.yml"
+  install -Dm644 alicorn/Dockerfile "$pkgdir/usr/share/unicornscan/alicorn/Dockerfile"
+  install -Dm644 alicorn/nginx.conf "$pkgdir/usr/share/unicornscan/alicorn/nginx.conf"
 
   # PostgREST
-  install -Dm644 alicorn/postgrest/Dockerfile "$pkgdir/opt/unicornscan-web/postgrest/Dockerfile"
+  install -Dm644 alicorn/postgrest/Dockerfile "$pkgdir/usr/share/unicornscan/alicorn/postgrest/Dockerfile"
 
   # Build configuration
-  install -Dm644 alicorn/package.json "$pkgdir/opt/unicornscan-web/package.json"
-  install -Dm644 alicorn/package-lock.json "$pkgdir/opt/unicornscan-web/package-lock.json"
-  install -Dm644 alicorn/vite.config.ts "$pkgdir/opt/unicornscan-web/vite.config.ts"
-  install -Dm644 alicorn/tsconfig.json "$pkgdir/opt/unicornscan-web/tsconfig.json"
-  install -Dm644 alicorn/tsconfig.app.json "$pkgdir/opt/unicornscan-web/tsconfig.app.json"
-  install -Dm644 alicorn/tsconfig.node.json "$pkgdir/opt/unicornscan-web/tsconfig.node.json"
-  install -Dm644 alicorn/index.html "$pkgdir/opt/unicornscan-web/index.html"
+  install -Dm644 alicorn/package.json "$pkgdir/usr/share/unicornscan/alicorn/package.json"
+  install -Dm644 alicorn/package-lock.json "$pkgdir/usr/share/unicornscan/alicorn/package-lock.json"
+  install -Dm644 alicorn/vite.config.ts "$pkgdir/usr/share/unicornscan/alicorn/vite.config.ts"
+  install -Dm644 alicorn/tsconfig.json "$pkgdir/usr/share/unicornscan/alicorn/tsconfig.json"
+  install -Dm644 alicorn/tsconfig.app.json "$pkgdir/usr/share/unicornscan/alicorn/tsconfig.app.json"
+  install -Dm644 alicorn/tsconfig.node.json "$pkgdir/usr/share/unicornscan/alicorn/tsconfig.node.json"
+  install -Dm644 alicorn/index.html "$pkgdir/usr/share/unicornscan/alicorn/index.html"
 
   # Optional config files (may not exist in all versions)
-  [[ -f alicorn/eslint.config.js ]] && install -Dm644 alicorn/eslint.config.js "$pkgdir/opt/unicornscan-web/eslint.config.js"
-  [[ -f alicorn/vitest.config.ts ]] && install -Dm644 alicorn/vitest.config.ts "$pkgdir/opt/unicornscan-web/vitest.config.ts"
+  [[ -f alicorn/eslint.config.js ]] && install -Dm644 alicorn/eslint.config.js "$pkgdir/usr/share/unicornscan/alicorn/eslint.config.js"
+  [[ -f alicorn/vitest.config.ts ]] && install -Dm644 alicorn/vitest.config.ts "$pkgdir/usr/share/unicornscan/alicorn/vitest.config.ts"
 
   # Source code
-  cp -r alicorn/src/* "$pkgdir/opt/unicornscan-web/src/"
-  cp -r alicorn/public/* "$pkgdir/opt/unicornscan-web/public/"
+  cp -r alicorn/src/* "$pkgdir/usr/share/unicornscan/alicorn/src/"
+  cp -r alicorn/public/* "$pkgdir/usr/share/unicornscan/alicorn/public/"
 
   # CLI / Setup wizard
-  install -Dm644 alicorn/cli/setup.ts "$pkgdir/opt/unicornscan-web/cli/setup.ts"
+  install -Dm644 alicorn/cli/setup.ts "$pkgdir/usr/share/unicornscan/alicorn/cli/setup.ts"
 
   # GeoIP API service
-  install -Dm644 alicorn/geoip-api/Dockerfile "$pkgdir/opt/unicornscan-web/geoip-api/Dockerfile"
-  install -Dm644 alicorn/geoip-api/package.json "$pkgdir/opt/unicornscan-web/geoip-api/package.json"
-  install -Dm644 alicorn/geoip-api/server.js "$pkgdir/opt/unicornscan-web/geoip-api/server.js"
+  install -Dm644 alicorn/geoip-api/Dockerfile "$pkgdir/usr/share/unicornscan/alicorn/geoip-api/Dockerfile"
+  install -Dm644 alicorn/geoip-api/package.json "$pkgdir/usr/share/unicornscan/alicorn/geoip-api/package.json"
+  install -Dm644 alicorn/geoip-api/server.js "$pkgdir/usr/share/unicornscan/alicorn/geoip-api/server.js"
 
   # SQL schema
-  install -Dm644 src/output_modules/database/sql/pgsql_schema.sql "$pkgdir/opt/unicornscan-web/sql/pgsql_schema.sql"
+  install -Dm644 src/output_modules/database/sql/pgsql_schema.sql "$pkgdir/usr/share/unicornscan/alicorn/sql/pgsql_schema.sql"
 
   # =========================================================================
   # Install management scripts
