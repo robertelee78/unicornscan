@@ -46,6 +46,7 @@ const SEARCH_TYPE_VARIANTS: Record<SearchType, 'secondary' | 'info' | 'outline'>
   cidr: 'info',
   'ip-prefix': 'info',
   mac: 'info',
+  asn: 'info',
   regex: 'secondary',
   text: 'outline',
 }
@@ -58,6 +59,7 @@ const SEARCH_TYPE_LABELS: Record<SearchType, string> = {
   cidr: 'CIDR',
   'ip-prefix': 'IP Prefix',
   mac: 'MAC',
+  asn: 'ASN',
   regex: 'Regex',
   text: 'Text',
 }

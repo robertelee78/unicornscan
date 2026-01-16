@@ -35,12 +35,12 @@ post_install() {
 ║    unicornscan -mU 192.168.1.1:53,161       # UDP scan         ║
 ║    unicornscan -mA 192.168.1.0/24           # ARP discovery    ║
 ║                                                                ║
-║  ALICORN WEB UI (requires Docker):                             ║
-║    unicornscan-alicorn start                    # Start services   ║
-║    http://localhost:31337                   # Open browser     ║
+║  STEP 1: Start Alicorn Web UI (requires Docker):               ║
+║    sudo unicornscan-alicorn start          # Start services    ║
+║    http://localhost:31337                  # Open browser      ║
 ║                                                                ║
-║  GEOIP (recommended):                                          ║
-║    sudo unicornscan-geoip-update            # Download DBs     ║
+║  STEP 2: Enable GeoIP (recommended):                           ║
+║    sudo unicornscan-geoip-update           # Download DBs      ║
 ║                                                                ║
 ║  Add yourself to unicornscan group for config access:          ║
 ║    sudo usermod -aG unicornscan \$USER && newgrp unicornscan    ║

@@ -415,8 +415,8 @@ async function compareMultipleScans(scanIds: number[]): Promise<MultiScanCompari
   for (let i = geoipArrays.length - 1; i >= 0; i--) {
     const geoipRecords = geoipArrays[i]
     for (const record of geoipRecords) {
-      if (record.asn !== null && record.asn !== undefined && !asnByHost.has(record.host_addr)) {
-        asnByHost.set(record.host_addr, {
+      if (record.asn !== null && record.asn !== undefined && !asnByHost.has(record.host_ip)) {
+        asnByHost.set(record.host_ip, {
           asn: record.asn,
           as_org: record.as_org ?? null,
         })
