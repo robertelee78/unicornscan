@@ -199,6 +199,25 @@ cmd_start() {
     print_status "Starting Alicorn Web UI stack..."
     cd "$INSTALL_DIR"
 
+    # Clean up orphan containers (can happen after purge+reinstall or failed starts)
+    # These are containers with alicorn- names not managed by current compose project
+    ORPHAN_CONTAINERS=$(docker ps -a --filter "name=alicorn-" --format '{{.Names}}' 2>/dev/null | tr '\n' ' ')
+    if [ -n "$ORPHAN_CONTAINERS" ]; then
+        echo ""
+        print_warning "Found existing Alicorn containers: $ORPHAN_CONTAINERS"
+        echo "These may be from a previous install and need to be removed."
+        echo ""
+        read -p "Remove these containers to continue? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Removing orphan containers..."
+            docker rm -f alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip 2>/dev/null || true
+        else
+            print_error "Cannot start: existing containers conflict. Run 'sudo unicornscan-alicorn stop' first."
+            exit 1
+        fi
+    fi
+
     # Build and start containers (first run will build images, takes ~2 minutes)
     print_status "Building containers (first run may take 1-2 minutes)..."
     $COMPOSE_CMD --env-file "$ENV_FILE" up -d --build
