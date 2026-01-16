@@ -28,6 +28,9 @@ Requires:       libtool-ltdl
 Requires:       libcap
 Requires:       postgresql-libs
 Recommends:     libmaxminddb
+Suggests:       docker
+Suggests:       docker-compose
+Suggests:       nodejs
 
 %description
 Unicornscan is an asynchronous network scanner designed for
@@ -188,6 +191,45 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
+* Thu Jan 16 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.42-1
+- Rename unicornscan-web to unicornscan-alicorn
+- Standardize FHS-compliant paths across all package formats
+- Add Kali Linux packaging for submission
+- Fix Arch package build (zstd compression, heredoc issues)
+- Add Arch Linux package support to release workflow
+
+* Tue Jan 14 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.41-1
+- Enhance post-install message with GeoIP and Web UI recommendations
+- Add unicornscan-geoip-update command prominently in both .deb and .rpm
+- Sync RPM %post message to match debian/postinst (was missing Web UI)
+- Mark both GeoIP and Alicorn Web UI as RECOMMENDED
+
+* Mon Jan 13 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.40-1
+- Bump package versions
+
+* Mon Jan 13 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.39-1
+- Fix RPM spec: include man5 directory for unicorn.conf.5
+- The man page for unicorn.conf(5) is installed to man5/ but wasn't in %files
+
+* Sun Jan 12 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.38-1
+- Bump package versions
+
+* Sun Jan 12 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.37-1
+- Bump package versions
+
+* Sat Jan 11 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.36-1
+- Bump package versions
+
+* Sat Jan 11 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.35-1
+- Remove Claude Code/Flow files from repo (keep local)
+- Added .claude/, claude-flow, CLAUDE.md to .gitignore
+
+* Fri Jan 10 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.34-1
+- Add project-specific release skill with version file checklist
+
+* Fri Jan 10 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.33-1
+- Update packaging for 0.4.33 release
+
 * Thu Jan 02 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.32-1
 - Fix banner capture in compound mode (-mA+sf)
 - S_DEFAULT_PAYLOAD flag now preserved across phase transitions

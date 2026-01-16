@@ -1,9 +1,7 @@
 # Core scanner binaries and libraries (installed by make install)
 # These are handled by dh_auto_install
 
-# Alicorn Web UI - Docker Compose and config (handled by rules override)
-# Note: docker-compose.yml, Dockerfile, nginx.conf, package.json, etc.
-# are installed by the override_dh_auto_install target in debian/rules
-
-# PostgREST configuration
-alicorn/postgrest                      opt/unicornscan-alicorn/
+# Alicorn Web UI components are installed by override_dh_auto_install in debian/rules
+# to FHS-compliant paths:
+#   Static files:  /usr/share/unicornscan/alicorn
+#   Runtime data:  /var/lib/unicornscan/alicorn

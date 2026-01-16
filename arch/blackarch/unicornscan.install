@@ -71,5 +71,5 @@ post_remove() {
   fi
 
   echo "Unicornscan removed. Config files in /etc/unicornscan/ preserved."
-  echo "To remove completely: rm -rf /etc/unicornscan /opt/unicornscan-alicorn"
+  echo "To remove completely: rm -rf /etc/unicornscan /usr/share/unicornscan /var/lib/unicornscan"
 }
