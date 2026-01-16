@@ -85,7 +85,7 @@ void uuerror(const char *);
 [mM]odule			return MODULE;
 [pP]ayloads			return PAYLOADS;
 [{}\,;:]			return *uutext;
-[a-zA-Z0-9\./]+			{ uulval.ptr=xstrdup(uutext); return WORD; }
+[a-zA-Z0-9_\./]+		{ uulval.ptr=xstrdup(uutext); return WORD; }
 include[ \t]+\"[^\"]*\";	{
 					if (sscanf(uutext, "include %512s", tmpbuf) != 1) {
 						uuerror("include statement malformed");
