@@ -403,26 +403,24 @@ jobs:
             install -Dm644 LICENSE pkg/usr/share/licenses/unicornscan/LICENSE
 
             # =================================================================
-            # Create .PKGINFO
+            # Create .PKGINFO (using printf to avoid heredoc issues)
             # =================================================================
-            cat > pkg/.PKGINFO << EOF
-            pkgname = unicornscan
-            pkgver = ${VERSION}-1
-            pkgdesc = Asynchronous stateless TCP/UDP scanner with Alicorn web UI
-            url = https://github.com/robertelee78/unicornscan
-            builddate = $(date +%s)
-            packager = GitHub Actions
-            size = $(du -sb pkg | cut -f1)
-            arch = x86_64
-            license = GPL-2.0-or-later
-            depend = libpcap
-            depend = postgresql-libs
-            depend = libdnet
-            depend = libltdl
-            depend = libmaxminddb
-            depend = libcap
-            optdepend = docker: Alicorn web UI
-            EOF
+            printf "pkgname = unicornscan\n" > pkg/.PKGINFO
+            printf "pkgver = %s-1\n" "$VERSION" >> pkg/.PKGINFO
+            printf "pkgdesc = Asynchronous stateless TCP/UDP scanner with Alicorn web UI\n" >> pkg/.PKGINFO
+            printf "url = https://github.com/robertelee78/unicornscan\n" >> pkg/.PKGINFO
+            printf "builddate = %s\n" "$(date +%s)" >> pkg/.PKGINFO
+            printf "packager = GitHub Actions\n" >> pkg/.PKGINFO
+            printf "size = %s\n" "$(du -sb pkg | cut -f1)" >> pkg/.PKGINFO
+            printf "arch = x86_64\n" >> pkg/.PKGINFO
+            printf "license = GPL-2.0-or-later\n" >> pkg/.PKGINFO
+            printf "depend = libpcap\n" >> pkg/.PKGINFO
+            printf "depend = postgresql-libs\n" >> pkg/.PKGINFO
+            printf "depend = libdnet\n" >> pkg/.PKGINFO
+            printf "depend = libltdl\n" >> pkg/.PKGINFO
+            printf "depend = libmaxminddb\n" >> pkg/.PKGINFO
+            printf "depend = libcap\n" >> pkg/.PKGINFO
+            printf "optdepend = docker: Alicorn web UI\n" >> pkg/.PKGINFO
 
             # Create package archive with zstd compression
             cd pkg
