@@ -104,7 +104,7 @@ unicornscan -mT 10.0.0.0/8:22,80,443 -epgsqldb
 
 ### Packaging Status
 
-- **GitLab MR:** [Link to MR when submitted]
+- **GitLab MR:** https://gitlab.com/kalilinux/packages/unicornscan/-/merge_requests/1
 - **Package builds successfully:** Yes
 - **All tests pass:** Yes
 
