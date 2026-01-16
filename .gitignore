@@ -1,4 +1,3 @@
-
 # Environment files (contain credentials)
 .env
 *.env
@@ -71,3 +70,7 @@ hive-mind-prompt-*.txt
 .claude/
 claude-flow
 CLAUDE.md
+
+# RuVector intelligence data
+.ruvector/
+.claude/statusline.sh
