@@ -165,7 +165,7 @@ echo "╠═══════════════════════�
 echo "║                                                                ║"
 echo "║  RECOMMENDED: Alicorn Web UI for visualizing scan results:     ║"
 echo "║                                                                ║"
-echo "║    unicornscan-alicorn start        # Start (requires Docker)  ║"
+echo "║    sudo unicornscan-alicorn start   # Start (requires Docker)  ║"
 echo "║    http://localhost:31337           # Open in browser          ║"
 echo "║                                                                ║"
 echo "╚════════════════════════════════════════════════════════════════╝"

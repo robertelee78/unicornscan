@@ -258,6 +258,44 @@ jobs:
           sed -i 's/^          //' debian/unicornscan/DEBIAN/postinst
           chmod 755 debian/unicornscan/DEBIAN/postinst
 
+          # Create postrm script to handle cleanup on remove/purge
+          cat > debian/unicornscan/DEBIAN/postrm << 'POSTRM'
+          #!/bin/bash
+          set -e
+          case "$1" in
+              remove)
+                  # Stop Alicorn containers if running
+                  if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+                      if docker ps -q --filter "name=alicorn-" 2>/dev/null | grep -q .; then
+                          echo "Stopping Alicorn containers..."
+                          docker stop alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip 2>/dev/null || true
+                      fi
+                  fi
+                  ;;
+              purge)
+                  rm -rf /var/lib/unicornscan/alicorn 2>/dev/null || true
+                  if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+                      if docker volume inspect alicorn_postgres_data &>/dev/null 2>&1; then
+                          echo ""
+                          echo "NOTE: Docker volume 'alicorn_postgres_data' still exists."
+                          echo "To remove it: docker volume rm alicorn_postgres_data"
+                          echo "To keep data for reinstall: do nothing."
+                          echo ""
+                      fi
+                  fi
+                  ;;
+              upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+                  ;;
+              *)
+                  echo "postrm called with unknown argument '\$1'" >&2
+                  exit 1
+                  ;;
+          esac
+          exit 0
+          POSTRM
+          sed -i 's/^          //' debian/unicornscan/DEBIAN/postrm
+          chmod 755 debian/unicornscan/DEBIAN/postrm
+
           dpkg-deb --build debian/unicornscan
           mkdir -p artifacts
           mv debian/unicornscan.deb artifacts/unicornscan_${VERSION}_${{ matrix.distro }}.deb
