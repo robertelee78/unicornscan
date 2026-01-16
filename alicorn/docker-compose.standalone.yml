@@ -75,15 +75,15 @@ services:
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-alicorn}
       PGRST_SERVER_PORT: 3000
-      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:3000
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:31338
     ports:
-      - "3000:3000"
+      - "31338:3000"
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:31338/"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -98,7 +98,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_DB_BACKEND: postgrest
-        VITE_POSTGREST_URL: http://localhost:3000
+        VITE_POSTGREST_URL: http://localhost:31338
         VITE_APP_TITLE: ${VITE_APP_TITLE:-Alicorn}
         VITE_DEBUG: ${VITE_DEBUG:-false}
     container_name: alicorn-web

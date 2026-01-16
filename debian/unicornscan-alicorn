@@ -55,6 +55,38 @@ check_orphan_volume() {
     return 1  # No volume
 }
 
+# Check if required ports are available
+check_ports() {
+    local ports_in_use=""
+    local port_info=""
+
+    for port in 31337 31338 5432; do
+        if ss -tuln 2>/dev/null | grep -q ":${port} " || \
+           netstat -tuln 2>/dev/null | grep -q ":${port} "; then
+            ports_in_use="$ports_in_use $port"
+            # Try to identify what's using the port
+            local proc=$(ss -tulnp 2>/dev/null | grep ":${port} " | sed 's/.*users:(("\([^"]*\)".*/\1/' | head -1)
+            [ -z "$proc" ] && proc=$(lsof -i :${port} 2>/dev/null | tail -1 | awk '{print $1}')
+            [ -n "$proc" ] && port_info="$port_info\n    Port $port: $proc"
+        fi
+    done
+
+    if [ -n "$ports_in_use" ]; then
+        echo ""
+        print_error "Required ports are already in use:$ports_in_use"
+        [ -n "$port_info" ] && echo -e "$port_info"
+        echo ""
+        echo "  Port 31337 = Alicorn Web UI"
+        echo "  Port 31338 = Alicorn API (PostgREST)"
+        echo "  Port 5432  = PostgreSQL database"
+        echo ""
+        echo "Please stop the conflicting service(s) or change their ports."
+        echo "If this is from a previous Alicorn run, try: sudo unicornscan-alicorn stop"
+        return 1
+    fi
+    return 0
+}
+
 # Initialize environment with random password if not exists
 init_env() {
     if [ -f "$ENV_FILE" ]; then
@@ -191,6 +223,9 @@ cmd_start() {
     check_compose_file
     check_write_permission start
 
+    # Check if required ports are available before proceeding
+    check_ports || exit 1
+
     COMPOSE_CMD=$(get_compose_cmd)
 
     # Generate password on first run
@@ -232,7 +267,7 @@ cmd_start() {
     print_success "Alicorn Web UI started!"
     echo ""
     echo "  Web UI:    http://localhost:31337"
-    echo "  API:       http://localhost:3000"
+    echo "  API:       http://localhost:31338"
     echo "  Database:  postgresql://localhost:5432/unicornscan"
     echo ""
     echo "Run a scan with database export:"

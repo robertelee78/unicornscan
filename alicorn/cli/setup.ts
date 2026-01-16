@@ -326,7 +326,7 @@ async function promptPostgrestDetails(): Promise<{ url: string } | null> {
       type: 'text',
       name: 'url',
       message: 'PostgREST URL',
-      initial: 'http://localhost:3000',
+      initial: 'http://localhost:31338',
       validate: (value) => {
         if (!value) return 'URL is required'
         if (!value.startsWith('http://') && !value.startsWith('https://')) {
