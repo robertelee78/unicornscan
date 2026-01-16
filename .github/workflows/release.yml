@@ -300,9 +300,143 @@ jobs:
           name: unicornscan-${{ matrix.distro }}
           path: artifacts/*.rpm
 
+  build-arch:
+    name: Build Arch Linux Package
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed \
+            base-devel git autoconf automake libtool flex bison \
+            libpcap libdnet postgresql-libs libmaxminddb libcap sudo
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create non-root build user
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder .
+
+      - name: Build package
+        run: |
+          su builder -c '
+            set -ex
+            # Extract version
+            VERSION=$(grep "AC_INIT" configure.ac | sed -n "s/.*\\[\\([0-9.]*\\)\\].*/\\1/p")
+            echo "Building version: $VERSION"
+
+            # Generate build system
+            autoreconf -fi
+
+            # Configure
+            ./configure CFLAGS="-D_GNU_SOURCE -Wno-error" \
+              --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-pgsql
+
+            # Build
+            make -j$(nproc)
+
+            # Create package directory structure
+            mkdir -p pkg/usr pkg/etc pkg/var/unicornscan
+            make DESTDIR=$(pwd)/pkg install
+
+            # =================================================================
+            # Install Alicorn Web UI files (matching DEB build exactly)
+            # =================================================================
+            mkdir -p pkg/opt/unicornscan-web/src
+            mkdir -p pkg/opt/unicornscan-web/public
+            mkdir -p pkg/opt/unicornscan-web/cli
+            mkdir -p pkg/opt/unicornscan-web/sql
+            mkdir -p pkg/opt/unicornscan-web/postgrest
+
+            # Docker configuration
+            cp alicorn/docker-compose.standalone.yml pkg/opt/unicornscan-web/docker-compose.yml
+            cp alicorn/Dockerfile pkg/opt/unicornscan-web/
+            cp alicorn/nginx.conf pkg/opt/unicornscan-web/
+
+            # PostgREST custom build (Alpine with wget for healthcheck)
+            cp alicorn/postgrest/Dockerfile pkg/opt/unicornscan-web/postgrest/
+
+            # Build configuration
+            cp alicorn/package.json pkg/opt/unicornscan-web/
+            cp alicorn/package-lock.json pkg/opt/unicornscan-web/
+            cp alicorn/vite.config.ts pkg/opt/unicornscan-web/
+            cp alicorn/vitest.config.ts pkg/opt/unicornscan-web/ 2>/dev/null || true
+            cp alicorn/tsconfig.json pkg/opt/unicornscan-web/
+            cp alicorn/tsconfig.app.json pkg/opt/unicornscan-web/
+            cp alicorn/tsconfig.node.json pkg/opt/unicornscan-web/
+            cp alicorn/eslint.config.js pkg/opt/unicornscan-web/ 2>/dev/null || true
+            cp alicorn/index.html pkg/opt/unicornscan-web/
+
+            # Source code
+            cp -r alicorn/src/* pkg/opt/unicornscan-web/src/
+            cp -r alicorn/public/* pkg/opt/unicornscan-web/public/
+
+            # CLI / Setup wizard
+            cp alicorn/cli/setup.ts pkg/opt/unicornscan-web/cli/
+
+            # GeoIP API service
+            mkdir -p pkg/opt/unicornscan-web/geoip-api
+            cp alicorn/geoip-api/Dockerfile pkg/opt/unicornscan-web/geoip-api/
+            cp alicorn/geoip-api/package.json pkg/opt/unicornscan-web/geoip-api/
+            cp alicorn/geoip-api/server.js pkg/opt/unicornscan-web/geoip-api/
+
+            # GeoIP database update script
+            install -Dm755 scripts/unicornscan-geoip-update pkg/usr/bin/unicornscan-geoip-update
+
+            # SQL schema
+            cp src/output_modules/database/sql/pgsql_schema.sql pkg/opt/unicornscan-web/sql/
+
+            # Web management script
+            install -Dm755 debian/unicornscan-web pkg/usr/bin/unicornscan-web
+
+            # License
+            install -Dm644 LICENSE pkg/usr/share/licenses/unicornscan/LICENSE
+
+            # =================================================================
+            # Create .PKGINFO
+            # =================================================================
+            cat > pkg/.PKGINFO << EOF
+            pkgname = unicornscan
+            pkgver = ${VERSION}-1
+            pkgdesc = Asynchronous stateless TCP/UDP scanner with Alicorn web UI
+            url = https://github.com/robertelee78/unicornscan
+            builddate = $(date +%s)
+            packager = GitHub Actions
+            size = $(du -sb pkg | cut -f1)
+            arch = x86_64
+            license = GPL-2.0-or-later
+            depend = libpcap
+            depend = postgresql-libs
+            depend = libdnet
+            depend = libltdl
+            depend = libmaxminddb
+            depend = libcap
+            optdepend = docker: Alicorn web UI
+            EOF
+
+            # Create package archive
+            cd pkg
+            tar -cJf ../unicornscan-${VERSION}-1-x86_64.pkg.tar.zst .PKGINFO *
+            cd ..
+            mkdir -p artifacts
+            mv unicornscan-${VERSION}-1-x86_64.pkg.tar.zst artifacts/
+          '
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unicornscan-arch
+          path: artifacts/*.pkg.tar.zst
+
   release:
     name: Create Release
-    needs: [build-deb, build-rpm]
+    needs: [build-deb, build-rpm, build-arch]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -325,6 +459,7 @@ jobs:
           files: |
             artifacts/*.deb
             artifacts/*.rpm
+            artifacts/*.pkg.tar.zst
           generate_release_notes: true
           draft: false
           prerelease: false
