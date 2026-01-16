@@ -30,7 +30,6 @@ export function Topology() {
   const [filters, setFilters] = useState<TopologyFilters>({})
   const [config, setConfig] = useState<Partial<TopologyConfig>>({})
   const [selectedNode, setSelectedNode] = useState<TopologyNode | null>(null)
-  const [aggregated, setAggregated] = useState(false)
 
   // Fetch topology data - either for a specific scan or global
   const scanTopology = useTopologyForScan(scan_id ?? 0)
@@ -41,9 +40,9 @@ export function Topology() {
     ? { data: scanTopology.data, isLoading: scanTopology.isLoading, error: scanTopology.error }
     : { data: globalTopology.data, isLoading: globalTopology.isLoading, error: globalTopology.error }
 
-  // Apply aggregation if needed
+  // Apply aggregation if needed (auto-detected for large datasets)
   const displayData = topologyData
-    ? (aggregated || topologyData.needsAggregation ? aggregateBySubnet(topologyData) : topologyData)
+    ? (topologyData.needsAggregation ? aggregateBySubnet(topologyData) : topologyData)
     : null
 
   const handleNodeClick = useCallback((node: TopologyNode) => {
@@ -105,19 +104,6 @@ export function Topology() {
                   {displayData.needsAggregation && (
                     <div className="absolute top-4 left-4 z-10 bg-amber-500/90 text-white px-3 py-1.5 rounded-md text-sm">
                       Large dataset: showing aggregated /24 subnets
-                    </div>
-                  )}
-
-                  {/* Toggle aggregation */}
-                  {topologyData && topologyData.nodeCount > 100 && (
-                    <div className="absolute top-4 right-4 z-10">
-                      <Button
-                        size="sm"
-                        variant={aggregated ? 'secondary' : 'outline'}
-                        onClick={() => setAggregated(!aggregated)}
-                      >
-                        {aggregated ? 'Show All Nodes' : 'Aggregate by /24'}
-                      </Button>
                     </div>
                   )}
 
