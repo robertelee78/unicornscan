@@ -189,27 +189,66 @@ jobs:
           sed -i 's/^          //' debian/unicornscan/DEBIAN/control
 
           # Create postinst script to set capabilities and show instructions
+          # NOTE: Keep in sync with debian/postinst
           cat > debian/unicornscan/DEBIAN/postinst << 'POSTINST'
-          #!/bin/sh
-          # Set Linux capabilities to allow running without root
-          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/unicornscan 2>/dev/null || true
-          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/fantaip 2>/dev/null || true
-          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unilisten 2>/dev/null || true
-          setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unisend 2>/dev/null || true
-
-          echo ""
-          echo "╔════════════════════════════════════════════════════════════════╗"
-          echo "║              Unicornscan installed successfully!               ║"
-          echo "╠════════════════════════════════════════════════════════════════╣"
-          echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
-          echo "║                                                                ║"
-          echo "║    1. Start the web UI:    unicornscan-alicorn start               ║"
-          echo "║    2. Open browser:        http://localhost:31337              ║"
-          echo "║    3. Run a scan with database export (see man unicornscan)    ║"
-          echo "║                                                                ║"
-          echo "║  Requires Docker. Install with: apt install docker.io          ║"
-          echo "╚════════════════════════════════════════════════════════════════╝"
-          echo ""
+          #!/bin/bash
+          set -e
+          case "$1" in
+              configure)
+                  # Create unicornscan group for shared config access
+                  if ! getent group unicornscan >/dev/null 2>&1; then
+                      groupadd --system unicornscan 2>/dev/null && echo "Created 'unicornscan' group" || true
+                  fi
+                  # Set modules.conf ownership to root:unicornscan with 660 permissions
+                  if [ -f /etc/unicornscan/modules.conf ]; then
+                      chown root:unicornscan /etc/unicornscan/modules.conf 2>/dev/null || true
+                      chmod 660 /etc/unicornscan/modules.conf 2>/dev/null || true
+                  fi
+                  # Auto-add sudo user to unicornscan group
+                  if [ -n "$SUDO_UID" ]; then
+                      SUDO_USER_NAME=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+                      if [ -n "$SUDO_USER_NAME" ]; then
+                          if ! id -nG "$SUDO_USER_NAME" 2>/dev/null | grep -qw unicornscan; then
+                              usermod -aG unicornscan "$SUDO_USER_NAME" 2>/dev/null && \
+                              echo "Added '$SUDO_USER_NAME' to 'unicornscan' group (re-login to activate)" || true
+                          fi
+                      fi
+                  else
+                      echo "Note: Run 'usermod -aG unicornscan <username>' to grant config access"
+                  fi
+                  # Set Linux capabilities to allow running without root
+                  if command -v setcap &> /dev/null; then
+                      setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/unicornscan 2>/dev/null || true
+                      setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/bin/fantaip 2>/dev/null || true
+                      setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unilisten 2>/dev/null || true
+                      setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' /usr/libexec/unicornscan/unisend 2>/dev/null || true
+                  fi
+                  echo ""
+                  echo "╔════════════════════════════════════════════════════════════════╗"
+                  echo "║              Unicornscan installed successfully!               ║"
+                  echo "╠════════════════════════════════════════════════════════════════╣"
+                  echo "║                                                                ║"
+                  echo "║  RECOMMENDED: Enable GeoIP for location and network lookups:   ║"
+                  echo "║                                                                ║"
+                  echo "║    sudo unicornscan-geoip-update                               ║"
+                  echo "║                                                                ║"
+                  echo "╠════════════════════════════════════════════════════════════════╣"
+                  echo "║                                                                ║"
+                  echo "║  RECOMMENDED: Alicorn Web UI for visualizing scan results:     ║"
+                  echo "║                                                                ║"
+                  echo "║    unicornscan-alicorn start            # Start (requires Docker)  ║"
+                  echo "║    http://localhost:31337           # Open in browser          ║"
+                  echo "║                                                                ║"
+                  echo "╚════════════════════════════════════════════════════════════════╝"
+                  echo ""
+                  ;;
+              abort-upgrade|abort-remove|abort-deconfigure)
+                  ;;
+              *)
+                  echo "postinst called with unknown argument '$1'" >&2
+                  exit 1
+                  ;;
+          esac
           exit 0
           POSTINST
           sed -i 's/^          //' debian/unicornscan/DEBIAN/postinst
