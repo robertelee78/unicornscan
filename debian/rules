@@ -19,43 +19,49 @@ override_dh_auto_install:
 	# Remove .la files
 	find debian/unicornscan -name '*.la' -delete
 
-	# Install Alicorn web UI files
-	install -d debian/unicornscan/opt/unicornscan-web/sql
-	install -d debian/unicornscan/opt/unicornscan-web/src
-	install -d debian/unicornscan/opt/unicornscan-web/public
+	# Install Alicorn Web UI to /usr/share/unicornscan/alicorn
+	# Runtime data goes to /var/lib/unicornscan/alicorn (created at runtime)
+	install -d debian/unicornscan/usr/share/unicornscan/alicorn/sql
+	install -d debian/unicornscan/usr/share/unicornscan/alicorn/src
+	install -d debian/unicornscan/usr/share/unicornscan/alicorn/public
+	install -d debian/unicornscan/var/lib/unicornscan/alicorn
 
 	# Docker configuration
-	install -m 644 alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-web/docker-compose.yml
-	install -m 644 alicorn/Dockerfile debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/nginx.conf debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/docker-compose.standalone.yml debian/unicornscan/usr/share/unicornscan/alicorn/docker-compose.yml
+	install -m 644 alicorn/Dockerfile debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/nginx.conf debian/unicornscan/usr/share/unicornscan/alicorn/
 
 	# Build configuration
-	install -m 644 alicorn/package.json debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/package-lock.json debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/vite.config.ts debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-web/
-	install -m 644 alicorn/eslint.config.js debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
-	install -m 644 alicorn/vitest.config.ts debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
-	install -m 644 alicorn/index.html debian/unicornscan/opt/unicornscan-web/
+	install -m 644 alicorn/package.json debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/package-lock.json debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/vite.config.ts debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/tsconfig.json debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/tsconfig.app.json debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/tsconfig.node.json debian/unicornscan/usr/share/unicornscan/alicorn/
+	install -m 644 alicorn/eslint.config.js debian/unicornscan/usr/share/unicornscan/alicorn/ 2>/dev/null || true
+	install -m 644 alicorn/vitest.config.ts debian/unicornscan/usr/share/unicornscan/alicorn/ 2>/dev/null || true
+	install -m 644 alicorn/index.html debian/unicornscan/usr/share/unicornscan/alicorn/
 
 	# Source code (copy directories)
-	cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-web/src/
-	cp -r alicorn/public/* debian/unicornscan/opt/unicornscan-web/public/
+	cp -r alicorn/src/* debian/unicornscan/usr/share/unicornscan/alicorn/src/
+	cp -r alicorn/public/* debian/unicornscan/usr/share/unicornscan/alicorn/public/
 
 	# CLI / Setup wizard
-	install -d debian/unicornscan/opt/unicornscan-web/cli
-	install -m 644 alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-web/cli/
+	install -d debian/unicornscan/usr/share/unicornscan/alicorn/cli
+	install -m 644 alicorn/cli/setup.ts debian/unicornscan/usr/share/unicornscan/alicorn/cli/
 
 	# GeoIP API service
-	install -d debian/unicornscan/opt/unicornscan-web/geoip-api
-	install -m 644 alicorn/geoip-api/Dockerfile debian/unicornscan/opt/unicornscan-web/geoip-api/
-	install -m 644 alicorn/geoip-api/package.json debian/unicornscan/opt/unicornscan-web/geoip-api/
-	install -m 644 alicorn/geoip-api/server.js debian/unicornscan/opt/unicornscan-web/geoip-api/
+	install -d debian/unicornscan/usr/share/unicornscan/alicorn/geoip-api
+	install -m 644 alicorn/geoip-api/Dockerfile debian/unicornscan/usr/share/unicornscan/alicorn/geoip-api/
+	install -m 644 alicorn/geoip-api/package.json debian/unicornscan/usr/share/unicornscan/alicorn/geoip-api/
+	install -m 644 alicorn/geoip-api/server.js debian/unicornscan/usr/share/unicornscan/alicorn/geoip-api/
+
+	# PostgREST configuration
+	install -d debian/unicornscan/usr/share/unicornscan/alicorn/postgrest
+	install -m 644 alicorn/postgrest/Dockerfile debian/unicornscan/usr/share/unicornscan/alicorn/postgrest/
 
 	# SQL schema
-	install -m 644 src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
+	install -m 644 src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/usr/share/unicornscan/alicorn/sql/
 
 	# Web management script
 	install -d debian/unicornscan/usr/bin

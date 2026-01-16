@@ -11,10 +11,11 @@
 
 set -e
 
-INSTALL_DIR="/opt/unicornscan-web"
+INSTALL_DIR="/usr/share/unicornscan/alicorn"
+VAR_DIR="/var/lib/unicornscan/alicorn"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
-ENV_FILE="$INSTALL_DIR/.env"
-PASSWORD_FILE="$INSTALL_DIR/.db_password"
+ENV_FILE="$VAR_DIR/.env"
+PASSWORD_FILE="$VAR_DIR/.db_password"
 MODULES_CONF="/etc/unicornscan/modules.conf"
 
 # Colors for output
@@ -47,7 +48,7 @@ generate_password() {
 
 # Check if postgres volume exists (from previous install)
 check_orphan_volume() {
-    local volume_name="unicornscan-web_postgres_data"
+    local volume_name="alicorn_postgres_data"
     if docker volume inspect "$volume_name" &>/dev/null; then
         return 0  # Volume exists
     fi
@@ -166,8 +167,12 @@ check_docker() {
 }
 
 check_write_permission() {
-    if [ ! -w "$INSTALL_DIR" ]; then
-        print_error "Cannot write to $INSTALL_DIR"
+    # Ensure VAR_DIR exists and is writable
+    if [ ! -d "$VAR_DIR" ]; then
+        mkdir -p "$VAR_DIR" 2>/dev/null || true
+    fi
+    if [ ! -w "$VAR_DIR" ]; then
+        print_error "Cannot write to $VAR_DIR"
         echo "Run with sudo: sudo unicornscan-web $1"
         exit 1
     fi
@@ -196,7 +201,7 @@ cmd_start() {
 
     # Build and start containers (first run will build images, takes ~2 minutes)
     print_status "Building containers (first run may take 1-2 minutes)..."
-    $COMPOSE_CMD up -d --build
+    $COMPOSE_CMD --env-file "$ENV_FILE" up -d --build
 
     # Wait for services to be healthy
     print_status "Waiting for services to start..."
@@ -227,7 +232,7 @@ cmd_stop() {
 
     print_status "Stopping Alicorn Web UI stack..."
     cd "$INSTALL_DIR"
-    $COMPOSE_CMD down
+    $COMPOSE_CMD --env-file "$ENV_FILE" down
 
     print_success "All containers stopped."
 }
@@ -240,7 +245,7 @@ cmd_status() {
 
     print_status "Container status:"
     cd "$INSTALL_DIR"
-    $COMPOSE_CMD ps
+    $COMPOSE_CMD --env-file "$ENV_FILE" ps
 }
 
 cmd_logs() {
@@ -250,7 +255,7 @@ cmd_logs() {
     COMPOSE_CMD=$(get_compose_cmd)
 
     cd "$INSTALL_DIR"
-    $COMPOSE_CMD logs -f "${@:2}"
+    $COMPOSE_CMD --env-file "$ENV_FILE" logs -f "${@:2}"
 }
 
 cmd_shell() {
@@ -262,7 +267,7 @@ cmd_shell() {
     print_status "Connecting to PostgreSQL..."
     cd "$INSTALL_DIR"
     PASSWORD=$(get_password)
-    $COMPOSE_CMD exec -e PGPASSWORD="$PASSWORD" postgres psql -U alicorn -d unicornscan
+    $COMPOSE_CMD --env-file "$ENV_FILE" exec -e PGPASSWORD="$PASSWORD" postgres psql -U alicorn -d unicornscan
 }
 
 cmd_password() {
@@ -278,6 +283,9 @@ cmd_password() {
     else
         print_warning "No password file found. Run 'unicornscan-web start' first."
     fi
+    echo ""
+    echo "Application: $INSTALL_DIR"
+    echo "Runtime data: $VAR_DIR"
 }
 
 cmd_reset() {
@@ -294,9 +302,9 @@ cmd_reset() {
     fi
 
     cd "$INSTALL_DIR"
-    $COMPOSE_CMD down -v
+    $COMPOSE_CMD --env-file "$ENV_FILE" down -v
 
-    # Remove credentials so fresh password is generated on next start
+    # Remove credentials from VAR_DIR so fresh password is generated on next start
     rm -f "$ENV_FILE" "$PASSWORD_FILE"
 
     print_success "Database reset. Run 'unicornscan-web start' to create fresh database."

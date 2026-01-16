@@ -68,47 +68,50 @@ install -m 755 scripts/unicornscan-geoip-update %{buildroot}%{_bindir}/
 # Install unicornscan-web management script
 install -m 755 debian/unicornscan-web %{buildroot}%{_bindir}/
 
-# Install Alicorn web UI files
-mkdir -p %{buildroot}/opt/unicornscan-web/sql
-mkdir -p %{buildroot}/opt/unicornscan-web/src
-mkdir -p %{buildroot}/opt/unicornscan-web/public
-mkdir -p %{buildroot}/opt/unicornscan-web/cli
+# Install Alicorn Web UI to FHS paths
+# Static files: /usr/share/unicornscan/alicorn
+# Runtime data: /var/lib/unicornscan/alicorn (created by unicornscan-web on first run)
+mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/sql
+mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/src
+mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/public
+mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/cli
+mkdir -p %{buildroot}%{_sharedstatedir}/unicornscan/alicorn
 
 # Docker configuration
-install -m 644 alicorn/docker-compose.standalone.yml %{buildroot}/opt/unicornscan-web/docker-compose.yml
-install -m 644 alicorn/Dockerfile %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/nginx.conf %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/docker-compose.standalone.yml %{buildroot}%{_datadir}/unicornscan/alicorn/docker-compose.yml
+install -m 644 alicorn/Dockerfile %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/nginx.conf %{buildroot}%{_datadir}/unicornscan/alicorn/
 
 # Build configuration
-install -m 644 alicorn/package.json %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/package-lock.json %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/vite.config.ts %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/tsconfig.json %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/tsconfig.app.json %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/tsconfig.node.json %{buildroot}/opt/unicornscan-web/
-install -m 644 alicorn/eslint.config.js %{buildroot}/opt/unicornscan-web/ 2>/dev/null || :
-install -m 644 alicorn/vitest.config.ts %{buildroot}/opt/unicornscan-web/ 2>/dev/null || :
-install -m 644 alicorn/index.html %{buildroot}/opt/unicornscan-web/
+install -m 644 alicorn/package.json %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/package-lock.json %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/vite.config.ts %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/tsconfig.json %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/tsconfig.app.json %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/tsconfig.node.json %{buildroot}%{_datadir}/unicornscan/alicorn/
+install -m 644 alicorn/eslint.config.js %{buildroot}%{_datadir}/unicornscan/alicorn/ 2>/dev/null || :
+install -m 644 alicorn/vitest.config.ts %{buildroot}%{_datadir}/unicornscan/alicorn/ 2>/dev/null || :
+install -m 644 alicorn/index.html %{buildroot}%{_datadir}/unicornscan/alicorn/
 
 # Source code (copy directories)
-cp -r alicorn/src/* %{buildroot}/opt/unicornscan-web/src/
-cp -r alicorn/public/* %{buildroot}/opt/unicornscan-web/public/
+cp -r alicorn/src/* %{buildroot}%{_datadir}/unicornscan/alicorn/src/
+cp -r alicorn/public/* %{buildroot}%{_datadir}/unicornscan/alicorn/public/
 
 # CLI / Setup wizard
-install -m 644 alicorn/cli/setup.ts %{buildroot}/opt/unicornscan-web/cli/
+install -m 644 alicorn/cli/setup.ts %{buildroot}%{_datadir}/unicornscan/alicorn/cli/
 
 # GeoIP API service
-mkdir -p %{buildroot}/opt/unicornscan-web/geoip-api
-install -m 644 alicorn/geoip-api/Dockerfile %{buildroot}/opt/unicornscan-web/geoip-api/
-install -m 644 alicorn/geoip-api/package.json %{buildroot}/opt/unicornscan-web/geoip-api/
-install -m 644 alicorn/geoip-api/server.js %{buildroot}/opt/unicornscan-web/geoip-api/
+mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/geoip-api
+install -m 644 alicorn/geoip-api/Dockerfile %{buildroot}%{_datadir}/unicornscan/alicorn/geoip-api/
+install -m 644 alicorn/geoip-api/package.json %{buildroot}%{_datadir}/unicornscan/alicorn/geoip-api/
+install -m 644 alicorn/geoip-api/server.js %{buildroot}%{_datadir}/unicornscan/alicorn/geoip-api/
 
 # PostgREST configuration
-mkdir -p %{buildroot}/opt/unicornscan-web/postgrest
-install -m 644 alicorn/postgrest/Dockerfile %{buildroot}/opt/unicornscan-web/postgrest/
+mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/postgrest
+install -m 644 alicorn/postgrest/Dockerfile %{buildroot}%{_datadir}/unicornscan/alicorn/postgrest/
 
 # SQL schema
-install -m 644 src/output_modules/database/sql/pgsql_schema.sql %{buildroot}/opt/unicornscan-web/sql/
+install -m 644 src/output_modules/database/sql/pgsql_schema.sql %{buildroot}%{_datadir}/unicornscan/alicorn/sql/
 
 %post
 # Create unicornscan group for shared config access
@@ -181,7 +184,8 @@ echo ""
 %{_mandir}/man1/*
 %{_mandir}/man5/*
 %dir %{_localstatedir}/unicornscan
-/opt/unicornscan-web/
+%{_datadir}/unicornscan/alicorn/
+%dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
 * Thu Jan 02 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.32-1

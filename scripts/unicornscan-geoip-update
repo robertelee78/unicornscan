@@ -16,7 +16,7 @@ set -e
 
 GEOIP_DIR="/usr/share/GeoIP"
 MODULES_CONF="/etc/unicornscan/modules.conf"
-WEB_PASSWORD_FILE="/opt/unicornscan-web/.db_password"
+WEB_PASSWORD_FILE="/var/lib/unicornscan/alicorn/.db_password"
 
 # Database definitions
 CITY_DB="dbip-city-lite.mmdb"
