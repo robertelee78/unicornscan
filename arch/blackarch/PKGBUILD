@@ -14,6 +14,7 @@ depends=('libpcap' 'postgresql-libs' 'libdnet' 'libltdl' 'libmaxminddb' 'libcap'
 makedepends=('git' 'flex' 'bison' 'autoconf' 'automake' 'libtool' 'postgresql')
 optdepends=('docker: Alicorn web UI container runtime'
             'docker-compose: Alicorn web UI orchestration'
+            'nodejs: Development mode and setup wizard'
             'geoip-database: IP geolocation lookups'
             'geoip-database-extra: Extended IP geolocation data')
 source=("git+https://github.com/robertelee78/$pkgname.git#tag=v$pkgver")
