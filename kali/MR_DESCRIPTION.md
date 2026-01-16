@@ -31,7 +31,8 @@ This release introduces the **Alicorn Web UI** - a modern React-based interface 
 - Added `unicornscan-alicorn` management script
 - Added `unicornscan-geoip-update` for DB-IP database downloads
 - Updated homepage to unicornscan.org
-- Full Alicorn stack installed to `/opt/unicornscan-alicorn/`
+- Alicorn static files: `/usr/share/unicornscan/alicorn`
+- Alicorn runtime data: `/var/lib/unicornscan/alicorn`
 
 ## Testing
 
