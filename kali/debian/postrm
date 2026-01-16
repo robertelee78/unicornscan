@@ -1,0 +1,51 @@
+#!/bin/bash
+# postrm script for unicornscan
+# Handles post-removal cleanup
+
+set -e
+
+case "$1" in
+    remove)
+        # Stop Alicorn containers if running (graceful cleanup)
+        if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+            if docker ps -q --filter "name=alicorn-" 2>/dev/null | grep -q .; then
+                echo "Stopping Alicorn containers..."
+                docker stop alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip 2>/dev/null || true
+            fi
+        fi
+        ;;
+
+    purge)
+        # Remove runtime data directory
+        rm -rf /var/lib/unicornscan/alicorn 2>/dev/null || true
+
+        # Check for orphan Docker volume and inform user
+        if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+            if docker volume inspect alicorn_postgres_data &>/dev/null 2>&1; then
+                echo ""
+                echo "╔════════════════════════════════════════════════════════════════╗"
+                echo "║  NOTE: Docker volume 'alicorn_postgres_data' still exists.     ║"
+                echo "║                                                                ║"
+                echo "║  This volume contains your scan data from Alicorn.             ║"
+                echo "║                                                                ║"
+                echo "║  To remove it (DELETES ALL SCAN DATA):                         ║"
+                echo "║    docker volume rm alicorn_postgres_data                      ║"
+                echo "║                                                                ║"
+                echo "║  To keep data for future reinstall: do nothing.                ║"
+                echo "╚════════════════════════════════════════════════════════════════╝"
+                echo ""
+            fi
+        fi
+        ;;
+
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        # Nothing to do
+        ;;
+
+    *)
+        echo "postrm called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

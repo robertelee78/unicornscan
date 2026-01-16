@@ -291,6 +291,7 @@ cmd_password() {
 cmd_reset() {
     check_docker
     check_compose_file
+    check_write_permission reset
 
     COMPOSE_CMD=$(get_compose_cmd)
 
@@ -302,12 +303,71 @@ cmd_reset() {
     fi
 
     cd "$INSTALL_DIR"
-    $COMPOSE_CMD --env-file "$ENV_FILE" down -v
+
+    # Handle missing .env file gracefully (happens after apt purge + reinstall)
+    if [ -f "$ENV_FILE" ]; then
+        $COMPOSE_CMD --env-file "$ENV_FILE" down -v 2>/dev/null || true
+    else
+        # No env file exists - still try to bring down containers/volumes
+        $COMPOSE_CMD down -v 2>/dev/null || true
+    fi
+
+    # Fallback: directly remove the volume if compose didn't catch it
+    # (handles orphan volumes from old installs or different project names)
+    docker volume rm alicorn_postgres_data 2>/dev/null || true
 
     # Remove credentials from VAR_DIR so fresh password is generated on next start
     rm -f "$ENV_FILE" "$PASSWORD_FILE"
 
-    print_success "Database reset. Run 'unicornscan-alicorn start' to create fresh database."
+    print_success "Database reset. Run 'sudo unicornscan-alicorn start' to create fresh database."
+}
+
+cmd_purge_volume() {
+    check_docker
+
+    # Check if volume exists
+    if ! docker volume inspect alicorn_postgres_data &>/dev/null; then
+        print_warning "No Alicorn database volume found."
+        echo "Volume 'alicorn_postgres_data' does not exist."
+        exit 0
+    fi
+
+    # Show volume info
+    print_status "Found Docker volume: alicorn_postgres_data"
+    docker volume inspect alicorn_postgres_data --format '  Created: {{.CreatedAt}}' 2>/dev/null || true
+
+    echo ""
+    print_warning "This will PERMANENTLY DELETE the database volume and all scan data!"
+    print_warning "This action cannot be undone."
+    echo ""
+    echo "Type 'yes' to confirm deletion:"
+    read -r confirm
+    if [ "$confirm" != "yes" ]; then
+        echo "Aborted. Volume not removed."
+        exit 0
+    fi
+
+    # Stop any running containers that might be using the volume
+    if docker ps -q --filter "name=alicorn-" 2>/dev/null | grep -q .; then
+        print_status "Stopping Alicorn containers..."
+        docker stop alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip 2>/dev/null || true
+        docker rm alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip 2>/dev/null || true
+    fi
+
+    # Remove the volume
+    if docker volume rm alicorn_postgres_data 2>/dev/null; then
+        print_success "Volume 'alicorn_postgres_data' removed."
+    else
+        print_error "Failed to remove volume. It may be in use by a container."
+        echo "Try: docker ps -a | grep alicorn"
+        exit 1
+    fi
+
+    # Also clean up credentials if they exist
+    rm -f "$ENV_FILE" "$PASSWORD_FILE" 2>/dev/null || true
+
+    echo ""
+    print_success "Cleanup complete. Run 'sudo unicornscan-alicorn start' for fresh install."
 }
 
 cmd_setup() {
@@ -377,13 +437,14 @@ cmd_help() {
     echo "Usage: unicornscan-alicorn <command>"
     echo ""
     echo "Docker Commands (recommended):"
-    echo "  start     Start the web UI stack (PostgreSQL + PostgREST + Alicorn)"
-    echo "  stop      Stop all containers"
-    echo "  status    Show container status"
-    echo "  logs      View container logs (use: logs [service])"
-    echo "  shell     Open PostgreSQL shell"
-    echo "  password  Show database password"
-    echo "  reset     Delete all data and reset database (WARNING: destructive!)"
+    echo "  start        Start the web UI stack (PostgreSQL + PostgREST + Alicorn)"
+    echo "  stop         Stop all containers"
+    echo "  status       Show container status"
+    echo "  logs         View container logs (use: logs [service])"
+    echo "  shell        Open PostgreSQL shell"
+    echo "  password     Show database password"
+    echo "  reset        Delete all data and reset database (WARNING: destructive!)"
+    echo "  purge-volume Remove orphan Docker volume (use after apt purge)"
     echo ""
     echo "Development Commands (requires Node.js 18+):"
     echo "  setup     Run interactive setup wizard"
@@ -393,7 +454,7 @@ cmd_help() {
     echo "  help      Show this help message"
     echo ""
     echo "Quick Start:"
-    echo "  1. unicornscan-alicorn start"
+    echo "  1. sudo unicornscan-alicorn start"
     echo "  2. unicornscan -epgsqldb <target>"
     echo "  3. Open http://localhost:31337"
     echo ""
@@ -421,6 +482,9 @@ case "${1:-help}" in
         ;;
     reset)
         cmd_reset
+        ;;
+    purge-volume)
+        cmd_purge_volume
         ;;
     setup)
         cmd_setup
