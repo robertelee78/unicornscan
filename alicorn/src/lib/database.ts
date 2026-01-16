@@ -30,7 +30,7 @@ export interface DatabaseConfig {
 }
 
 function getConfig(): DatabaseConfig {
-  const postgrestUrl = import.meta.env.VITE_POSTGREST_URL || 'http://localhost:3000'
+  const postgrestUrl = import.meta.env.VITE_POSTGREST_URL || 'http://localhost:31338'
 
   return {
     postgrestUrl,
