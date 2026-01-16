@@ -312,7 +312,7 @@ jobs:
           pacman -Syu --noconfirm
           pacman -S --noconfirm --needed \
             base-devel git autoconf automake libtool flex bison \
-            libpcap libdnet postgresql-libs libmaxminddb libcap sudo
+            libpcap libdnet postgresql-libs libmaxminddb libcap sudo zstd
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -327,8 +327,12 @@ jobs:
         run: |
           su builder -c '
             set -ex
-            # Extract version
-            VERSION=$(grep "AC_INIT" configure.ac | sed -n "s/.*\\[\\([0-9.]*\\)\\].*/\\1/p")
+            # Extract version from configure.ac (e.g. AC_INIT([unicornscan], [0.4.42], ...))
+            VERSION=$(grep -oP "AC_INIT\(\[unicornscan\],\s*\[\K[0-9.]+" configure.ac)
+            if [ -z "$VERSION" ]; then
+              echo "ERROR: Could not extract version from configure.ac"
+              exit 1
+            fi
             echo "Building version: $VERSION"
 
             # Generate build system
@@ -420,12 +424,19 @@ jobs:
             optdepend = docker: Alicorn web UI
             EOF
 
-            # Create package archive
+            # Create package archive with zstd compression
             cd pkg
-            tar -cJf ../unicornscan-${VERSION}-1-x86_64.pkg.tar.zst .PKGINFO *
+            tar --zstd -cf ../unicornscan-${VERSION}-1-x86_64.pkg.tar.zst .PKGINFO *
             cd ..
+
+            # Verify archive was created
+            ls -la unicornscan-*.pkg.tar.zst
+
             mkdir -p artifacts
             mv unicornscan-${VERSION}-1-x86_64.pkg.tar.zst artifacts/
+
+            # Verify artifact location
+            ls -la artifacts/
           '
 
       - name: Upload artifact
