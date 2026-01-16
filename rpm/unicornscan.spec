@@ -54,7 +54,7 @@ autoreconf -fi
 # Legacy C code has warnings that GCC 14+ treats as errors - disable all Werror
 # Use optflags as base to ensure proper optimization flags on all distros
 export CFLAGS="%{optflags} -Wno-error"
-%configure --with-pgsql
+%configure --localstatedir=/var/lib --with-pgsql
 # Disable parallel make due to dependency ordering issues in legacy Makefiles
 make
 
@@ -62,8 +62,8 @@ make
 rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
 
-# Create var directory
-mkdir -p %{buildroot}%{_localstatedir}/unicornscan
+# Create var directory (FHS-compliant path)
+mkdir -p %{buildroot}%{_sharedstatedir}/unicornscan
 
 # Install GeoIP update script
 install -m 755 scripts/unicornscan-geoip-update %{buildroot}%{_bindir}/
@@ -149,7 +149,7 @@ setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_bi
 setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_libexecdir}/unicornscan/unilisten 2>/dev/null || :
 setcap 'cap_net_raw,cap_net_admin,cap_sys_chroot,cap_setuid,cap_setgid+ep' %{_libexecdir}/unicornscan/unisend 2>/dev/null || :
 # Note: Non-root users use XDG_RUNTIME_DIR for sockets (e.g., /run/user/$UID/unicornscan/)
-# The /var/unicornscan directory is only used when running as root
+# The /var/lib/unicornscan directory is only used when running as root
 
 # Display post-install message
 echo ""
@@ -186,7 +186,7 @@ echo ""
 %config(noreplace) %{_sysconfdir}/unicornscan/
 %{_mandir}/man1/*
 %{_mandir}/man5/*
-%dir %{_localstatedir}/unicornscan
+%dir %{_sharedstatedir}/unicornscan
 %{_datadir}/unicornscan/alicorn/
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
