@@ -52,7 +52,7 @@ Unicornscan 0.4.42 is a major update that transforms it from a command-line-only
 sudo apt install unicornscan
 
 # Start web UI
-unicornscan-web start
+unicornscan-alicorn start
 
 # Run scan with database output
 unicornscan -mT 192.168.1.0/24:1-1000 -epgsqldb

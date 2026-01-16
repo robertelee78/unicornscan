@@ -13,11 +13,11 @@ time, comparing scans to detect changes, and understanding your network topology
 
 ### 1.1 Starting Alicorn
 
-If you installed via package, Alicorn is managed through the `unicornscan-web`
+If you installed via package, Alicorn is managed through the `unicornscan-alicorn`
 command:
 
 ```bash
-sudo unicornscan-web start
+sudo unicornscan-alicorn start
 ```
 
 This starts both the PostgREST backend and the Alicorn web server. By default,

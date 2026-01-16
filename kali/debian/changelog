@@ -15,7 +15,7 @@ unicornscan (0.4.42-0kali1) kali-dev; urgency=medium
     - alicorn-geoip: GeoIP lookup service
     - alicorn-web: Nginx serving React frontend
   * Added management scripts:
-    - unicornscan-web: Docker container management
+    - unicornscan-alicorn: Docker container management
     - unicornscan-geoip-update: Download DB-IP Lite databases
   * Updated build dependencies:
     - Added autoconf, automake, libtool for autoreconf

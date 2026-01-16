@@ -37,7 +37,7 @@ unicornscan (0.4.40-1) unstable; urgency=medium
     - Supports DB-IP, MaxMind GeoLite2/GeoIP2, IP2Location, IPinfo databases
     - REST API: /health, /info, /lookup/:ip, POST /lookup (batch)
     - Mounts /usr/share/GeoIP and /var/lib/GeoIP from host
-    - Auto-starts with unicornscan-web start
+    - Auto-starts with unicornscan-alicorn start
 
   * Package fixes
     - Add geoip-api directory to deb and rpm packages
@@ -325,15 +325,15 @@ unicornscan (0.4.22-2) unstable; urgency=medium
   * Improve modules.conf update with proper error handling and verification
   * Remove MySQL database module completely (unmaintained deadweight)
   * Remove legacy www-front-end PHP code (replaced by Alicorn React UI)
-  * unicornscan-web now reports exactly what fails during password setup
+  * unicornscan-alicorn now reports exactly what fails during password setup
 
  -- Robert E. Lee <robert@unicornscan.org>  Thu, 01 Jan 2026 00:00:00 -0800
 
 unicornscan (0.4.22-1) unstable; urgency=medium
 
-  * unicornscan-web generates random password on first start
+  * unicornscan-alicorn generates random password on first start
   * Auto-configure modules.conf so -epgsqldb just works
-  * Add 'unicornscan-web password' command to show password
+  * Add 'unicornscan-alicorn password' command to show password
   * Simpler workflow: start web UI, run scan with -epgsqldb
 
  -- Robert E. Lee <robert@unicornscan.org>  Wed, 31 Dec 2025 23:20:00 -0800
@@ -350,7 +350,7 @@ unicornscan (0.4.21-1) unstable; urgency=medium
 unicornscan (0.4.20-1) unstable; urgency=medium
 
   * Include Alicorn web UI for viewing scan results
-  * Add unicornscan-web command to manage Docker web stack
+  * Add unicornscan-alicorn command to manage Docker web stack
   * Add Docker Compose configuration for PostgreSQL + PostgREST + Alicorn
   * Add suggested dependency on docker.io
   * Post-install script displays web UI usage instructions

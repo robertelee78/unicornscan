@@ -65,7 +65,7 @@ override_dh_auto_install:
 
 	# Web management script
 	install -d debian/unicornscan/usr/bin
-	install -m 755 debian/unicornscan-web debian/unicornscan/usr/bin/
+	install -m 755 debian/unicornscan-alicorn debian/unicornscan/usr/bin/
 
 	# GeoIP database update script
 	install -m 755 scripts/unicornscan-geoip-update debian/unicornscan/usr/bin/

@@ -1,17 +1,17 @@
 #!/bin/bash
-# unicornscan-web - Alicorn Web UI management script
+# unicornscan-alicorn - Alicorn Web UI management script
 # Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
 #
 # Usage:
-#   unicornscan-web start     Start the web UI (PostgreSQL + PostgREST + Alicorn)
-#   unicornscan-web stop      Stop all containers
-#   unicornscan-web status    Show container status
-#   unicornscan-web logs      View container logs
-#   unicornscan-web shell     Open PostgreSQL shell
+#   unicornscan-alicorn start     Start the web UI (PostgreSQL + PostgREST + Alicorn)
+#   unicornscan-alicorn stop      Stop all containers
+#   unicornscan-alicorn status    Show container status
+#   unicornscan-alicorn logs      View container logs
+#   unicornscan-alicorn shell     Open PostgreSQL shell
 
 set -e
 
-INSTALL_DIR="/opt/unicornscan-web"
+INSTALL_DIR="/opt/unicornscan-alicorn"
 COMPOSE_FILE="$INSTALL_DIR/docker-compose.yml"
 ENV_FILE="$INSTALL_DIR/.env"
 PASSWORD_FILE="$INSTALL_DIR/.db_password"
@@ -25,7 +25,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 print_status() {
-    echo -e "${BLUE}[unicornscan-web]${NC} $1"
+    echo -e "${BLUE}[unicornscan-alicorn]${NC} $1"
 }
 
 print_success() {
@@ -47,7 +47,7 @@ generate_password() {
 
 # Check if postgres volume exists (from previous install)
 check_orphan_volume() {
-    local volume_name="unicornscan-web_postgres_data"
+    local volume_name="unicornscan-alicorn_postgres_data"
     if docker volume inspect "$volume_name" &>/dev/null; then
         return 0  # Volume exists
     fi
@@ -66,8 +66,8 @@ init_env() {
         print_error "This happens after reinstalling without removing Docker volumes."
         echo ""
         echo "To fix this, reset the database:"
-        echo "  sudo unicornscan-web reset"
-        echo "  sudo unicornscan-web start"
+        echo "  sudo unicornscan-alicorn reset"
+        echo "  sudo unicornscan-alicorn start"
         echo ""
         echo "WARNING: This will delete any existing scan data."
         exit 1
@@ -168,7 +168,7 @@ check_docker() {
 check_write_permission() {
     if [ ! -w "$INSTALL_DIR" ]; then
         print_error "Cannot write to $INSTALL_DIR"
-        echo "Run with sudo: sudo unicornscan-web $1"
+        echo "Run with sudo: sudo unicornscan-alicorn $1"
         exit 1
     fi
 }
@@ -276,7 +276,7 @@ cmd_password() {
         echo ""
         echo "Config file: $ENV_FILE"
     else
-        print_warning "No password file found. Run 'unicornscan-web start' first."
+        print_warning "No password file found. Run 'unicornscan-alicorn start' first."
     fi
 }
 
@@ -299,7 +299,7 @@ cmd_reset() {
     # Remove credentials so fresh password is generated on next start
     rm -f "$ENV_FILE" "$PASSWORD_FILE"
 
-    print_success "Database reset. Run 'unicornscan-web start' to create fresh database."
+    print_success "Database reset. Run 'unicornscan-alicorn start' to create fresh database."
 }
 
 cmd_setup() {
@@ -366,7 +366,7 @@ cmd_build() {
 cmd_help() {
     echo "Alicorn Web UI - unicornscan results viewer"
     echo ""
-    echo "Usage: unicornscan-web <command>"
+    echo "Usage: unicornscan-alicorn <command>"
     echo ""
     echo "Docker Commands (recommended):"
     echo "  start     Start the web UI stack (PostgreSQL + PostgREST + Alicorn)"
@@ -385,7 +385,7 @@ cmd_help() {
     echo "  help      Show this help message"
     echo ""
     echo "Quick Start:"
-    echo "  1. unicornscan-web start"
+    echo "  1. unicornscan-alicorn start"
     echo "  2. unicornscan -epgsqldb <target>"
     echo "  3. Open http://localhost:31337"
     echo ""

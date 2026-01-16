@@ -36,7 +36,7 @@ post_install() {
 ║    unicornscan -mA 192.168.1.0/24           # ARP discovery    ║
 ║                                                                ║
 ║  ALICORN WEB UI (requires Docker):                             ║
-║    unicornscan-web start                    # Start services   ║
+║    unicornscan-alicorn start                    # Start services   ║
 ║    http://localhost:31337                   # Open browser     ║
 ║                                                                ║
 ║  GEOIP (recommended):                                          ║
@@ -56,8 +56,8 @@ post_upgrade() {
 
 pre_remove() {
   # Stop web UI if running
-  if command -v unicornscan-web >/dev/null 2>&1; then
-    unicornscan-web stop 2>/dev/null || true
+  if command -v unicornscan-alicorn >/dev/null 2>&1; then
+    unicornscan-alicorn stop 2>/dev/null || true
   fi
 }
 
@@ -71,5 +71,5 @@ post_remove() {
   fi
 
   echo "Unicornscan removed. Config files in /etc/unicornscan/ preserved."
-  echo "To remove completely: rm -rf /etc/unicornscan /opt/unicornscan-web"
+  echo "To remove completely: rm -rf /etc/unicornscan /opt/unicornscan-alicorn"
 }

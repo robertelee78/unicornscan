@@ -37,5 +37,5 @@ Description: Asynchronous stateless TCP/UDP network scanner
   - Configurable packet rates up to millions of PPS
  .
  This package includes the Alicorn web UI for viewing scan results.
- To start the web interface, run: unicornscan-web start
+ To start the web interface, run: unicornscan-alicorn start
  (Requires Docker - install with: apt install docker.io)

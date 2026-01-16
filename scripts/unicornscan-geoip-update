@@ -293,7 +293,7 @@ EOF
             echo "  Warning: Could not connect to PostgreSQL"
         fi
     else
-        echo "  Warning: PostgreSQL not reachable (unicornscan-web may not be running)"
+        echo "  Warning: PostgreSQL not reachable (unicornscan-alicorn may not be running)"
     fi
 
     echo "  Alicorn web UI will use localStorage config until database is available"

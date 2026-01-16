@@ -16,7 +16,7 @@ This directory contains the Arch Linux PKGBUILD for submitting to BlackArch.
 
 1. **Added `autoreconf -fi`** in prepare() - Required for building from git
 2. **Added Alicorn Web UI** - Full web interface for visualizing scan results
-3. **Added management scripts** - `unicornscan-web`, `unicornscan-geoip-update`
+3. **Added management scripts** - `unicornscan-alicorn`, `unicornscan-geoip-update`
 4. **Added capabilities** - Post-install setcap for non-root operation
 5. **Added aarch64 support** - ARM64 build configuration
 6. **Added makedepends** - `autoconf`, `automake`, `libtool`, `postgresql`

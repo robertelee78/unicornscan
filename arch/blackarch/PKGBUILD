@@ -61,7 +61,7 @@ package() {
   # =========================================================================
   # Install Alicorn Web UI to FHS-compliant paths
   # Static files: /usr/share/unicornscan/alicorn
-  # Runtime data: /var/lib/unicornscan/alicorn (created by unicornscan-web on first run)
+  # Runtime data: /var/lib/unicornscan/alicorn (created by unicornscan-alicorn on first run)
   # =========================================================================
   install -dm755 "$pkgdir/usr/share/unicornscan/alicorn"
   install -dm755 "$pkgdir/usr/share/unicornscan/alicorn/src"
@@ -111,7 +111,7 @@ package() {
   # =========================================================================
   # Install management scripts
   # =========================================================================
-  install -Dm755 debian/unicornscan-web "$pkgdir/usr/bin/unicornscan-web"
+  install -Dm755 debian/unicornscan-alicorn "$pkgdir/usr/bin/unicornscan-alicorn"
   install -Dm755 scripts/unicornscan-geoip-update "$pkgdir/usr/bin/unicornscan-geoip-update"
 
   # =========================================================================
