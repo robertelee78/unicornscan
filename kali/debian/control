@@ -53,7 +53,7 @@ Description: Asynchronous stateless TCP/UDP scanner with Alicorn web UI
   - GeoIP integration for IP geolocation
   - Real-time scan monitoring via PostgREST API
  .
- Docker services (started via unicornscan-web):
+ Docker services (started via unicornscan-alicorn):
   - PostgreSQL 16 for scan data storage
   - PostgREST for REST API access
   - GeoIP API for live IP lookups

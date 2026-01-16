@@ -17,8 +17,8 @@ Major update to unicornscan from v0.4.10 to v0.4.42 (32 version jump).
 
 ### PKGBUILD Improvements
 - Added `autoreconf -fi` in prepare() - fixes build from git source
-- Added Alicorn Web UI installation to /opt/unicornscan-web/
-- Added management scripts: `unicornscan-web`, `unicornscan-geoip-update`
+- Added Alicorn Web UI installation to /opt/unicornscan-alicorn/
+- Added management scripts: `unicornscan-alicorn`, `unicornscan-geoip-update`
 - Added install script with setcap for non-root operation
 - Added aarch64 architecture support
 - Added makedepends: autoconf, automake, libtool, postgresql
@@ -35,7 +35,7 @@ Major update to unicornscan from v0.4.10 to v0.4.42 (32 version jump).
 - [x] Passes namcap validation
 - [x] Installs correctly
 - [x] Capabilities set properly (non-root scanning works)
-- [x] unicornscan-web starts Docker containers
+- [x] unicornscan-alicorn starts Docker containers
 - [x] Scans work: TCP SYN, UDP, ARP modes
 
 ## Upstream

@@ -271,20 +271,20 @@ If you installed unicornscan with `--with-pgsql` and the binaries have been
 installed, use the web management command:
 
 ```bash
-sudo unicornscan-web start
+sudo unicornscan-alicorn start
 ```
 
 This will:
 - Generate a secure random 32-character password
-- Save credentials to `/opt/unicornscan-web/.env` (for Docker)
+- Save credentials to `/opt/unicornscan-alicorn/.env` (for Docker)
 - Update `/etc/unicornscan/modules.conf` with the password (for unicornscan)
 - Start PostgreSQL in a Docker container
 - Initialize the database schema
 - Start the PostgREST API and Alicorn web server
 
 The password is stored in three places:
-- `/opt/unicornscan-web/.env` - Docker Compose environment
-- `/opt/unicornscan-web/.db_password` - Plain text for easy retrieval
+- `/opt/unicornscan-alicorn/.env` - Docker Compose environment
+- `/opt/unicornscan-alicorn/.db_password` - Plain text for easy retrieval
 - `/etc/unicornscan/modules.conf` - Unicornscan pgsqldb module config
 
 Because `modules.conf` is auto-configured, you can run scans with database
@@ -297,7 +297,7 @@ unicornscan -epgsqldb 192.168.1.0/24
 To retrieve the password later:
 
 ```bash
-unicornscan-web password
+unicornscan-alicorn password
 ```
 
 ### 1.5.3 Accessing the Web UI
@@ -328,15 +328,15 @@ unicornscan -epgsqldb,osdetect 192.168.1.0/24
 
 ### 1.5.5 Managing the Web UI
 
-Common `unicornscan-web` commands:
+Common `unicornscan-alicorn` commands:
 
 | Command                    | Description            |
 |----------------------------|------------------------|
-| `unicornscan-web start`    | Start containers       |
-| `unicornscan-web stop`     | Stop containers        |
-| `unicornscan-web status`   | Show container status  |
-| `unicornscan-web password` | Display database password |
-| `unicornscan-web logs`     | View container logs    |
+| `unicornscan-alicorn start`    | Start containers       |
+| `unicornscan-alicorn stop`     | Stop containers        |
+| `unicornscan-alicorn status`   | Show container status  |
+| `unicornscan-alicorn password` | Display database password |
+| `unicornscan-alicorn logs`     | View container logs    |
 
 ### 1.5.6 GeoIP Location Data
 

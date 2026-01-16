@@ -65,12 +65,12 @@ mkdir -p %{buildroot}%{_localstatedir}/unicornscan
 # Install GeoIP update script
 install -m 755 scripts/unicornscan-geoip-update %{buildroot}%{_bindir}/
 
-# Install unicornscan-web management script
-install -m 755 debian/unicornscan-web %{buildroot}%{_bindir}/
+# Install unicornscan-alicorn management script
+install -m 755 debian/unicornscan-alicorn %{buildroot}%{_bindir}/
 
 # Install Alicorn Web UI to FHS paths
 # Static files: /usr/share/unicornscan/alicorn
-# Runtime data: /var/lib/unicornscan/alicorn (created by unicornscan-web on first run)
+# Runtime data: /var/lib/unicornscan/alicorn (created by unicornscan-alicorn on first run)
 mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/sql
 mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/src
 mkdir -p %{buildroot}%{_datadir}/unicornscan/alicorn/public
@@ -162,7 +162,7 @@ echo "╠═══════════════════════�
 echo "║                                                                ║"
 echo "║  RECOMMENDED: Alicorn Web UI for visualizing scan results:     ║"
 echo "║                                                                ║"
-echo "║    unicornscan-web start            # Start (requires Docker)  ║"
+echo "║    unicornscan-alicorn start            # Start (requires Docker)  ║"
 echo "║    http://localhost:31337           # Open in browser          ║"
 echo "║                                                                ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
@@ -177,7 +177,7 @@ echo ""
 %{_bindir}/unicfgtst
 %{_bindir}/us
 %{_bindir}/unicornscan-geoip-update
-%{_bindir}/unicornscan-web
+%{_bindir}/unicornscan-alicorn
 %{_libdir}/unicornscan/
 %{_libexecdir}/unicornscan/
 %config(noreplace) %{_sysconfdir}/unicornscan/
@@ -232,9 +232,9 @@ echo ""
 - Alicorn UI displays target in scan list and detail views
 
 * Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.22-1
-- unicornscan-web generates random password on first start
+- unicornscan-alicorn generates random password on first start
 - Auto-configure modules.conf so -epgsqldb just works
-- Add 'unicornscan-web password' command to show password
+- Add 'unicornscan-alicorn password' command to show password
 
 * Wed Dec 31 2025 Robert E. Lee <robert@unicornscan.org> - 0.4.21-1
 - Remove Supabase cloud service dependency - now uses pure PostgreSQL

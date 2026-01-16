@@ -151,7 +151,7 @@ The package installs files in standard system locations:
 | `/usr/bin/unibrow`                  | Packet browser utility               |
 | `/usr/bin/unicfgtst`                | Configuration test utility           |
 | `/usr/bin/us`                       | Shortcut symlink to unicornscan      |
-| `/usr/bin/unicornscan-web`          | Web UI management script (Debian)    |
+| `/usr/bin/unicornscan-alicorn`          | Web UI management script (Debian)    |
 | `/usr/bin/unicornscan-geoip-update` | GeoIP database updater               |
 
 ### Helper Executables
@@ -201,7 +201,7 @@ The package installs files in standard system locations:
 
 | Path                    | Description                                            |
 |-------------------------|--------------------------------------------------------|
-| `/opt/unicornscan-web/` | Docker Compose files and credentials (created on first `unicornscan-web start`) |
+| `/opt/unicornscan-alicorn/` | Docker Compose files and credentials (created on first `unicornscan-alicorn start`) |
 
 ## 1.6 Getting the Web UI Working
 
@@ -240,13 +240,13 @@ Log out and back in for the Docker group change to take effect.
 Start the web interface with:
 
 ```bash
-sudo unicornscan-web start
+sudo unicornscan-alicorn start
 ```
 
 This will:
 
 - Generate a secure random 32-character database password
-- Save credentials to `/opt/unicornscan-web/.env` (for Docker)
+- Save credentials to `/opt/unicornscan-alicorn/.env` (for Docker)
 - Update `/etc/unicornscan/modules.conf` with the password (for unicornscan)
 - Start PostgreSQL in a Docker container
 - Initialize the database schema
@@ -256,8 +256,8 @@ The password is stored in three places:
 
 | Location                              | Purpose                            |
 |---------------------------------------|------------------------------------|
-| `/opt/unicornscan-web/.env`           | Docker Compose environment         |
-| `/opt/unicornscan-web/.db_password`   | Plain text for easy retrieval      |
+| `/opt/unicornscan-alicorn/.env`           | Docker Compose environment         |
+| `/opt/unicornscan-alicorn/.db_password`   | Plain text for easy retrieval      |
 | `/etc/unicornscan/modules.conf`       | Unicornscan pgsqldb module config  |
 
 Because `modules.conf` is auto-configured, you can run scans with database export immediately without specifying connection parameters:
@@ -269,7 +269,7 @@ unicornscan -epgsqldb 192.168.1.0/24
 To retrieve the password later:
 
 ```bash
-unicornscan-web password
+unicornscan-alicorn password
 ```
 
 ### 1.6.3 Accessing the Web UI
@@ -300,15 +300,15 @@ unicornscan -epgsqldb,osdetect 192.168.1.0/24
 
 ### 1.6.5 Managing the Web UI
 
-Common `unicornscan-web` commands:
+Common `unicornscan-alicorn` commands:
 
 | Command                      | Description              |
 |------------------------------|--------------------------|
-| `unicornscan-web start`      | Start containers         |
-| `unicornscan-web stop`       | Stop containers          |
-| `unicornscan-web status`     | Show container status    |
-| `unicornscan-web password`   | Display database password|
-| `unicornscan-web logs`       | View container logs      |
+| `unicornscan-alicorn start`      | Start containers         |
+| `unicornscan-alicorn stop`       | Stop containers          |
+| `unicornscan-alicorn status`     | Show container status    |
+| `unicornscan-alicorn password`   | Display database password|
+| `unicornscan-alicorn logs`       | View container logs      |
 
 ## 1.7 Upgrading
 
@@ -350,8 +350,8 @@ sudo dnf remove unicornscan
 To also remove the web UI data:
 
 ```bash
-sudo unicornscan-web stop
-sudo rm -rf /opt/unicornscan-web
+sudo unicornscan-alicorn stop
+sudo rm -rf /opt/unicornscan-alicorn
 ```
 
 ## 1.9 Troubleshooting
@@ -411,7 +411,7 @@ sudo dnf install libdnet
 3. View container logs:
 
    ```bash
-   unicornscan-web logs
+   unicornscan-alicorn logs
    ```
 
 ## 1.10 Getting Help

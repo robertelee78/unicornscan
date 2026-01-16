@@ -74,7 +74,7 @@ sudo apt -f install
 # Test functionality
 unicornscan -mT localhost:22,80,443
 sudo unicornscan-geoip-update
-unicornscan-web start
+unicornscan-alicorn start
 # Open http://localhost:31337
 ```
 
@@ -105,7 +105,7 @@ Use the template in `BUG_REPORT.md`.
 | `debian/changelog` | Version history |
 | `debian/copyright` | License information |
 | `debian/postinst` | Post-install script (setcap, groups) |
-| `debian/unicornscan-web` | Docker management script |
+| `debian/unicornscan-alicorn` | Docker management script |
 | `debian/conffiles` | Protected configuration files |
 | `debian/watch` | Upstream version tracking |
 | `MR_DESCRIPTION.md` | GitLab merge request template |

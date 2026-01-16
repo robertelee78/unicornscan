@@ -580,14 +580,14 @@ us -eosdetect,pgsqldb 192.168.1.1   # Both modules
 Store scan results in a database for the Alicorn web interface or custom
 analysis.
 
-**Quick setup** (if using unicornscan-web):
+**Quick setup** (if using unicornscan-alicorn):
 
 ```bash
-sudo unicornscan-web start
+sudo unicornscan-alicorn start
 us -epgsqldb 192.168.1.0/24
 ```
 
-The `unicornscan-web start` command auto-configures `/etc/unicornscan/modules.conf`
+The `unicornscan-alicorn start` command auto-configures `/etc/unicornscan/modules.conf`
 with database credentials.
 
 **Manual configuration** in `/etc/unicornscan/modules.conf`:
@@ -847,7 +847,7 @@ sudo fantaip -i eth0 192.168.1.134
 And the PostgreSQL backend:
 
 ```bash
-sudo unicornscan-web start
+sudo unicornscan-alicorn start
 ```
 
 ### 9.4 Expected Output

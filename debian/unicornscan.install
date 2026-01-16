@@ -6,4 +6,4 @@
 # are installed by the override_dh_auto_install target in debian/rules
 
 # PostgREST configuration
-alicorn/postgrest                      opt/unicornscan-web/
+alicorn/postgrest                      opt/unicornscan-alicorn/

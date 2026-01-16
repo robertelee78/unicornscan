@@ -3,13 +3,13 @@
 #
 # INSTALL LOCATIONS:
 #   Packaged installs (deb/rpm/arch): /usr/share/unicornscan/alicorn/docker-compose.yml
-#   Manual installs (make install):   /opt/unicornscan-web/docker-compose.yml
+#   Manual installs (make install):   /opt/unicornscan-alicorn/docker-compose.yml
 #
-# Usage: unicornscan-web start
+# Usage: unicornscan-alicorn start
 #
 # NOTE FOR PACKAGED INSTALLS:
 #   The .env file lives in /var/lib/unicornscan/alicorn/ (FHS compliance).
-#   The unicornscan-web script automatically uses --env-file to locate it.
+#   The unicornscan-alicorn script automatically uses --env-file to locate it.
 #   If running docker compose manually, use:
 #     docker compose --env-file /var/lib/unicornscan/alicorn/.env up -d
 

@@ -118,52 +118,52 @@ jobs:
           # =================================================================
           # Install Alicorn Web UI files
           # =================================================================
-          mkdir -p debian/unicornscan/opt/unicornscan-web/src
-          mkdir -p debian/unicornscan/opt/unicornscan-web/public
-          mkdir -p debian/unicornscan/opt/unicornscan-web/cli
-          mkdir -p debian/unicornscan/opt/unicornscan-web/sql
-          mkdir -p debian/unicornscan/opt/unicornscan-web/postgrest
+          mkdir -p debian/unicornscan/opt/unicornscan-alicorn/src
+          mkdir -p debian/unicornscan/opt/unicornscan-alicorn/public
+          mkdir -p debian/unicornscan/opt/unicornscan-alicorn/cli
+          mkdir -p debian/unicornscan/opt/unicornscan-alicorn/sql
+          mkdir -p debian/unicornscan/opt/unicornscan-alicorn/postgrest
 
           # Docker configuration
-          cp alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-web/docker-compose.yml
-          cp alicorn/Dockerfile debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/nginx.conf debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/docker-compose.standalone.yml debian/unicornscan/opt/unicornscan-alicorn/docker-compose.yml
+          cp alicorn/Dockerfile debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/nginx.conf debian/unicornscan/opt/unicornscan-alicorn/
 
           # PostgREST custom build (Alpine with wget for healthcheck)
-          cp alicorn/postgrest/Dockerfile debian/unicornscan/opt/unicornscan-web/postgrest/
+          cp alicorn/postgrest/Dockerfile debian/unicornscan/opt/unicornscan-alicorn/postgrest/
 
           # Build configuration
-          cp alicorn/package.json debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/package-lock.json debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/vite.config.ts debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/vitest.config.ts debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
-          cp alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-web/
-          cp alicorn/eslint.config.js debian/unicornscan/opt/unicornscan-web/ 2>/dev/null || true
-          cp alicorn/index.html debian/unicornscan/opt/unicornscan-web/
+          cp alicorn/package.json debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/package-lock.json debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/vite.config.ts debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/vitest.config.ts debian/unicornscan/opt/unicornscan-alicorn/ 2>/dev/null || true
+          cp alicorn/tsconfig.json debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/tsconfig.app.json debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/tsconfig.node.json debian/unicornscan/opt/unicornscan-alicorn/
+          cp alicorn/eslint.config.js debian/unicornscan/opt/unicornscan-alicorn/ 2>/dev/null || true
+          cp alicorn/index.html debian/unicornscan/opt/unicornscan-alicorn/
 
           # Source code
-          cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-web/src/
-          cp -r alicorn/public/* debian/unicornscan/opt/unicornscan-web/public/
+          cp -r alicorn/src/* debian/unicornscan/opt/unicornscan-alicorn/src/
+          cp -r alicorn/public/* debian/unicornscan/opt/unicornscan-alicorn/public/
 
           # CLI / Setup wizard
-          cp alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-web/cli/
+          cp alicorn/cli/setup.ts debian/unicornscan/opt/unicornscan-alicorn/cli/
 
           # GeoIP API service
-          mkdir -p debian/unicornscan/opt/unicornscan-web/geoip-api
-          cp alicorn/geoip-api/Dockerfile debian/unicornscan/opt/unicornscan-web/geoip-api/
-          cp alicorn/geoip-api/package.json debian/unicornscan/opt/unicornscan-web/geoip-api/
-          cp alicorn/geoip-api/server.js debian/unicornscan/opt/unicornscan-web/geoip-api/
+          mkdir -p debian/unicornscan/opt/unicornscan-alicorn/geoip-api
+          cp alicorn/geoip-api/Dockerfile debian/unicornscan/opt/unicornscan-alicorn/geoip-api/
+          cp alicorn/geoip-api/package.json debian/unicornscan/opt/unicornscan-alicorn/geoip-api/
+          cp alicorn/geoip-api/server.js debian/unicornscan/opt/unicornscan-alicorn/geoip-api/
 
           # GeoIP database update script
           install -m 755 scripts/unicornscan-geoip-update debian/unicornscan/usr/bin/
 
           # SQL schema
-          cp src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
+          cp src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-alicorn/sql/
 
           # Web management script
-          install -m 755 debian/unicornscan-web debian/unicornscan/usr/bin/
+          install -m 755 debian/unicornscan-alicorn debian/unicornscan/usr/bin/
 
           # =================================================================
           # Create control file for dpkg-deb
@@ -182,7 +182,7 @@ jobs:
            scalable, accurate, and flexible port scanning.
            .
            This package includes the Alicorn web UI for viewing scan results.
-           To start the web interface, run: unicornscan-web start
+           To start the web interface, run: unicornscan-alicorn start
            (Requires Docker - install with: apt install docker.io)
           CTRL
           # Remove leading spaces from heredoc
@@ -203,7 +203,7 @@ jobs:
           echo "╠════════════════════════════════════════════════════════════════╣"
           echo "║  To use the Alicorn Web UI for viewing scan results:           ║"
           echo "║                                                                ║"
-          echo "║    1. Start the web UI:    unicornscan-web start               ║"
+          echo "║    1. Start the web UI:    unicornscan-alicorn start               ║"
           echo "║    2. Open browser:        http://localhost:31337              ║"
           echo "║    3. Run a scan with database export (see man unicornscan)    ║"
           echo "║                                                                ║"
@@ -352,52 +352,52 @@ jobs:
             # =================================================================
             # Install Alicorn Web UI files (matching DEB build exactly)
             # =================================================================
-            mkdir -p pkg/opt/unicornscan-web/src
-            mkdir -p pkg/opt/unicornscan-web/public
-            mkdir -p pkg/opt/unicornscan-web/cli
-            mkdir -p pkg/opt/unicornscan-web/sql
-            mkdir -p pkg/opt/unicornscan-web/postgrest
+            mkdir -p pkg/opt/unicornscan-alicorn/src
+            mkdir -p pkg/opt/unicornscan-alicorn/public
+            mkdir -p pkg/opt/unicornscan-alicorn/cli
+            mkdir -p pkg/opt/unicornscan-alicorn/sql
+            mkdir -p pkg/opt/unicornscan-alicorn/postgrest
 
             # Docker configuration
-            cp alicorn/docker-compose.standalone.yml pkg/opt/unicornscan-web/docker-compose.yml
-            cp alicorn/Dockerfile pkg/opt/unicornscan-web/
-            cp alicorn/nginx.conf pkg/opt/unicornscan-web/
+            cp alicorn/docker-compose.standalone.yml pkg/opt/unicornscan-alicorn/docker-compose.yml
+            cp alicorn/Dockerfile pkg/opt/unicornscan-alicorn/
+            cp alicorn/nginx.conf pkg/opt/unicornscan-alicorn/
 
             # PostgREST custom build (Alpine with wget for healthcheck)
-            cp alicorn/postgrest/Dockerfile pkg/opt/unicornscan-web/postgrest/
+            cp alicorn/postgrest/Dockerfile pkg/opt/unicornscan-alicorn/postgrest/
 
             # Build configuration
-            cp alicorn/package.json pkg/opt/unicornscan-web/
-            cp alicorn/package-lock.json pkg/opt/unicornscan-web/
-            cp alicorn/vite.config.ts pkg/opt/unicornscan-web/
-            cp alicorn/vitest.config.ts pkg/opt/unicornscan-web/ 2>/dev/null || true
-            cp alicorn/tsconfig.json pkg/opt/unicornscan-web/
-            cp alicorn/tsconfig.app.json pkg/opt/unicornscan-web/
-            cp alicorn/tsconfig.node.json pkg/opt/unicornscan-web/
-            cp alicorn/eslint.config.js pkg/opt/unicornscan-web/ 2>/dev/null || true
-            cp alicorn/index.html pkg/opt/unicornscan-web/
+            cp alicorn/package.json pkg/opt/unicornscan-alicorn/
+            cp alicorn/package-lock.json pkg/opt/unicornscan-alicorn/
+            cp alicorn/vite.config.ts pkg/opt/unicornscan-alicorn/
+            cp alicorn/vitest.config.ts pkg/opt/unicornscan-alicorn/ 2>/dev/null || true
+            cp alicorn/tsconfig.json pkg/opt/unicornscan-alicorn/
+            cp alicorn/tsconfig.app.json pkg/opt/unicornscan-alicorn/
+            cp alicorn/tsconfig.node.json pkg/opt/unicornscan-alicorn/
+            cp alicorn/eslint.config.js pkg/opt/unicornscan-alicorn/ 2>/dev/null || true
+            cp alicorn/index.html pkg/opt/unicornscan-alicorn/
 
             # Source code
-            cp -r alicorn/src/* pkg/opt/unicornscan-web/src/
-            cp -r alicorn/public/* pkg/opt/unicornscan-web/public/
+            cp -r alicorn/src/* pkg/opt/unicornscan-alicorn/src/
+            cp -r alicorn/public/* pkg/opt/unicornscan-alicorn/public/
 
             # CLI / Setup wizard
-            cp alicorn/cli/setup.ts pkg/opt/unicornscan-web/cli/
+            cp alicorn/cli/setup.ts pkg/opt/unicornscan-alicorn/cli/
 
             # GeoIP API service
-            mkdir -p pkg/opt/unicornscan-web/geoip-api
-            cp alicorn/geoip-api/Dockerfile pkg/opt/unicornscan-web/geoip-api/
-            cp alicorn/geoip-api/package.json pkg/opt/unicornscan-web/geoip-api/
-            cp alicorn/geoip-api/server.js pkg/opt/unicornscan-web/geoip-api/
+            mkdir -p pkg/opt/unicornscan-alicorn/geoip-api
+            cp alicorn/geoip-api/Dockerfile pkg/opt/unicornscan-alicorn/geoip-api/
+            cp alicorn/geoip-api/package.json pkg/opt/unicornscan-alicorn/geoip-api/
+            cp alicorn/geoip-api/server.js pkg/opt/unicornscan-alicorn/geoip-api/
 
             # GeoIP database update script
             install -Dm755 scripts/unicornscan-geoip-update pkg/usr/bin/unicornscan-geoip-update
 
             # SQL schema
-            cp src/output_modules/database/sql/pgsql_schema.sql pkg/opt/unicornscan-web/sql/
+            cp src/output_modules/database/sql/pgsql_schema.sql pkg/opt/unicornscan-alicorn/sql/
 
             # Web management script
-            install -Dm755 debian/unicornscan-web pkg/usr/bin/unicornscan-web
+            install -Dm755 debian/unicornscan-alicorn pkg/usr/bin/unicornscan-alicorn
 
             # License
             install -Dm644 LICENSE pkg/usr/share/licenses/unicornscan/LICENSE

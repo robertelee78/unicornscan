@@ -28,10 +28,10 @@ This release introduces the **Alicorn Web UI** - a modern React-based interface 
 - Added `libmaxminddb-dev` and `libpq-dev` to build dependencies
 - Added `autoconf`, `automake`, `libtool` for autoreconf
 - Added post-install capability setting for non-root operation
-- Added `unicornscan-web` management script
+- Added `unicornscan-alicorn` management script
 - Added `unicornscan-geoip-update` for DB-IP database downloads
 - Updated homepage to unicornscan.org
-- Full Alicorn stack installed to `/opt/unicornscan-web/`
+- Full Alicorn stack installed to `/opt/unicornscan-alicorn/`
 
 ## Testing
 
@@ -39,7 +39,7 @@ This release introduces the **Alicorn Web UI** - a modern React-based interface 
 - [x] Passes lintian with no errors
 - [x] CLI scanner works: `unicornscan -mT localhost:22,80,443`
 - [x] Capabilities set properly (non-root scanning works)
-- [x] Docker services start: `unicornscan-web start`
+- [x] Docker services start: `unicornscan-alicorn start`
 - [x] Web UI accessible at http://localhost:31337
 - [x] GeoIP update works: `sudo unicornscan-geoip-update`
 - [x] Scan results appear in Alicorn web UI
