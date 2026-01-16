@@ -8,7 +8,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKGBUILD="$SCRIPT_DIR/PKGBUILD"
 INSTALL="$SCRIPT_DIR/unicornscan.install"
 
+# Extract version from PKGBUILD
+VERSION=$(grep '^pkgver=' "$PKGBUILD" | cut -d= -f2)
+if [[ -z "$VERSION" ]]; then
+    echo "ERROR: Could not extract version from PKGBUILD"
+    exit 1
+fi
+
 echo "=== BlackArch Unicornscan PKGBUILD Submission Helper ==="
+echo "Version: $VERSION"
 echo ""
 
 # Check prerequisites
@@ -124,7 +132,7 @@ setup_fork() {
     fi
 
     # Create branch
-    BRANCH="update-unicornscan-0.4.42"
+    BRANCH="update-unicornscan-${VERSION}"
     git checkout -b "$BRANCH" origin/master 2>/dev/null || git checkout "$BRANCH"
 
     # Copy files
@@ -138,7 +146,7 @@ setup_fork() {
     echo "Next steps:"
     echo "  1. cd $FORK_DIR"
     echo "  2. git add packages/unicornscan/"
-    echo "  3. git commit -m 'unicornscan: update to 0.4.42'"
+    echo "  3. git commit -m 'unicornscan: update to ${VERSION}'"
     echo "  4. git push origin $BRANCH"
     echo "  5. Create PR at github.com/BlackArch/blackarch"
 }
