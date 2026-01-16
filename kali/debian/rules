@@ -11,7 +11,7 @@ override_dh_auto_configure:
 	dh_auto_configure -- \
 		--prefix=/usr \
 		--sysconfdir=/etc \
-		--localstatedir=/var \
+		--localstatedir=/var/lib \
 		--with-pgsql
 
 override_dh_auto_install:
