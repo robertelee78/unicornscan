@@ -186,7 +186,7 @@ jobs:
            scalable, accurate, and flexible port scanning.
            .
            This package includes the Alicorn web UI for viewing scan results.
-           To start the web interface, run: unicornscan-alicorn start
+           To start the web interface, run: sudo unicornscan-alicorn start
            (Requires Docker - install with: apt install docker.io)
           CTRL
           # Remove leading spaces from heredoc
@@ -240,7 +240,7 @@ jobs:
                   echo "║                                                                ║"
                   echo "║  RECOMMENDED: Alicorn Web UI for visualizing scan results:     ║"
                   echo "║                                                                ║"
-                  echo "║    unicornscan-alicorn start        # Start (requires Docker)  ║"
+                  echo "║    sudo unicornscan-alicorn start   # Start (requires Docker)  ║"
                   echo "║    http://localhost:31337           # Open in browser          ║"
                   echo "║                                                                ║"
                   echo "╚════════════════════════════════════════════════════════════════╝"
