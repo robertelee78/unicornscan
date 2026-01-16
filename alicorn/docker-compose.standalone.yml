@@ -1,8 +1,17 @@
-# Alicorn Web UI - Standalone Docker Compose for .deb installation
+# Alicorn Web UI - Standalone Docker Compose
 # Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
 #
-# This file is installed to /opt/unicornscan-web/docker-compose.yml
+# INSTALL LOCATIONS:
+#   Packaged installs (deb/rpm/arch): /usr/share/unicornscan/alicorn/docker-compose.yml
+#   Manual installs (make install):   /opt/unicornscan-web/docker-compose.yml
+#
 # Usage: unicornscan-web start
+#
+# NOTE FOR PACKAGED INSTALLS:
+#   The .env file lives in /var/lib/unicornscan/alicorn/ (FHS compliance).
+#   The unicornscan-web script automatically uses --env-file to locate it.
+#   If running docker compose manually, use:
+#     docker compose --env-file /var/lib/unicornscan/alicorn/.env up -d
 
 services:
   # ==========================================================================
