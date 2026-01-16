@@ -52,6 +52,12 @@ override_dh_auto_install:
 	# SQL schema
 	cp src/output_modules/database/sql/pgsql_schema.sql debian/unicornscan/opt/unicornscan-web/sql/
 	# =================================================================
+	# Install documentation
+	# =================================================================
+	mkdir -p debian/unicornscan/usr/share/doc/unicornscan
+	cp docs/GETTING_STARTED.md debian/unicornscan/usr/share/doc/unicornscan/
+	cp docs/GETTING_STARTED_ALICORN.md debian/unicornscan/usr/share/doc/unicornscan/
+	# =================================================================
 	# Install management scripts
 	# =================================================================
 	install -Dm755 debian/unicornscan-web debian/unicornscan/usr/bin/unicornscan-web
