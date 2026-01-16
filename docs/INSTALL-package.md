@@ -199,9 +199,10 @@ The package installs files in standard system locations:
 
 ### Web Interface
 
-| Path                    | Description                                            |
-|-------------------------|--------------------------------------------------------|
-| `/opt/unicornscan-alicorn/` | Docker Compose files and credentials (created on first `unicornscan-alicorn start`) |
+| Path                                | Description                                            |
+|-------------------------------------|--------------------------------------------------------|
+| `/usr/share/unicornscan/alicorn/`   | Docker Compose and static files (installed by package) |
+| `/var/lib/unicornscan/alicorn/`     | Runtime data and credentials (created on first start)  |
 
 ## 1.6 Getting the Web UI Working
 
@@ -246,7 +247,7 @@ sudo unicornscan-alicorn start
 This will:
 
 - Generate a secure random 32-character database password
-- Save credentials to `/opt/unicornscan-alicorn/.env` (for Docker)
+- Save credentials to `/var/lib/unicornscan/alicorn/.env` (for Docker)
 - Update `/etc/unicornscan/modules.conf` with the password (for unicornscan)
 - Start PostgreSQL in a Docker container
 - Initialize the database schema
@@ -254,11 +255,11 @@ This will:
 
 The password is stored in three places:
 
-| Location                              | Purpose                            |
-|---------------------------------------|------------------------------------|
-| `/opt/unicornscan-alicorn/.env`           | Docker Compose environment         |
-| `/opt/unicornscan-alicorn/.db_password`   | Plain text for easy retrieval      |
-| `/etc/unicornscan/modules.conf`       | Unicornscan pgsqldb module config  |
+| Location                                  | Purpose                            |
+|-------------------------------------------|------------------------------------|
+| `/var/lib/unicornscan/alicorn/.env`       | Docker Compose environment         |
+| `/var/lib/unicornscan/alicorn/.db_password` | Plain text for easy retrieval    |
+| `/etc/unicornscan/modules.conf`           | Unicornscan pgsqldb module config  |
 
 Because `modules.conf` is auto-configured, you can run scans with database export immediately without specifying connection parameters:
 
@@ -351,7 +352,7 @@ To also remove the web UI data:
 
 ```bash
 sudo unicornscan-alicorn stop
-sudo rm -rf /opt/unicornscan-alicorn
+sudo rm -rf /var/lib/unicornscan/alicorn
 ```
 
 ## 1.9 Troubleshooting
