@@ -1,3 +1,15 @@
+unicornscan (0.4.43-1) unstable; urgency=medium
+
+  * Packaging consistency and FHS compliance
+    - Standardize Alicorn paths across all package formats:
+      Static files: /usr/share/unicornscan/alicorn
+      Runtime data: /var/lib/unicornscan/alicorn
+    - Fix docker-compose --env-file flag for credentials in separate directory
+    - Add nodejs to Arch optdepends and RPM Suggests
+    - Sync Kali packaging with upstream FHS paths
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 16 Jan 2026 07:00:00 -0800
+
 unicornscan (0.4.42-1) unstable; urgency=medium
 
   * ASN + CIDR Hierarchical Grouping in Alicorn Web UI
