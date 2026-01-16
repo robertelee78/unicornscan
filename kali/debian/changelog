@@ -1,0 +1,34 @@
+unicornscan (0.4.42-0kali1) kali-dev; urgency=medium
+
+  * New upstream release 0.4.42 (35 version jump from 0.4.7)
+  * Major new features:
+    - Alicorn Web UI: React-based scan result visualization
+    - ASN/CIDR hierarchical grouping in network topology view
+    - Multi-scan comparison with JSON/CSV/Markdown diff exports
+    - Compound scan modes (-mA+T, -mA+U) for ARP-filtered scanning
+    - MAC address capture for local network targets
+    - GeoIP API service for live IP lookups (DB-IP Lite)
+    - PostgreSQL cloud support via PostgREST REST API
+  * Added Docker services for Alicorn stack:
+    - alicorn-postgres: PostgreSQL 16 for scan data
+    - alicorn-postgrest: REST API to database
+    - alicorn-geoip: GeoIP lookup service
+    - alicorn-web: Nginx serving React frontend
+  * Added management scripts:
+    - unicornscan-web: Docker container management
+    - unicornscan-geoip-update: Download DB-IP Lite databases
+  * Updated build dependencies:
+    - Added autoconf, automake, libtool for autoreconf
+    - Added libpq-dev for PostgreSQL support
+    - Added libmaxminddb-dev for GeoIP support
+  * Added Docker as hard dependency for full Alicorn experience
+  * Updated homepage to unicornscan.org (redirects to GitHub)
+  * Post-install sets Linux capabilities for non-root operation
+
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 16 Jan 2026 04:00:00 +0000
+
+unicornscan (0.4.7-1kali7) kali-dev; urgency=medium
+
+  * Drop libpcap0.8 from Depends field
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Thu, 16 May 2024 09:24:06 +0700

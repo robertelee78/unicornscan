@@ -1,0 +1,60 @@
+Source: unicornscan
+Section: net
+Priority: optional
+Maintainer: Kali Developers <devel@kali.org>
+Uploaders:
+ Robert E. Lee <robert@unicornscan.org>,
+Build-Depends:
+ autoconf,
+ automake,
+ bison,
+ debhelper-compat (= 13),
+ flex,
+ libdumbnet-dev,
+ libltdl-dev,
+ libmaxminddb-dev,
+ libpcap-dev,
+ libpq-dev,
+ libtool,
+Standards-Version: 4.6.2
+Homepage: http://www.unicornscan.org/
+Vcs-Git: https://gitlab.com/kalilinux/packages/unicornscan.git
+Vcs-Browser: https://gitlab.com/kalilinux/packages/unicornscan
+
+Package: unicornscan
+Architecture: any
+Depends:
+ docker.io,
+ docker-compose-v2 | docker-compose,
+ ${misc:Depends},
+ ${shlibs:Depends},
+Recommends:
+ libmaxminddb0,
+Description: Asynchronous stateless TCP/UDP scanner with Alicorn web UI
+ Unicornscan is a high-performance asynchronous stateless TCP/IP scanner
+ designed for large-scale network reconnaissance. It provides superior speed
+ and accuracy through its userland distributed TCP/IP stack implementation.
+ .
+ Key features:
+  - Asynchronous stateless TCP scanning with all TCP flag variations
+  - Asynchronous stateless TCP banner grabbing
+  - Protocol-specific UDP scanning with signature-based responses
+  - Active and passive OS/application fingerprinting
+  - Compound scan modes (-mA+T, -mA+U) for ARP-filtered scanning
+  - MAC address capture for local network targets
+  - PCAP file logging and filtering
+  - PostgreSQL database output with full schema
+  - Custom module support and extensible architecture
+ .
+ This version includes the Alicorn Web UI:
+  - React-based interface for visualizing scan results
+  - ASN/CIDR hierarchical grouping in topology view
+  - Multi-scan comparison with diff exports
+  - GeoIP integration for IP geolocation
+  - Real-time scan monitoring via PostgREST API
+ .
+ Docker services (started via unicornscan-web):
+  - PostgreSQL 16 for scan data storage
+  - PostgREST for REST API access
+  - GeoIP API for live IP lookups
+  - Nginx serving the React frontend
