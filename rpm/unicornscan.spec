@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.42
+Version:        0.4.43
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -191,6 +191,14 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
+* Fri Jan 16 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.43-1
+- Packaging consistency and FHS compliance
+- Standardize Alicorn paths: /usr/share/unicornscan/alicorn (static),
+  /var/lib/unicornscan/alicorn (runtime)
+- Fix docker-compose --env-file flag for credentials handling
+- Add nodejs to RPM Suggests for development mode
+- Sync Kali packaging with upstream FHS paths
+
 * Thu Jan 16 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.42-1
 - Rename unicornscan-web to unicornscan-alicorn
 - Standardize FHS-compliant paths across all package formats

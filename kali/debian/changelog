@@ -1,3 +1,15 @@
+unicornscan (0.4.43-0kali1) kali-dev; urgency=medium
+
+  * New upstream release 0.4.43
+  * Packaging consistency and FHS compliance:
+    - Standardize Alicorn paths across all package formats:
+      Static files: /usr/share/unicornscan/alicorn
+      Runtime data: /var/lib/unicornscan/alicorn
+    - Fix docker-compose --env-file flag for credentials handling
+    - Sync with upstream FHS-compliant paths
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 16 Jan 2026 07:00:00 +0000
+
 unicornscan (0.4.42-0kali1) kali-dev; urgency=medium
 
   * New upstream release 0.4.42 (35 version jump from 0.4.7)
