@@ -1,3 +1,24 @@
+unicornscan (0.4.42-1) unstable; urgency=medium
+
+  * ASN + CIDR Hierarchical Grouping in Alicorn Web UI
+    - Smart search now detects ASN queries (e.g., AS13335, AS15169)
+    - Hosts can be filtered by Autonomous System Number
+    - Network topology view groups hosts by ASN with organization labels
+    - CIDR subnet grouping with automatic /24 inference for ungrouped hosts
+    - Force-directed graph layout clusters related network blocks together
+
+  * Multi-Scan Comparison ASN Support
+    - Export formats (JSON, CSV, Markdown) now include ASN grouping data
+    - Host diffs include ASN number, organization, and CIDR group fields
+    - ASN distribution summary in exported reports
+
+  * Topology View Improvements
+    - Removed manual "Aggregate by /24" toggle button
+    - Auto-aggregation still triggers for large datasets (>500 nodes)
+    - Cleaner interface with ASN labels on network clusters
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 15 Jan 2026 16:45:00 -0800
+
 unicornscan (0.4.41-1) unstable; urgency=high
 
   * CRITICAL: Fix geoip-api missing from .deb packages built by GitHub Actions
