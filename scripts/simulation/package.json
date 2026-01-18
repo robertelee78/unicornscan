@@ -1,0 +1,30 @@
+{
+  "name": "@unicornscan/simulation",
+  "version": "0.4.43",
+  "description": "Authentic unicornscan command simulation based on real C source code",
+  "type": "module",
+  "main": "unicornscan-sim.ts",
+  "bin": {
+    "us-sim": "./us-sim",
+    "unicornscan-sim": "./unicornscan-sim.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "unicornscan",
+    "network",
+    "scanner",
+    "simulation",
+    "security"
+  ],
+  "author": "Robert E. Lee <robert@unicornscan.org>",
+  "license": "GPL-2.0",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.0.0"
+  }
+}
