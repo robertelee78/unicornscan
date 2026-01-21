@@ -2550,7 +2550,7 @@ static char *pgsql_escstr(const char *in) {
 
 	memset(outstr, 0, outstr_len);
 
-	PQescapeString(outstr, in, inlen - 1);
+	PQescapeStringConn(pgconn, outstr, in, inlen - 1, NULL);
 
 	return outstr;
 }
