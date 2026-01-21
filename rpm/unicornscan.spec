@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.44
+Version:        0.4.45
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -191,6 +191,10 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
+* Tue Jan 21 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.45-1
+- Security: Replace deprecated PQescapeString with PQescapeStringConn
+- Fixes potential multi-byte character encoding vulnerabilities in SQL escaping
+
 * Mon Jan 20 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.44-1
 - Update etc/ports.txt from latest IANA data (Jan 2026)
 
