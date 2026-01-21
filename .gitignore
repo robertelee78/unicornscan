@@ -74,3 +74,10 @@ CLAUDE.md
 # RuVector intelligence data
 .ruvector/
 .claude/statusline.sh
+
+# Local development tooling (Node.js/MCP)
+node_modules/
+package.json
+package-lock.json
+.playwright-mcp/
+agents/
