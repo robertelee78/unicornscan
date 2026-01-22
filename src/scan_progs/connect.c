@@ -513,7 +513,7 @@ static void send_connect(uint64_t state_key, connection_status_t *c, void *pri_w
 
 	c->tseq++;
 
-	if (get_payload(0, IPPROTO_TCP, k_u.s.sport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
+	if (get_payload(0, IPPROTO_TCP, k_u.s.dport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
 		int err=0;
 
 		/* payload trigger */
@@ -529,7 +529,7 @@ static void send_connect(uint64_t state_key, connection_status_t *c, void *pri_w
 
 			/* XXX */
 			if (create_payload(&pay_ptr, &pay_size, (void *)r) < 0) {
-				ERR("create payload for port %u fails", k_u.s.sport);
+				ERR("create payload for port %u fails", k_u.s.dport);
 				err++;
 			}
 			dyn++;
