@@ -157,6 +157,10 @@ static struct {
 	uint8_t *payload;
 	uint32_t payload_size;
 
+	/* tcp multi-payload state */
+	uint16_t tcp_plcount;			/* payloads for current port	*/
+	uint16_t tcp_plindex;			/* current payload index	*/
+
 	uint8_t esrc[THE_ONLY_SUPPORTED_HWADDR_LEN];
 
 	uint64_t packets_sent;
@@ -188,6 +192,9 @@ static void  inc_nextport(void);
 static void init_payload(void);
 static int   cmp_payload(uint16_t /*port*/, uint8_t ** /*data*/, uint32_t * /*payload_s*/, int32_t * /*local_port*/, int (** /*create payload */)(uint8_t **, uint32_t *, void *), uint16_t /* payload group */);
 static void  inc_payload(void);
+static void init_tcp_payload(void);
+static int   cmp_tcp_payload(void);
+static void  inc_tcp_payload(void);
 
 /* for ( init; cmp; inc ) { logic for ttl requested */
 static void init_nextttl(void) {
@@ -249,6 +256,34 @@ static int   cmp_payload(uint16_t port, uint8_t **data, uint32_t *payload_size, 
 
 static void  inc_payload(void) {
 	sl.plindex++;
+}
+
+/*
+ * for ( init; cmp; inc ) { logic for TCP multi-payload iteration
+ *
+ * When multiple payloads are configured for the same TCP port (e.g., TLS 1.3
+ * and SSL 3.0 for port 443), we send one SYN per payload. The payload_index
+ * is encoded in the source port so connect.c can decode it when the SYN-ACK
+ * arrives and send the correct payload.
+ */
+static void init_tcp_payload(void) {
+	sl.tcp_plindex=0;
+	sl.tcp_plcount=count_payloads(IPPROTO_TCP, (uint16_t)sl.curport, s->payload_group);
+	if (sl.tcp_plcount == 0) {
+		sl.tcp_plcount=1;	/* at least one probe even with no payload */
+	}
+	DBG(M_SND, "TCP port %d has %u payloads", sl.curport, sl.tcp_plcount);
+}
+
+static int cmp_tcp_payload(void) {
+	if (sl.tcp_plindex >= sl.tcp_plcount) {
+		return 0;
+	}
+	return 1;
+}
+
+static void inc_tcp_payload(void) {
+	sl.tcp_plindex++;
 }
 
 /* for ( init; cmp; inc ) { logic for scan hosts requested */
@@ -677,6 +712,19 @@ void send_packet(void) {
 				add_loop_logic((const fl_t *)&fnew);
 			}
 
+			/*
+			 * TCP multi-payload loop: iterate through payloads for each port.
+			 * Not used with TCPTRACE (source port encodes TTL instead).
+			 */
+			if (s->ss->mode == MODE_TCPSCAN) {
+				fnew.init=&init_tcp_payload;
+				fnew.c_t=CTVOID;
+				fnew.c_u.cmp=&cmp_tcp_payload;
+				fnew.inc=&inc_tcp_payload;
+				fnew.next=NULL;
+				add_loop_logic((const fl_t *)&fnew);
+			}
+
 			/* host */
 			fnew.init=&init_nexthost;
 			fnew.c_t=CTVOID;
@@ -834,6 +882,17 @@ static void _send_packet(void) {
 		}
 		else {
 			sl.local_port=(uint16_t)s->ss->src_port;
+		}
+
+		/*
+		 * For TCP multi-payload: encode payload_index in source port.
+		 * When SYN-ACK arrives, connect.c decodes the index to select
+		 * the correct payload from the chain.
+		 */
+		if (s->ss->mode == MODE_TCPSCAN && sl.tcp_plcount > 1) {
+			sl.local_port=encode_payload_port((uint16_t)sl.local_port, sl.tcp_plindex);
+			DBG(M_SND, "TCP multi-payload: port %d index %u/%u -> sport %u",
+				sl.curport, sl.tcp_plindex, sl.tcp_plcount, sl.local_port);
 		}
 
 		/*
