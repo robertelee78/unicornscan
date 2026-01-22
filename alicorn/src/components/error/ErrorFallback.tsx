@@ -1,6 +1,6 @@
 /**
  * Error fallback component - displays friendly error messages
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'

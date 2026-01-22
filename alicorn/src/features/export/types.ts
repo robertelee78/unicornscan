@@ -1,7 +1,7 @@
 /**
  * Export feature types
  * Defines export formats, options, and metadata depth configurations
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { Scan, IpReport, ArpReport, Host, GeoIPRecord, Service } from '@/types/database'

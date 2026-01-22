@@ -1,6 +1,6 @@
 /**
  * Notes tab - view and add notes for a scan with auto-save and undo/redo
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'

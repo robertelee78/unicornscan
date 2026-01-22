@@ -8,7 +8,7 @@
  * - Before/after values for modifications
  * - Collapsible host sections
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo, useState } from 'react'

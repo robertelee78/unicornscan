@@ -1,7 +1,7 @@
 /**
  * Ports feature exports
  * Reusable components for displaying port, protocol, and response data
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 // Port display components

@@ -1,7 +1,7 @@
 /**
  * Category header component for enhanced port activity heatmap
  * Collapsible header showing category name, icon, port count, and activity
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { ChevronDown } from 'lucide-react'

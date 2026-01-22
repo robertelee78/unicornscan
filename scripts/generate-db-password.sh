@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Generate secure PostgreSQL password for unicornscan database
-# Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+# Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
 #
 # This script generates a random 32-character password using /dev/urandom
 # and writes it to /etc/unicornscan/db_password or specified output file.

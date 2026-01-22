@@ -9,7 +9,7 @@
 #   - City Lite (~126 MB) - city, region, country, lat/lon, timezone
 #   - ASN Lite (~7 MB) - ASN, ISP, organization
 #
-# Copyright (c) 2025-2026 Robert E. Lee <robert@unicornscan.org>
+# Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set -e

@@ -1,7 +1,7 @@
 /**
  * Compatible scans filter hook
  * Filters scan list to only show scans compatible for comparison
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo } from 'react'

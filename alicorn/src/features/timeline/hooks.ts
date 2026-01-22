@@ -1,7 +1,7 @@
 /**
  * Host timeline hooks
  * Data fetching and state management for timeline feature
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'

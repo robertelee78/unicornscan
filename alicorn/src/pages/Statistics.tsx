@@ -1,7 +1,7 @@
 /**
  * Statistics page - Advanced network scan statistics
  * Scan performance, protocol breakdown, service distribution, port activity heatmaps, and GeoIP
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState } from 'react'

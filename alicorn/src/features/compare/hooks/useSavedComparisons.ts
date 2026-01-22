@@ -4,7 +4,7 @@
  * Provides localStorage-based persistence for saved scan comparisons.
  * Uses React Query for caching and cache invalidation.
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

@@ -79,7 +79,7 @@
 
 /*
  * trace_path_hop_t: single hop in a traceroute path
- * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 typedef struct _PACKED_ trace_path_hop_t {
 	uint32_t router_addr;		/* router that responded (ICMP TE source)	*/
@@ -91,7 +91,7 @@ typedef struct _PACKED_ trace_path_hop_t {
 /*
  * trace_path_report_t: complete traceroute path for output modules
  * sent when MODE_TCPTRACE session completes
- * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 typedef struct _PACKED_ trace_path_report_t {
 	uint32_t magic;			/* TRACE_PATH_MAGIC				*/

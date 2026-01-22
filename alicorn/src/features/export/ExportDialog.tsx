@@ -1,7 +1,7 @@
 /**
  * Export dialog component
  * Full-featured export dialog with format, content, and metadata options
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useCallback } from 'react'

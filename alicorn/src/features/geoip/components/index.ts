@@ -1,6 +1,6 @@
 /**
  * GeoIP components exports
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 export { GeoIPWorldMap } from './GeoIPWorldMap'

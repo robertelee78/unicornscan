@@ -1,7 +1,7 @@
 /**
  * Scan performance statistics cards component
  * Displays Response Rate, Host Hit Rate, and Total Packets
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { Card, CardContent } from '@/components/ui/card'

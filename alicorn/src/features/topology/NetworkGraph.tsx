@@ -2,7 +2,7 @@
  * Network topology graph visualization
  * D3.js force-directed layout inspired by OPTE project aesthetic
  * Dan Kaminsky philosophy: make complex security data understandable
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useEffect, useRef, useState, useMemo } from 'react'

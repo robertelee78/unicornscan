@@ -1,7 +1,7 @@
 /**
  * CSV export utilities
  * Functions for converting scan/host data to CSV format
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { Scan, IpReport, Host } from '@/types/database'

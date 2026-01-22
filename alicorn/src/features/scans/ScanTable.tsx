@@ -1,6 +1,6 @@
 /**
  * Scan list table with sortable headers and multi-select
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { Link } from 'react-router-dom'

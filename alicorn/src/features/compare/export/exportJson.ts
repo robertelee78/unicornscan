@@ -4,7 +4,7 @@
  * Exports full structured comparison data as JSON.
  * Includes metadata, summary, and complete diff data.
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { MultiScanComparisonResult } from '../types'

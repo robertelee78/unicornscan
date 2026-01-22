@@ -1,6 +1,6 @@
 /**
  * Raw data tab - JSON view of scan and report data
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState } from 'react'

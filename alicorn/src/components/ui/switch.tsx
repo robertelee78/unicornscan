@@ -1,7 +1,7 @@
 /**
  * Switch component built on Radix UI
  * Toggle switch for boolean state control
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import * as React from 'react'

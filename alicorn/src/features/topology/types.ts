@@ -1,7 +1,7 @@
 /**
  * Network topology visualization types
  * OPTE/Kaminsky inspired graph data structures
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 // OS family is stored as the raw string from database (e.g., "Windows", "Linux", "macOS")

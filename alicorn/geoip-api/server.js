@@ -1,6 +1,6 @@
 /**
  * GeoIP Lookup API Service
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  *
  * Provides REST API for MMDB lookups (DB-IP, MaxMind, IP2Location, IPinfo)
  * Designed to run as a lightweight container alongside PostgREST.

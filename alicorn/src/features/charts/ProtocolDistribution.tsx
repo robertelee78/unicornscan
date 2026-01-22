@@ -1,7 +1,7 @@
 /**
  * Protocol distribution chart
  * Stacked bar chart showing TCP vs UDP distribution over time
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useNavigate } from 'react-router-dom'

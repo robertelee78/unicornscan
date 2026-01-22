@@ -1,6 +1,6 @@
 /**
  * Well-known port to service name mappings
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 export interface PortEntry {

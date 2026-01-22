@@ -4,7 +4,7 @@
  * Tests SideBySideView, TimelineView, UnifiedDiffView, and MatrixHeatmapView.
  * Covers: rendering with data, empty states, interactions, accessibility.
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import React from 'react'

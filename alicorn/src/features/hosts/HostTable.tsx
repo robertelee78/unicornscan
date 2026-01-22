@@ -1,6 +1,6 @@
 /**
  * Host list table with sortable columns, expandable port details, and search highlighting
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useEffect, Fragment, useMemo } from 'react'

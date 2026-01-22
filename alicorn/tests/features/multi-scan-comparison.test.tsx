@@ -5,7 +5,7 @@
  * Tests cover: 2-scan comparison, N-scan comparison, presence tracking,
  * first/last seen, TTL changes, banner changes, and localStorage CRUD.
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import React from 'react'

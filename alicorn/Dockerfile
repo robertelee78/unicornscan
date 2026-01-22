@@ -1,5 +1,5 @@
 # Alicorn Web UI - Multi-stage Docker Build
-# Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+# Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
 #
 # Build: docker build -t alicorn .
 # Run:   docker run -p 8080:80 alicorn

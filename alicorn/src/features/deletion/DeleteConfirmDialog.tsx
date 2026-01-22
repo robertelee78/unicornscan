@@ -1,6 +1,6 @@
 /**
  * Delete confirmation dialog with cascading delete warning
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { AlertTriangle, Trash2, Loader2 } from 'lucide-react'

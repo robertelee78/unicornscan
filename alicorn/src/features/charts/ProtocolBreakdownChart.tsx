@@ -1,7 +1,7 @@
 /**
  * Protocol breakdown chart component
  * Shows TCP/UDP response distribution with SYN+ACK and banner breakdown
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import {

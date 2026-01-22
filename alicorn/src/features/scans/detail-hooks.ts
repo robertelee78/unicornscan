@@ -1,6 +1,6 @@
 /**
  * Scan detail specific hooks
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

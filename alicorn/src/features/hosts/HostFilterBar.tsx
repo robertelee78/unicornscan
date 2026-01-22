@@ -1,7 +1,7 @@
 /**
  * Host filter controls with smart search
  * Auto-detects search type: port, CIDR, IP prefix, MAC, regex, or text
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo, useState, useEffect } from 'react'

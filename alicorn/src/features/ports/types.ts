@@ -1,6 +1,6 @@
 /**
  * Port feature types
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 export type Protocol = 'tcp' | 'udp' | 'icmp' | 'other'

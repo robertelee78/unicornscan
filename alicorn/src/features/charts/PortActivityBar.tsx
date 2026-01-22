@@ -2,7 +2,7 @@
  * Port activity bar component for sparse data visualization
  * Horizontal bar showing port, service, activity count, and trend sparkline
  * Used when time range produces sparse data (e.g., single day)
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

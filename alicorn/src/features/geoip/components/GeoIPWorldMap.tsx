@@ -1,7 +1,7 @@
 /**
  * GeoIP World Map component
  * Leaflet-based map showing geographic distribution of scanned hosts
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo, useEffect, useRef } from 'react'

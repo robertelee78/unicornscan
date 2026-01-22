@@ -1,7 +1,7 @@
 /**
  * Port history timeline for a host
  * Shows aggregated view: one row per port with latest data, expandable history
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, Fragment, useEffect } from 'react'

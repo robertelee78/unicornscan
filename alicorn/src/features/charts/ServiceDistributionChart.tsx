@@ -1,7 +1,7 @@
 /**
  * Service distribution chart component
  * Pie/donut chart showing service distribution across scans
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import {

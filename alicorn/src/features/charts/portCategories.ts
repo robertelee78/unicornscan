@@ -1,7 +1,7 @@
 /**
  * Port category utilities for enhanced heatmap visualization
  * Provides semantic grouping of ports by service category
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { PortCategory, PortCategoryConfig, GroupedPortData } from './types'

@@ -1,6 +1,6 @@
 /**
  * Dashboard feature types
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 export type TimeRange = '1h' | '24h' | '7d' | '30d' | '90d' | 'all'

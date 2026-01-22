@@ -1,7 +1,7 @@
 /**
  * Scan selection hook for comparison workflow
  * Manages selection state for comparing multiple scans
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useCallback, useMemo } from 'react'

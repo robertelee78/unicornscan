@@ -1,7 +1,7 @@
 /**
  * TCP Window Size distribution chart
  * Shows window size distribution for OS fingerprinting insights
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import {

@@ -1,6 +1,6 @@
 /**
  * Dashboard feature hooks with time-range filtering
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useQuery } from '@tanstack/react-query'

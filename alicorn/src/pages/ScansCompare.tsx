@@ -1,7 +1,7 @@
 /**
  * Scan Comparison page - hosts the comparison dashboard
  * Parses ?ids=1,2,3 query parameter to get selected scan IDs
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'

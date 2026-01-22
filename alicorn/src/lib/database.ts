@@ -3,7 +3,7 @@
  *
  * PostgREST client for PostgreSQL access.
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { PostgrestClient } from '@supabase/postgrest-js'

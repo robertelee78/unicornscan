@@ -1,7 +1,7 @@
 /**
  * Host tracking timeline types
  * Enhanced timeline with change events, filtering, and bookmarking
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 // =============================================================================

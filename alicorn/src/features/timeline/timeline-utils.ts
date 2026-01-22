@@ -1,7 +1,7 @@
 /**
  * Timeline computation utilities
  * Change detection and analysis algorithms
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { IpReport, Scan } from '@/types/database'

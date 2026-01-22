@@ -2,7 +2,7 @@
  * GeoIP Section component for Statistics page
  * Comprehensive geographic visualization section
  * Now uses time-range filtering to match Statistics page time selector
- * Copyright (c) 2025-2026 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'

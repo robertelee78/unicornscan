@@ -1,7 +1,7 @@
 /**
  * IP Type distribution chart component
  * Pie/donut chart showing distribution of IP types (residential, datacenter, etc.)
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import {

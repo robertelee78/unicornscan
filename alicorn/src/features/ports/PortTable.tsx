@@ -2,7 +2,7 @@
  * Feature-rich sortable port table component
  * Response-centric design: shows what was sent and what came back
  * Unicornscan philosophy: raw stimulus/response data, not abstractions
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useMemo, useCallback } from 'react'

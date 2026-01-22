@@ -1,7 +1,7 @@
 /**
  * Port timeline visualization
  * Gantt-style chart showing when ports were observed over time
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo } from 'react'

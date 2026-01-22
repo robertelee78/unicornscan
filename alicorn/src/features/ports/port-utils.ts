@@ -1,7 +1,7 @@
 /**
  * Port table utilities and constants
  * Separated from component file to allow Fast Refresh
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { IpReport } from '@/types/database'

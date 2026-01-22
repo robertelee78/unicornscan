@@ -2394,7 +2394,7 @@ static int pgsql_dealwith_arpreport(const arp_report_t *a) {
 
 /*
  * pgsql_dealwith_tracepath: insert complete traceroute path to uni_hops
- * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
  *
  * trace_path_report contains ordered hop array with hop_number and rtt_us.
  * we insert each hop as a row, using NULL for ipreport_id since trace paths

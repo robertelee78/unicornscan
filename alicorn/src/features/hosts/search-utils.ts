@@ -1,7 +1,7 @@
 /**
  * Smart search utilities for host filtering
  * Auto-detects search type and provides parsing/matching functions
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 // =============================================================================

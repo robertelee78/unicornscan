@@ -1,7 +1,7 @@
 /**
  * Floating action bar for scan comparison workflow
  * Appears when 2+ scans are selected, provides Compare and Clear actions
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useNavigate } from 'react-router-dom'

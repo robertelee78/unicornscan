@@ -1,6 +1,6 @@
 /**********************************************************************
  * Copyright (C) 2004-2006 (Jack Louis) <jack@rapturesecurity.org>    *
- * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>          *
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>          *
  *                                                                    *
  * This program is free software; you can redistribute it and/or      *
  * modify it under the terms of the GNU General Public License        *
@@ -1512,7 +1512,7 @@ static const char *pgsql_schema_v9_add_eth_hwaddr_ddl =
 
 /*
  * Schema v10 migration - make uni_hops.ipreport_id nullable for trace paths
- * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
  *
  * trace_path_report sends complete paths without individual ip_reports,
  * so we need ipreport_id to be nullable for those records.
@@ -1532,7 +1532,7 @@ static const char *pgsql_schema_v10_hops_nullable_ddl =
 
 /*
  * Schema v11 migration - add GeoIP country data to v_hosts view
- * Copyright (C) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (C) 2026 Robert E. Lee <robert@unicornscan.org>
  *
  * This adds country_code and country_name fields from uni_geoip to v_hosts,
  * using the most recent GeoIP lookup for each host IP.

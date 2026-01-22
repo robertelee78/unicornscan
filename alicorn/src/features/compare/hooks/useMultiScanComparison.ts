@@ -6,7 +6,7 @@
  * - Computing presence/absence for each host and port across all scans
  * - Tracking first/last seen, change detection, and summary statistics
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useQuery } from '@tanstack/react-query'

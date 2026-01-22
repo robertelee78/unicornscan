@@ -1,6 +1,6 @@
 /**
  * Active filter chips bar - shows current filter state with remove buttons
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { X } from 'lucide-react'

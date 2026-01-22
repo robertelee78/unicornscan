@@ -1,7 +1,7 @@
 /**
  * Response type utilities for unicornscan results
  * Separated from component file to allow Fast Refresh
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { IP_PROTOCOLS, TCP_FLAGS, decodeTcpFlags } from '@/types/database'

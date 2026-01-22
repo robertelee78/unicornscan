@@ -1,6 +1,6 @@
 /**
  * Results tab - table of IP reports with TCP flags and banners
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useEffect, useState, Fragment } from 'react'

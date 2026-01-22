@@ -1,6 +1,6 @@
 /**
  * GeoIP feature types matching PostgreSQL schema v6
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 // Re-export core types from database types to avoid duplication

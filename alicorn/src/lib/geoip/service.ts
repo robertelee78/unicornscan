@@ -1,6 +1,6 @@
 /**
  * Live GeoIP lookup service using maxmind npm package
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  *
  * Provides frontend-side GeoIP lookups for:
  * - IPs from scans before GeoIP was enabled

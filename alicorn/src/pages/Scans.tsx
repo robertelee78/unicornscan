@@ -1,6 +1,6 @@
 /**
  * Scans list page - thin wrapper over scans feature module
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useCallback, useMemo } from 'react'

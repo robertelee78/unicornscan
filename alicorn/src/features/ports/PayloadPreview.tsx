@@ -1,7 +1,7 @@
 /**
  * Payload preview component for -msf and -mU scan results
  * Shows banner/payload data received from service fingerprinting or UDP responses
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState } from 'react'

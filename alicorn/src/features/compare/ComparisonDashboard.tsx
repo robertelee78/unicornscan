@@ -10,7 +10,7 @@
  * 3. Unified diff - Merged view with color-coded changes
  * 4. Matrix heatmap - Grid showing presence across scans
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useCallback } from 'react'

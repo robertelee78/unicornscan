@@ -2,7 +2,7 @@
  * Port activity heatmap component with adaptive rendering
  * Shows port activity over time in grid (dense data) or bars (sparse data)
  * Supports collapsible category grouping in bar mode
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo, useState } from 'react'

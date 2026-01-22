@@ -1,7 +1,7 @@
 /**
  * Traceroute tab - displays hop chain data for TCPtrace scans
  * Shows vertical traceroute paths grouped by target
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo } from 'react'

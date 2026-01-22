@@ -1,7 +1,7 @@
 /**
  * Timeline row component
  * Displays a single port track with observations and change events
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useMemo } from 'react'

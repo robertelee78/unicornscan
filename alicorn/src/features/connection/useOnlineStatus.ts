@@ -1,6 +1,6 @@
 /**
  * Online status hook - detects browser online/offline state
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useState, useEffect, useCallback } from 'react'

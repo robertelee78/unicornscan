@@ -1,7 +1,7 @@
 /**
  * Topology feature hooks
  * Data fetching and transformation for network graph visualization
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { useQuery } from '@tanstack/react-query'

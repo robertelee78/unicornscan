@@ -4,7 +4,7 @@
  * Exports comparison data as a flat CSV table with one row per host/port combination.
  * Includes metadata header and summary section.
  *
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import type { MultiScanComparisonResult, MultiScanPortDiff } from '../types'

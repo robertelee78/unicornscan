@@ -1,6 +1,6 @@
 /**
  * Live GeoIP lookup hooks
- * Copyright (c) 2025-2026 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  *
  * Provides React Query hooks for live GeoIP lookups using
  * the GeoIP service. These hooks are for lookups that aren't

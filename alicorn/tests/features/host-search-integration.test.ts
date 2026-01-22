@@ -1,7 +1,7 @@
 /**
  * Integration tests for host search feature
  * Tests the complete search flow including hooks and search utilities
- * Copyright (c) 2025 Robert E. Lee <robert@unicornscan.org>
+ * Copyright (c) 2026 Robert E. Lee <robert@unicornscan.org>
  */
 
 import { describe, it, expect } from 'vitest'

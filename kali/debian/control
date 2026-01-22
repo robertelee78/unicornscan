@@ -24,13 +24,11 @@ Vcs-Browser: https://gitlab.com/kalilinux/packages/unicornscan
 Package: unicornscan
 Architecture: any
 Depends:
- docker.io,
- docker-compose-v2 | docker-compose,
  ${misc:Depends},
  ${shlibs:Depends},
 Recommends:
  libmaxminddb0,
-Description: Asynchronous stateless TCP/UDP scanner with Alicorn web UI
+Description: Asynchronous stateless TCP/UDP scanner
  Unicornscan is a high-performance asynchronous stateless TCP/IP scanner
  designed for large-scale network reconnaissance. It provides superior speed
  and accuracy through its userland distributed TCP/IP stack implementation.
@@ -44,17 +42,5 @@ Description: Asynchronous stateless TCP/UDP scanner with Alicorn web UI
   - MAC address capture for local network targets
   - PCAP file logging and filtering
   - PostgreSQL database output with full schema
+  - GeoIP/MaxMindDB integration for IP geolocation
   - Custom module support and extensible architecture
- .
- This version includes the Alicorn Web UI:
-  - React-based interface for visualizing scan results
-  - ASN/CIDR hierarchical grouping in topology view
-  - Multi-scan comparison with diff exports
-  - GeoIP integration for IP geolocation
-  - Real-time scan monitoring via PostgREST API
- .
- Docker services (started via unicornscan-alicorn):
-  - PostgreSQL 16 for scan data storage
-  - PostgREST for REST API access
-  - GeoIP API for live IP lookups
-  - Nginx serving the React frontend
