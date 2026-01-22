@@ -117,6 +117,9 @@ static const embedded_sig_t embedded_response_sigs[] = {
 	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 7, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
 	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 8, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
 
+	/* iOS/macOS 15+ constrained - Network Extension, VPN, or memory-limited context (window 2848 = 2x1424 MSS) */
+	{ "iOS/macOS", "15+ (constrained)", 64, 1, P0F3_WIN_TYPE_NORMAL, 2848, 6, 1460, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
+
 	/* iOS / macOS older (iOS 14 and earlier, macOS 11 and earlier) */
 	{ "iOS/macOS", "14-", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 5, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
 	{ "iOS/macOS", "14-", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 6, -1, "mss,nop,ws,nop,nop,ts,sok", P0F3_QUIRK_DF | P0F3_QUIRK_ID_PLUS },
