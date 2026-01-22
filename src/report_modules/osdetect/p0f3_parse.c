@@ -118,6 +118,7 @@ static const embedded_sig_t embedded_response_sigs[] = {
 	{ "iOS/macOS", "15+", 64, 1, P0F3_WIN_TYPE_NORMAL, 65535, 8, -1, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
 
 	/* iOS/macOS 15+ constrained - Network Extension, VPN, or memory-limited context (window 2848 = 2x1424 MSS) */
+	{ "iOS/macOS", "15+ (constrained)", 64, 1, P0F3_WIN_TYPE_NORMAL, 2848, 5, 1460, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
 	{ "iOS/macOS", "15+ (constrained)", 64, 1, P0F3_WIN_TYPE_NORMAL, 2848, 6, 1460, "mss,nop,ws,nop,nop,ts,sok,eol", P0F3_QUIRK_DF | P0F3_QUIRK_ID_MINUS | P0F3_QUIRK_TS2_PLUS },
 
 	/* iOS / macOS older (iOS 14 and earlier, macOS 11 and earlier) */
@@ -360,10 +361,15 @@ p0f3_sig_t *p0f3_match_detailed(p0f3_pkt_t *pkt, p0f3_sig_type_t type) {
 		if (!win_match(sig, pkt)) continue;
 		score += 15;
 
-		/* Check window scale */
-		if (sig->win_scale != -1) {
-			if (sig->win_scale != pkt->win_scale) continue;
-			score += 10;
+		/* Check window scale - allow ±1 tolerance for minor variations */
+		if (sig->win_scale != -1 && pkt->win_scale != -1) {
+			int ws_diff = abs(sig->win_scale - pkt->win_scale);
+			if (ws_diff > 1) continue;  /* Reject if too different */
+			if (ws_diff == 0) {
+				score += 10;  /* Exact match */
+			} else {
+				score += 5;   /* Close match (±1 tolerance) */
+			}
 		}
 
 		/* Check MSS if specified */
