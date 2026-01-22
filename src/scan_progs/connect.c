@@ -34,6 +34,7 @@
 #include <scan_progs/portfunc.h>
 #include <scan_progs/workunits.h>
 #include <scan_progs/tcphash.h>
+#include <scan_progs/banner_parse.h>
 #include <unilib/drone.h>
 #include <unilib/modules.h>
 #include <unilib/qfifo.h>
@@ -162,6 +163,20 @@ void connect_grabbanners(ip_report_t *r) {
 			e_out->t_u.banner=xstrdup(pchars);
 
 			fifo_push(r->od_q, (void *)e_out);
+		}
+		else if (c_u.c->recv_len > 0) {
+			/*
+			 * No printable characters extracted, but we have data.
+			 * Try binary protocol parsing (DNS, TLS, RPC, etc).
+			 */
+			if (parse_binary_banner(c_u.c->recv_buf, c_u.c->recv_len,
+			                        pchars, sizeof(pchars)) != BANNER_PROTO_UNKNOWN) {
+				e_out=(output_data_t *)xmalloc(sizeof(output_data_t));
+				e_out->type=OD_TYPE_BANNER;
+				e_out->t_u.banner=xstrdup(pchars);
+
+				fifo_push(r->od_q, (void *)e_out);
+			}
 		}
 	}
 
