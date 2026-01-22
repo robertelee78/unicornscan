@@ -1,0 +1,361 @@
+#
+# docker-compose configuration for testing unicornscan payloads
+#
+# Usage:
+#   docker compose -f tests/docker-compose-payloads.yml up -d
+#   ./tests/test-payloads.sh
+#   docker compose -f tests/docker-compose-payloads.yml down
+#
+# This provides real services for testing static and dynamic payloads.
+# Each service matches ports defined in etc/payloads.conf.
+#
+
+services:
+  # ===========================================================================
+  # NoSQL Databases
+  # ===========================================================================
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=test
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  elasticsearch:
+    image: elasticsearch:8.12.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cassandra:
+    image: cassandra:4.1
+    ports:
+      - "9042:9042"
+    restart: unless-stopped
+    environment:
+      - MAX_HEAP_SIZE=256M
+      - HEAP_NEWSIZE=128M
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe cluster"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  couchdb:
+    image: couchdb:3
+    ports:
+      - "5984:5984"
+    restart: unless-stopped
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  memcached:
+    image: memcached:alpine
+    ports:
+      - "11211:11211"
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Container/Orchestration Services
+  # ===========================================================================
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.11
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    restart: unless-stopped
+    environment:
+      - ETCD_NAME=test
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-test
+      - ETCD_INITIAL_CLUSTER=test=http://etcd:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  consul:
+    image: hashicorp/consul:1.17
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    restart: unless-stopped
+    command: agent -dev -client=0.0.0.0
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # ===========================================================================
+  # Message Queues
+  # ===========================================================================
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=test
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    restart: unless-stopped
+    command: --http_port 8222
+
+  activemq:
+    image: apache/activemq-classic:5.18.3
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8161/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # Monitoring Services
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=test
+      - GF_USERS_ALLOW_SIGN_UP=false
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=testtest123
+      - DOCKER_INFLUXDB_INIT_ORG=unicornscan
+      - DOCKER_INFLUXDB_INIT_BUCKET=test
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # ===========================================================================
+  # Relational Databases
+  # ===========================================================================
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_USER=test
+      - POSTGRES_DB=test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  mysql:
+    image: mysql:8
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_DATABASE=test
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  mariadb:
+    image: mariadb:11
+    ports:
+      - "3307:3306"
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=test
+      - MARIADB_DATABASE=test
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # ===========================================================================
+  # Network Services
+  # ===========================================================================
+
+  openldap:
+    image: bitnami/openldap:2.6
+    ports:
+      - "389:389"
+      - "636:636"
+    restart: unless-stopped
+    environment:
+      - LDAP_ROOT=dc=example,dc=org
+      - LDAP_ADMIN_PASSWORD=test
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost:389", "-b", "dc=example,dc=org"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  dns:
+    image: coredns/coredns:1.11
+    ports:
+      - "5353:53/udp"
+      - "5353:53/tcp"
+    restart: unless-stopped
+    command: -conf /dev/null
+    # Note: Maps to 5353 to avoid conflict with local resolver
+
+  # ===========================================================================
+  # Web/HTTP Services
+  # ===========================================================================
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  traefik:
+    image: traefik:v2.10
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    command:
+      - --api.insecure=true
+      - --api.dashboard=true
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # ===========================================================================
+  # SCADA/ICS Simulators (where available)
+  # ===========================================================================
+
+  # Note: Most SCADA protocols require specialized simulators
+  # For now we test what's commonly available
+
+  modbustcp:
+    image: oitc/modbus-server:latest
+    ports:
+      - "502:5020"
+    restart: unless-stopped
+
+  # ===========================================================================
+  # SSH/Remote Access
+  # ===========================================================================
+
+  openssh:
+    image: linuxserver/openssh-server:latest
+    ports:
+      - "2222:2222"
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PASSWORD_ACCESS=true
+      - USER_PASSWORD=test
+      - USER_NAME=test
+
+# Note: Some services like FTP, SNMP, etc. can be added as needed
+# Many UDP-based probes (SNMP, NTP, DNS) are tested against real servers
