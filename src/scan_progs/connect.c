@@ -47,6 +47,21 @@
 #include <unilib/pktutil.h>
 
 /*
+ * payload_index decoding for multi-payload TCP support
+ * duplicated from send_packet.c (static inline there)
+ */
+#define PAYLOAD_PORT_BASE	49152
+#define PAYLOAD_INDEX_BITS	4
+#define PAYLOAD_INDEX_MASK	((1 << PAYLOAD_INDEX_BITS) - 1)
+
+static inline uint16_t decode_payload_index(uint16_t sport) {
+	if (sport < PAYLOAD_PORT_BASE) {
+		return 0;
+	}
+	return (sport - PAYLOAD_PORT_BASE) & PAYLOAD_INDEX_MASK;
+}
+
+/*
  * these are for the connection code, one is a "workunit" queue to send to the sender
  * the other is a tcp connection state table to base workunits from
  */
@@ -513,7 +528,7 @@ static void send_connect(uint64_t state_key, connection_status_t *c, void *pri_w
 
 	c->tseq++;
 
-	if (get_payload(0, IPPROTO_TCP, k_u.s.dport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
+	if (get_payload(decode_payload_index(k_u.s.dport), IPPROTO_TCP, k_u.s.sport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
 		int err=0;
 
 		/* payload trigger */
