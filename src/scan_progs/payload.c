@@ -231,3 +231,46 @@ int get_payload(uint16_t indx, uint16_t proto, uint16_t port, uint8_t **data, ui
 
 	return 0;
 }
+
+/*
+ * Count total number of payloads for a given port/proto/group combination.
+ * Returns the count (1 or more if payloads exist, 0 if none).
+ * Used for multi-payload TCP support to determine how many parallel
+ * connections to spawn.
+ */
+uint16_t count_payloads(uint16_t proto, uint16_t port, uint16_t payload_group) {
+	payload_t *current=NULL;
+	uint16_t count=0;
+
+	DBG(M_PYL, "counting payloads for port %u proto %u group %u", port, proto, payload_group);
+
+	for (current=s->plh->top; current != NULL; current=current->next) {
+		if (current->port == port && current->proto == proto && current->payload_group == payload_group) {
+			/* Found base payload, now count it plus all ->over chain payloads */
+			count=1;
+			while (current->over != NULL) {
+				current=current->over;
+				count++;
+			}
+			DBG(M_PYL, "found %u payloads for port %u proto %u group %u", count, port, proto, payload_group);
+			return count;
+		}
+	}
+
+	/* Check default payload */
+	if (GET_DEFAULT() && s->plh->def != NULL) {
+		current=s->plh->def;
+		if (current->proto == proto && current->payload_group == payload_group) {
+			count=1;
+			while (current->over != NULL) {
+				current=current->over;
+				count++;
+			}
+			DBG(M_PYL, "found %u default payloads for proto %u group %u", count, proto, payload_group);
+			return count;
+		}
+	}
+
+	DBG(M_PYL, "no payloads found for port %u proto %u group %u", port, proto, payload_group);
+	return 0;
+}

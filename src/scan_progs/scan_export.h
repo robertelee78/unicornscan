@@ -226,6 +226,12 @@ int get_payload(
 		uint16_t /* payload_group */
 	);
 
+uint16_t count_payloads(
+		uint16_t /* proto */,
+		uint16_t /* port */,
+		uint16_t /* payload_group */
+	);
+
 char *strscanmode(int /* s->ss->mode */);
 
 #endif

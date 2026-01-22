@@ -45,6 +45,9 @@
 #include <unilib/xipc.h>
 #include <unilib/xpoll.h>
 #include <unilib/pktutil.h>
+#include <unilib/prng.h>
+
+#define MIN_LOCALPORT 4096
 
 /*
  * these are for the connection code, one is a "workunit" queue to send to the sender
@@ -80,6 +83,7 @@
  *      TCP_CLOSE               socket is finished
 */
 static void *state_tbl=NULL; /* rbtree, or chtbl */
+static void *pending_payload_tbl=NULL; /* rbtree: maps connection key -> payload_index for multi-payload SYNs */
 
 static unsigned int a_conns=0;
 
@@ -101,6 +105,7 @@ typedef struct connection_status_t {
 	uint32_t t_tstamp;
 	uint32_t m_tstamp;
 	uint32_t send_ip;
+	uint16_t payload_index;	/* Which payload in the chain to use (0=first, 1=second, etc) */
 
 	size_t recv_stseq;
 	size_t recv_len;
@@ -123,14 +128,17 @@ static uint64_t get_connectionkey(const ip_report_t *);
 static size_t try_and_extract_tcp_data(const uint8_t * /* packet data */, size_t /* packet length */, connection_status_t * /* connection */);
 static void send_connect(uint64_t /* state key */, connection_status_t *, void * /* pri_work */, const ip_report_t * /* report */);
 static int kill_connection(uint64_t /* state key */, void * /* connection_status_t ptr */, void * /* callback data */);
+static void queue_multipayload_syns(uint32_t /* dhost */, uint16_t /* dport */, uint32_t /* shost */, uint16_t /* total_payloads */, void * /* pri_work */);
 
 void connect_init(void) {
 	state_tbl=rbinit(111);
+	pending_payload_tbl=rbinit(111);
 	return;
 }
 
 void connect_destroy(void) {
 	rbdestroy(state_tbl);
+	rbdestroy(pending_payload_tbl);
 }
 
 void connect_grabbanners(ip_report_t *r) {
@@ -445,6 +453,9 @@ void connect_do(void *pri_work, const ip_report_t *r) {
 
 	} /* found in state table */
 	else if ((r->type & (TH_ACK|TH_SYN)) == (TH_ACK|TH_SYN)) { /* should it be in state table */
+		void *pending_ptr=NULL;
+		uint16_t total_payloads=0;
+
 		DBG(M_CON, "Connection with flags %s", strtcpflgs(r->type));
 
 		/* yes this is a new connection */
@@ -465,6 +476,27 @@ void connect_do(void *pri_work, const ip_report_t *r) {
 		c_u.c->t_tstamp=r->t_tstamp;
 		c_u.c->m_tstamp=r->m_tstamp;
 		c_u.c->ack_pending=1;
+
+		/*
+		 * Multi-payload support: check if this SYN-ACK is for a
+		 * secondary payload connection (queued by queue_multipayload_syns).
+		 * If so, retrieve and set the payload_index.
+		 */
+		if (rbfind(pending_payload_tbl, state_key, &pending_ptr) > 0) {
+			/* This is a secondary payload connection */
+			c_u.c->payload_index=(uint16_t)(uintptr_t)pending_ptr;
+			rbdelete(pending_payload_tbl, state_key);
+			DBG(M_CON, "multi-payload: using payload_index %u for port %u", c_u.c->payload_index, dport);
+		}
+		else {
+			/* First connection for this target:port, payload_index=0 (from memset) */
+			/* Check if there are multiple payloads and queue additional SYNs */
+			total_payloads=count_payloads(IPPROTO_TCP, dport, s->payload_group);
+			if (total_payloads > 1) {
+				DBG(M_CON, "multi-payload: %u payloads for port %u, queuing additional SYNs", total_payloads, dport);
+				queue_multipayload_syns(dhost, dport, shost, total_payloads, pri_work);
+			}
+		}
 
 		if (GET_IMMEDIATE()) {
 			ia.s_addr=shost;
@@ -513,11 +545,11 @@ static void send_connect(uint64_t state_key, connection_status_t *c, void *pri_w
 
 	c->tseq++;
 
-	if (get_payload(0, IPPROTO_TCP, k_u.s.dport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
+	if (get_payload(c->payload_index, IPPROTO_TCP, k_u.s.dport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
 		int err=0;
 
 		/* payload trigger */
-		DBG(M_CON, "pay size %u ptr %p conv %d create_payload %p", pay_size, pay_ptr, na, create_payload);
+		DBG(M_CON, "pay size %u ptr %p conv %d create_payload %p payload_index %u", pay_size, pay_ptr, na, create_payload, c->payload_index);
 
 		if ((pay_size < 1 && pay_ptr == NULL) && create_payload == NULL) {
 			ERR("pay size %u pay_ptr %p and create payload %p", pay_size, pay_ptr, create_payload);
@@ -994,6 +1026,84 @@ static size_t try_and_extract_tcp_data(const uint8_t *packet, size_t pk_len, con
 	DBG(M_CON, "got " STFMT " bytes of data from packet", ret);
 
 	return ret;
+}
+
+/*
+ * Queue additional SYN packets for multi-payload TCP support.
+ * Called when the first SYN-ACK arrives and we have multiple payloads
+ * for the same target:port. Each additional payload gets its own
+ * connection with a unique source port.
+ *
+ * dhost: target IP address
+ * dport: target's listening port
+ * shost: our source IP address
+ * total_payloads: total number of payloads configured for this port
+ * pri_work: fifo to push SYN packets onto
+ */
+static void queue_multipayload_syns(uint32_t dhost, uint16_t dport, uint32_t shost, uint16_t total_payloads, void *pri_work) {
+	union {
+		void *ptr;
+		send_pri_workunit_t *w;
+	} w_u;
+	union {
+		uint64_t state_key;
+		struct {
+			uint32_t dhost;
+			uint16_t sport;
+			uint16_t dport;
+		} s;
+	} k_u;
+	uint16_t payload_idx=0;
+	uint16_t new_sport=0;
+	uint32_t syn_seq=0;
+
+	/* Queue SYNs for payload indices 1, 2, ... (index 0 already handled by original SYN) */
+	for (payload_idx=1; payload_idx < total_payloads; payload_idx++) {
+		/* Generate random source port, same pattern as send_packet.c */
+		new_sport=(uint16_t)(prng_get32() % 0xffff);
+		if (new_sport < MIN_LOCALPORT) {
+			new_sport += MIN_LOCALPORT;
+		}
+
+		/* Compute connection key for this new connection */
+		k_u.s.dhost=dhost;
+		k_u.s.sport=dport;		/* target's port (key struct naming is confusing) */
+		k_u.s.dport=new_sport;		/* our new source port */
+
+		/* Store payload_index in pending table for when SYN-ACK arrives */
+		rbinsert(pending_payload_tbl, k_u.state_key, (void *)(uintptr_t)payload_idx);
+
+		DBG(M_CON, "multi-payload: queuing SYN for payload_index %u sport %u -> %08x:%u",
+			payload_idx, new_sport, dhost, dport);
+
+		/* Compute SYN sequence number using TCPHASHTRACK */
+		/* TCPHASHTRACK(output, target_ip, target_port, our_port, syn_key) */
+		TCPHASHTRACK(syn_seq, dhost, dport, new_sport, s->ss->syn_key);
+
+		/* Create and queue SYN packet */
+		w_u.ptr=xmalloc(sizeof(send_pri_workunit_t));
+		memset(w_u.ptr, 0, sizeof(send_pri_workunit_t));
+
+		w_u.w->magic=PRI_4SEND_MAGIC;
+		w_u.w->dhost=dhost;		/* target IP */
+		w_u.w->dport=dport;		/* target's port */
+		w_u.w->sport=new_sport;		/* our new source port */
+		w_u.w->shost=shost;		/* our IP */
+		w_u.w->flags=TH_SYN;		/* SYN packet */
+		w_u.w->mseq=syn_seq;		/* our computed sequence number */
+		w_u.w->tseq=0;			/* not ACKing anything */
+		w_u.w->window_size=65535;	/* default window */
+		w_u.w->doff=0;			/* no data */
+		w_u.w->t_tstamp=0;
+		w_u.w->m_tstamp=0;
+
+		fifo_push(pri_work, w_u.ptr);
+		s->stats.stream_segments_sent++;
+
+		DBG(M_CON, "multi-payload: queued SYN seq %08x for payload_index %u", syn_seq, payload_idx);
+	}
+
+	return;
 }
 
 static char *strconnstatus(int cstat) {
