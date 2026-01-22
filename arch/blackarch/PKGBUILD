@@ -2,7 +2,7 @@
 # See COPYING for license details.
 
 pkgname=unicornscan
-pkgver=0.4.45
+pkgver=0.4.46
 pkgrel=1
 epoch=1
 pkgdesc='Asynchronous, stateless TCP/UDP scanner for scalable, high-speed network reconnaissance. Includes Alicorn web UI for result visualization.'

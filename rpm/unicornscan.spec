@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.45
+Version:        0.4.46
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -191,6 +191,12 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
+* Wed Jan 22 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.46-1
+- New payload modules: TLS handshake and MongoDB wire protocol probes
+- Add p0f signature for iOS/macOS 15+ constrained network context
+- Reorganize payloads.conf for maintainability
+- Update copyright notices from 2025 to 2026
+
 * Tue Jan 21 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.45-1
 - Security: Replace deprecated PQescapeString with PQescapeStringConn
 - Fixes potential multi-byte character encoding vulnerabilities in SQL escaping

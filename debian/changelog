@@ -1,3 +1,15 @@
+unicornscan (0.4.46-1) unstable; urgency=medium
+
+  * New payload modules for protocol fingerprinting
+    - TLS handshake probe for SSL/TLS version detection
+    - MongoDB wire protocol probe for database discovery
+  * Add p0f signature for iOS/macOS 15+ constrained network context
+    - Detects Apple devices operating in constrained TCP contexts
+  * Reorganize payloads.conf with logical grouping by protocol type
+  * Update copyright notices from 2025 to 2026
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 22 Jan 2026 10:00:00 -0800
+
 unicornscan (0.4.45-1) unstable; urgency=medium
 
   * Security: Replace deprecated PQescapeString with PQescapeStringConn
