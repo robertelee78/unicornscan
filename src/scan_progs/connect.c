@@ -491,6 +491,7 @@ void connect_do(void *pri_work, const ip_report_t *r) {
 		else {
 			/* First connection for this target:port, payload_index=0 (from memset) */
 			/* Check if there are multiple payloads and queue additional SYNs */
+			/* dport = target's port (8443), sport = our local port */
 			total_payloads=count_payloads(IPPROTO_TCP, dport, s->payload_group);
 			if (total_payloads > 1) {
 				DBG(M_CON, "multi-payload: %u payloads for port %u, queuing additional SYNs", total_payloads, dport);
@@ -545,7 +546,7 @@ static void send_connect(uint64_t state_key, connection_status_t *c, void *pri_w
 
 	c->tseq++;
 
-	if (get_payload(c->payload_index, IPPROTO_TCP, k_u.s.dport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
+	if (get_payload(c->payload_index, IPPROTO_TCP, k_u.s.sport, &pay_ptr, &pay_size, &na, &create_payload, s->payload_group) == 1) {
 		int err=0;
 
 		/* payload trigger */
@@ -1066,9 +1067,13 @@ static void queue_multipayload_syns(uint32_t dhost, uint16_t dport, uint32_t sho
 		}
 
 		/* Compute connection key for this new connection */
+		/* Must match get_connectionkey() which sets: */
+		/*   k_u.s.dhost = r->host_addr (target IP) */
+		/*   k_u.s.dport = r->dport (our port - where packet goes TO us) */
+		/*   k_u.s.sport = r->sport (target's port - where packet comes FROM) */
 		k_u.s.dhost=dhost;
-		k_u.s.sport=dport;		/* target's port (key struct naming is confusing) */
-		k_u.s.dport=new_sport;		/* our new source port */
+		k_u.s.dport=new_sport;		/* our new source port (matches r->dport) */
+		k_u.s.sport=dport;		/* target's port (matches r->sport) */
 
 		/* Store payload_index in pending table for when SYN-ACK arrives */
 		rbinsert(pending_payload_tbl, k_u.state_key, (void *)(uintptr_t)payload_idx);
