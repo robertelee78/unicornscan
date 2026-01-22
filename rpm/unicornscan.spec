@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.46
+Version:        0.4.47
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -191,6 +191,10 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
+* Wed Jan 22 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.47-1
+- Fix deb package conflict with docker-compose-plugin from Docker official repo
+- Move docker packages from Recommends to Suggests (not auto-installed)
+
 * Wed Jan 22 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.46-1
 - New payload modules: TLS handshake and MongoDB wire protocol probes
 - Add p0f signature for iOS/macOS 15+ constrained network context

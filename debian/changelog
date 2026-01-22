@@ -1,3 +1,12 @@
+unicornscan (0.4.47-1) unstable; urgency=medium
+
+  * Fix package conflict with docker-compose-plugin from Docker official repo
+    - Move docker packages from Recommends to Suggests (not auto-installed)
+    - Users with Docker already installed are unaffected
+    - Alicorn web UI still works with any docker/compose installation
+
+ -- Robert E. Lee <robert@unicornscan.org>  Wed, 22 Jan 2026 11:00:00 -0800
+
 unicornscan (0.4.46-1) unstable; urgency=medium
 
   * New payload modules for protocol fingerprinting
