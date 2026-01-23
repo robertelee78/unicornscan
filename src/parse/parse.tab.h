@@ -54,15 +54,15 @@ extern int uudebug;
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
-    NUMBER = 258,                  /* NUMBER  */
-    UNUMBER = 259,                 /* UNUMBER  */
-    STR = 260,                     /* STR  */
-    BSTR = 261,                    /* BSTR  */
-    WORD = 262,                    /* WORD  */
-    PAYLOADS = 263,                /* PAYLOADS  */
-    GLOBAL = 264,                  /* GLOBAL  */
-    MODULE = 265,                  /* MODULE  */
-    BOOL = 266                     /* BOOL  */
+    PAYLOADS = 258,                /* PAYLOADS  */
+    GLOBAL = 259,                  /* GLOBAL  */
+    MODULE = 260,                  /* MODULE  */
+    NUMBER = 261,                  /* NUMBER  */
+    UNUMBER = 262,                 /* UNUMBER  */
+    BOOL = 263,                    /* BOOL  */
+    STR = 264,                     /* STR  */
+    WORD = 265,                    /* WORD  */
+    BSTR = 266                     /* BSTR  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
