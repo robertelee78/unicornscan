@@ -437,6 +437,18 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	/*
+	 * Load modules BEFORE do_targets() so dynamic payloads (e.g., tls.so)
+	 * are registered before count_payloads() is called in workunit_add().
+	 */
+	if (init_modules() < 0) {
+		terminate("cant initialize module structures, quiting");
+	}
+
+	if (init_payload_modules(&add_payload) < 0) {
+		terminate("cant initialize payload module structures, quiting");
+	}
+
 	/* now parse argv data for a target -> workunit list */
 	do_targets();
 
@@ -449,20 +461,12 @@ int main(int argc, char **argv) {
 
 	VRB(0, "using interface(s) %s", s->interface_str);
 
-	if (init_modules() < 0) {
-		terminate("cant initialize module structures, quiting");
-	}
-
 	if (init_output_modules() < 0) {
 		terminate("cant initialize output module structures, quiting");
 	}
 
 	if (init_report_modules() < 0) {
 		terminate("cant initialize report module structures, quiting");
-	}
-
-	if (init_payload_modules(&add_payload) < 0) {
-		terminate("cant initialize payload module structures, quiting");
 	}
 
 	time_est[0]='\0';
