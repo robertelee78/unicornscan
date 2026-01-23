@@ -565,8 +565,8 @@ static const yytype_int16 yyrline[] =
 {
        0,    63,    63,    64,    68,    69,    70,    75,    76,    79,
       80,    83,    84,    88,    93,    98,   106,   111,   116,   136,
-     214,   217,   223,   229,   232,   253,   254,   258,   271,   274,
-     277,   286
+     200,   203,   209,   215,   218,   239,   240,   244,   257,   260,
+     263,   272
 };
 #endif
 
@@ -1277,14 +1277,10 @@ yyreduce:
 				if (SEND && proto == IPPROTO_UDP) {
 					add_default_payload(IPPROTO_UDP, (yyvsp[-5].inum), (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 				}
-				else if (SEND && proto == IPPROTO_TCP) {
-					add_default_payload(IPPROTO_TCP, (yyvsp[-5].inum), (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
-				}
 				else if (MAIN && proto == IPPROTO_TCP) {
 					add_default_payload(IPPROTO_TCP, (yyvsp[-5].inum), (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 				}
-				else if (MAIN && proto == IPPROTO_UDP) {
-					/* UDP default payloads not needed in MAIN */
+				else if ((SEND && proto == IPPROTO_TCP) || (MAIN && proto == IPPROTO_UDP)) {
 				}
 				else {
 					PANIC("im confused in %s with proto %u from configuration", ((MAIN) ? "Main" : "Send"), proto);
@@ -1301,20 +1297,10 @@ yyreduce:
 		if (SEND && proto == IPPROTO_UDP) {
 			add_payload(IPPROTO_UDP, dstport, (yyvsp[-5].inum), (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 		}
-		else if (SEND && proto == IPPROTO_TCP) {
-			/*
-			 * TCP payloads in SEND: chain after any module payloads.
-			 * Modules are loaded first and become index 0.
-			 * Static payloads chain via ->over as additional variants.
-			 * This enables multi-payload TCP scanning.
-			 */
-			add_payload(IPPROTO_TCP, dstport, (yyvsp[-5].inum), (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
-		}
 		else if (MAIN && proto == IPPROTO_TCP) {
 			add_payload(IPPROTO_TCP, dstport, (yyvsp[-5].inum), (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 		}
-		else if (MAIN && proto == IPPROTO_UDP) {
-			/* UDP payloads not needed in MAIN */
+		else if ((SEND && proto == IPPROTO_TCP) || (MAIN && proto == IPPROTO_UDP)) {
 		}
 		else {
 			PANIC("im confused in %s with proto %u from configuration", ((MAIN) ? "Main" : "Send"), proto);
@@ -1322,49 +1308,49 @@ yyreduce:
 
 		pbuffer_reset();
 	}
-#line 1326 "parse.tab.c"
+#line 1312 "parse.tab.c"
     break;
 
   case 20: /* m_statement: WORD ':' WORD ';'  */
-#line 214 "parse.y"
+#line 200 "parse.y"
                           {
 		scan_modaddkeyval((const char *)(yyvsp[-3].ptr), (const char *)(yyvsp[-1].ptr));
 	}
-#line 1334 "parse.tab.c"
+#line 1320 "parse.tab.c"
     break;
 
   case 21: /* m_statement: WORD ':' NUMBER ';'  */
-#line 217 "parse.y"
+#line 203 "parse.y"
                               {
 		char numbuf[16];
 
 		snprintf(numbuf, sizeof(numbuf) -1, "%d", (yyvsp[-1].inum));
 		scan_modaddkeyval((const char *)(yyvsp[-3].ptr), (const char *)numbuf);
 	}
-#line 1345 "parse.tab.c"
+#line 1331 "parse.tab.c"
     break;
 
   case 22: /* m_statement: WORD ':' BOOL ';'  */
-#line 223 "parse.y"
+#line 209 "parse.y"
                             {
 		char numbuf[16];
 
 		snprintf(numbuf, sizeof(numbuf) -1, "%d", (yyvsp[-1].uinum));
 		scan_modaddkeyval((const char *)(yyvsp[-3].ptr), (const char *)numbuf);
 	}
-#line 1356 "parse.tab.c"
+#line 1342 "parse.tab.c"
     break;
 
   case 23: /* m_statement: WORD ':' STR ';'  */
-#line 229 "parse.y"
+#line 215 "parse.y"
                            {
 		scan_modaddkeyval((const char *)(yyvsp[-3].ptr), (const char *)(yyvsp[-1].ptr));
 	}
-#line 1364 "parse.tab.c"
+#line 1350 "parse.tab.c"
     break;
 
   case 24: /* m_statement: multi_line_str ';'  */
-#line 232 "parse.y"
+#line 218 "parse.y"
                              {
 		char mtls[4096];
 		buf_t data;
@@ -1383,11 +1369,11 @@ yyreduce:
 
 		pbuffer_reset();
 	}
-#line 1387 "parse.tab.c"
+#line 1373 "parse.tab.c"
     break;
 
   case 27: /* line_str: STR  */
-#line 258 "parse.y"
+#line 244 "parse.y"
             {
 		buf_t data;
 
@@ -1398,28 +1384,42 @@ yyreduce:
 			pbuffer_append(&data);
 		}
 	}
-#line 1402 "parse.tab.c"
+#line 1388 "parse.tab.c"
     break;
 
   case 28: /* pdata: BSTR  */
-#line 271 "parse.y"
+#line 257 "parse.y"
              {
 		if (SEND || MAIN) pbuffer_append(&(yyvsp[0].buf));
 	}
-#line 1410 "parse.tab.c"
+#line 1396 "parse.tab.c"
     break;
 
   case 29: /* pdata: pdata BSTR  */
-#line 274 "parse.y"
+#line 260 "parse.y"
                      {
 		if (SEND || MAIN) pbuffer_append(&(yyvsp[0].buf));
+	}
+#line 1404 "parse.tab.c"
+    break;
+
+  case 30: /* pdata: STR  */
+#line 263 "parse.y"
+              {
+		if (SEND || MAIN) {
+			buf_t data;
+
+			data.len=strlen((yyvsp[0].ptr));
+			data.ptr=(char *)(yyvsp[0].ptr);
+			pbuffer_append(&data);
+		}
 	}
 #line 1418 "parse.tab.c"
     break;
 
-  case 30: /* pdata: STR  */
-#line 277 "parse.y"
-              {
+  case 31: /* pdata: pdata STR  */
+#line 272 "parse.y"
+                    {
 		if (SEND || MAIN) {
 			buf_t data;
 
@@ -1431,22 +1431,8 @@ yyreduce:
 #line 1432 "parse.tab.c"
     break;
 
-  case 31: /* pdata: pdata STR  */
-#line 286 "parse.y"
-                    {
-		if (SEND || MAIN) {
-			buf_t data;
 
-			data.len=strlen((yyvsp[0].ptr));
-			data.ptr=(char *)(yyvsp[0].ptr);
-			pbuffer_append(&data);
-		}
-	}
-#line 1446 "parse.tab.c"
-    break;
-
-
-#line 1450 "parse.tab.c"
+#line 1436 "parse.tab.c"
 
       default: break;
     }
