@@ -41,6 +41,97 @@
 
 static int swu_s=0, lwu_s=0;
 
+/*
+ * Build enriched port string with payload counts for TCP multi-payload support.
+ * For each port, looks up count_payloads() and appends :count suffix.
+ * Ranges are expanded to individual ports since each may have different counts.
+ *
+ * Input:  "443,80-82,8080"
+ * Output: "443:3,80:1,81:1,82:2,8080:1" (counts from payload config)
+ *
+ * Returns: newly allocated string (caller must xfree), or NULL on error
+ */
+static char *enrich_port_string_with_counts(const char *port_str, uint16_t payload_group) {
+	char *result=NULL;
+	char *data=NULL, *dtok=NULL, *st1=NULL;
+	size_t result_size=0, result_len=0;
+	unsigned int low=0, high=0;
+
+	if (port_str == NULL || strlen(port_str) == 0) {
+		return NULL;
+	}
+
+	/* Allocate result buffer - worst case each port becomes "65535:65535," (12 chars) */
+	result_size=strlen(port_str) * 16 + 1;
+	result=(char *)xmalloc(result_size);
+	result[0]='\0';
+	result_len=0;
+
+	data=xstrdup(port_str);
+
+	for (dtok=strtok_r(data, ",", &st1); dtok != NULL; dtok=strtok_r(NULL, ",", &st1)) {
+		if (sscanf(dtok, "%u-%u", &low, &high) == 2) {
+			/* Range: expand to individual ports with counts */
+			unsigned int port=0;
+
+			if (low > high) {
+				SWAP(low, high);
+			}
+
+			for (port=low; port <= high && port <= 0xFFFF; port++) {
+				uint16_t count=count_payloads(IPPROTO_TCP, (uint16_t)port, payload_group);
+				char portbuf[24];
+
+				if (count == 0) {
+					count=1;
+				}
+
+				snprintf(portbuf, sizeof(portbuf), "%s%u:%u",
+					result_len > 0 ? "," : "", port, count);
+
+				if (result_len + strlen(portbuf) < result_size - 1) {
+					strcat(result, portbuf);
+					result_len += strlen(portbuf);
+				}
+			}
+		}
+		else if (sscanf(dtok, "%u", &low) == 1) {
+			/* Single port */
+			uint16_t count=0;
+			char portbuf[24];
+
+			if (low > 0xFFFF) {
+				continue;
+			}
+
+			count=count_payloads(IPPROTO_TCP, (uint16_t)low, payload_group);
+			if (count == 0) {
+				count=1;
+			}
+
+			snprintf(portbuf, sizeof(portbuf), "%s%u:%u",
+				result_len > 0 ? "," : "", low, count);
+
+			if (result_len + strlen(portbuf) < result_size - 1) {
+				strcat(result, portbuf);
+				result_len += strlen(portbuf);
+			}
+		}
+		/* Skip unparseable tokens */
+	}
+
+	xfree(data);
+
+	if (result_len == 0) {
+		xfree(result);
+		return NULL;
+	}
+
+	DBG(M_WRK, "enriched port string: '%s' -> '%s'", port_str, result);
+
+	return result;
+}
+
 static int lwu_compare        (const void *, const void *);
 static int workunit_match_iter(const void *, const void *);
 static int workunit_match_slp (const void *, const void *);
@@ -320,6 +411,20 @@ int workunit_add(const char *targets, char **estr) {
 			default:
 				terminate("bad scan mode");
 				break;
+		}
+	}
+
+	/*
+	 * TCP multi-payload support: enrich port string with payload counts.
+	 * MAIN looks up count_payloads() for each port and builds string like "443:3,80:1".
+	 * SEND parses this and knows how many SYNs to send without loading TCP payloads.
+	 */
+	if (port_str != NULL && (mode == MODE_TCPSCAN || mode == MODE_TCPTRACE)) {
+		char *enriched=enrich_port_string_with_counts(port_str, s->payload_group);
+
+		if (enriched != NULL) {
+			xfree(port_str);
+			port_str=enriched;
 		}
 	}
 
