@@ -62,6 +62,61 @@
  */
 #define TRACE_PORT_BASE			40960
 
+/*
+ * Payload index encoding in source port for TCP multi-payload support.
+ * When multiple payloads are configured for the same port, each SYN uses
+ * a different source port that encodes the payload index. When SYN-ACK
+ * arrives, the receiver decodes the index to select the correct payload.
+ *
+ * Layout: source_port = PAYLOAD_PORT_BASE + (base_offset * 16) + payload_index
+ * - base_offset: (original_sport - PAYLOAD_PORT_BASE) / 16, preserves randomness
+ * - payload_index: 0-15, index into payload chain (->over pointer)
+ *
+ * Port ranges:
+ * - PAYLOAD_PORT_BASE (49152): IANA ephemeral range start
+ * - TRACE_PORT_BASE (40960): Used for TTL encoding in tcptrace (40960-41215)
+ * - No conflict: 49152 > 41215
+ */
+#define PAYLOAD_PORT_BASE		49152
+#define PAYLOAD_INDEX_BITS		4
+#define PAYLOAD_INDEX_MASK		((1 << PAYLOAD_INDEX_BITS) - 1)	/* 0x0F */
+
+/*
+ * encode_payload_port: encode payload_index into source port
+ * Returns port in range [PAYLOAD_PORT_BASE, 65535]
+ */
+static inline uint16_t encode_payload_port(uint16_t base_sport, uint16_t payload_index) {
+	uint16_t offset;
+
+	/* ensure base is in ephemeral range */
+	if (base_sport < PAYLOAD_PORT_BASE) {
+		base_sport = PAYLOAD_PORT_BASE + (base_sport % (65536 - PAYLOAD_PORT_BASE));
+	}
+
+	/* calculate offset, preserving upper bits of base_sport */
+	offset = (base_sport - PAYLOAD_PORT_BASE) / (1 << PAYLOAD_INDEX_BITS);
+
+	return PAYLOAD_PORT_BASE + (offset << PAYLOAD_INDEX_BITS) + (payload_index & PAYLOAD_INDEX_MASK);
+}
+
+/*
+ * decode_payload_index: extract payload_index from encoded source port
+ * Returns 0 if not a payload-encoded port
+ */
+static inline uint16_t decode_payload_index(uint16_t sport) {
+	if (sport < PAYLOAD_PORT_BASE) {
+		return 0;
+	}
+	return (sport - PAYLOAD_PORT_BASE) & PAYLOAD_INDEX_MASK;
+}
+
+/*
+ * is_payload_port: check if source port is in payload encoding range
+ */
+static inline int is_payload_port(uint16_t sport) {
+	return (sport >= PAYLOAD_PORT_BASE);
+}
+
 #define REPORT_BADNETWORK_CKSUM		1
 #define REPORT_BADTRANSPORT_CKSUM	2
 

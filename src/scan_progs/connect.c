@@ -46,20 +46,7 @@
 #include <unilib/xpoll.h>
 #include <unilib/pktutil.h>
 
-/*
- * payload_index decoding for multi-payload TCP support
- * duplicated from send_packet.c (static inline there)
- */
-#define PAYLOAD_PORT_BASE	49152
-#define PAYLOAD_INDEX_BITS	4
-#define PAYLOAD_INDEX_MASK	((1 << PAYLOAD_INDEX_BITS) - 1)
-
-static inline uint16_t decode_payload_index(uint16_t sport) {
-	if (sport < PAYLOAD_PORT_BASE) {
-		return 0;
-	}
-	return (sport - PAYLOAD_PORT_BASE) & PAYLOAD_INDEX_MASK;
-}
+/* Payload port encoding functions now in scan_export.h */
 
 /*
  * these are for the connection code, one is a "workunit" queue to send to the sender
