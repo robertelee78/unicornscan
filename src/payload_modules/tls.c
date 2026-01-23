@@ -155,6 +155,10 @@ int init_module(mod_entry_t *m) {
 
 	_m = m;
 	s = _m->s;
+
+	/* Also register as default payload for TLS on non-standard ports */
+	add_default_payload(IPPROTO_TCP, -1, NULL, 0, create_payload, 1);
+
 	return 1;
 }
 
