@@ -163,14 +163,10 @@ p_statement:
 				if (SEND && proto == IPPROTO_UDP) {
 					add_default_payload(IPPROTO_UDP, $3, (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 				}
-				else if (SEND && proto == IPPROTO_TCP) {
-					add_default_payload(IPPROTO_TCP, $3, (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
-				}
 				else if (MAIN && proto == IPPROTO_TCP) {
 					add_default_payload(IPPROTO_TCP, $3, (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 				}
-				else if (MAIN && proto == IPPROTO_UDP) {
-					/* UDP default payloads not needed in MAIN */
+				else if ((SEND && proto == IPPROTO_TCP) || (MAIN && proto == IPPROTO_UDP)) {
 				}
 				else {
 					PANIC("im confused in %s with proto %u from configuration", ((MAIN) ? "Main" : "Send"), proto);
@@ -187,20 +183,10 @@ p_statement:
 		if (SEND && proto == IPPROTO_UDP) {
 			add_payload(IPPROTO_UDP, dstport, $3, (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 		}
-		else if (SEND && proto == IPPROTO_TCP) {
-			/*
-			 * TCP payloads in SEND: chain after any module payloads.
-			 * Modules are loaded first and become index 0.
-			 * Static payloads chain via ->over as additional variants.
-			 * This enables multi-payload TCP scanning.
-			 */
-			add_payload(IPPROTO_TCP, dstport, $3, (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
-		}
 		else if (MAIN && proto == IPPROTO_TCP) {
 			add_payload(IPPROTO_TCP, dstport, $3, (const uint8_t *)data.ptr, (uint32_t)data.len, NULL, plg);
 		}
-		else if (MAIN && proto == IPPROTO_UDP) {
-			/* UDP payloads not needed in MAIN */
+		else if ((SEND && proto == IPPROTO_TCP) || (MAIN && proto == IPPROTO_UDP)) {
 		}
 		else {
 			PANIC("im confused in %s with proto %u from configuration", ((MAIN) ? "Main" : "Send"), proto);
