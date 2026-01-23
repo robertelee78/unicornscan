@@ -82,7 +82,8 @@ void shuffle_ports(void) {
 		DBG(M_PRT, "randomized ports follow");
 
 		for (j=0; ports[j] != -1; j++) {
-			DBG(M_PRT, "port in list %d", ports[j]);
+			DBG(M_PRT, "port in list: port=%u count=%u",
+				PORT_VALUE(ports[j]), PORT_COUNT(ports[j]));
 		}
 	}
 
@@ -113,7 +114,14 @@ int parse_pstr(const char *input, uint32_t *total_ports) {
 	data=xstrdup(string);
 
 	for (dtok=strtok_r(data, ",", &st1); dtok != NULL; dtok=strtok_r(NULL, ",", &st1)) {
-		if (sscanf(dtok, "%u-%u", &low, &high) == 2) {
+		unsigned int count=0;
+
+		/*
+		 * Parse formats: "port", "port:count", "low-high", "low-high:count"
+		 * Count is stored in upper 16 bits for TCP multi-payload support.
+		 */
+		if (sscanf(dtok, "%u-%u:%u", &low, &high, &count) >= 2) {
+			/* Range with optional count: "80-100" or "80-100:3" */
 			if (low > high) {
 				SWAP(low, high);
 			}
@@ -126,7 +134,19 @@ int parse_pstr(const char *input, uint32_t *total_ports) {
 			}
 			num_ports += ((high + 1) - low);
 		}
+		else if (sscanf(dtok, "%u:%u", &low, &count) == 2) {
+			/* Single port with count: "443:3" */
+			if (low > 0xffff) {
+				xfree(data);
+				xfree(string);
+				ERR("port out of range");
+
+				return -1;
+			}
+			num_ports++;
+		}
 		else if (sscanf(dtok, "%u", &low) == 1) {
+			/* Single port without count: "443" */
 			if (low > 0xffff) {
 				xfree(data);
 				xfree(string);
@@ -160,7 +180,10 @@ int parse_pstr(const char *input, uint32_t *total_ports) {
 	data=xstrdup(string);
 
 	for (dtok=strtok_r(data, ",", &st1); dtok != NULL; dtok=strtok_r(NULL, ",", &st1)) {
-		if (sscanf(dtok, "%u-%u", &low, &high) == 2) {
+		unsigned int count=1;	/* default: 1 probe per port */
+
+		if (sscanf(dtok, "%u-%u:%u", &low, &high, &count) >= 2) {
+			/* Range with optional count: "80-100" or "80-100:3" */
 			unsigned int indx=0;
 
 			if (low > high) {
@@ -170,22 +193,35 @@ int parse_pstr(const char *input, uint32_t *total_ports) {
 			if (low > 0xffff || high > 0xffff) {
 				PANIC("heap corrupt?");
 			}
+
+			/* If no count parsed, default is 1 */
+			if (count == 0) {
+				count=1;
+			}
+
 			for (indx=low; indx < (high + 1); indx++) {
-				ports[port_index++]=indx;
+				ports[port_index++]=PORT_ENCODE(indx, count);
 			}
 		}
-		else if (sscanf(dtok, "%u", &low) == 1) {
-
+		else if (sscanf(dtok, "%u:%u", &low, &count) == 2) {
+			/* Single port with count: "443:3" */
 			if (low > 0xffff) {
 				PANIC("heap corrupt?");
 			}
 
-			ports[port_index++]=low;
+			ports[port_index++]=PORT_ENCODE(low, count);
+		}
+		else if (sscanf(dtok, "%u", &low) == 1) {
+			/* Single port without count: "443" -> default count=1 */
+			if (low > 0xffff) {
+				PANIC("heap corrupt?");
+			}
 
+			ports[port_index++]=PORT_ENCODE(low, 1);
 		}
 		else {
 			PANIC("heap corrupt?");
-                }
+		}
 
 	}
 
@@ -195,7 +231,8 @@ int parse_pstr(const char *input, uint32_t *total_ports) {
 		int j=0;
 
 		for (j=0; ports[j] != -1; j++) {
-			DBG(M_PRT, "port in list %d", ports[j]);
+			DBG(M_PRT, "port in list: port=%u count=%u (raw=0x%08x)",
+				PORT_VALUE(ports[j]), PORT_COUNT(ports[j]), ports[j]);
 		}
 	}
 

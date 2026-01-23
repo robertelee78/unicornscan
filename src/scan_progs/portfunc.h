@@ -19,6 +19,20 @@
 #ifndef _PORTFUNC_H
 # define _PORTFUNC_H
 
+/*
+ * Port encoding for TCP multi-payload support.
+ * Payload count is stored in upper 16 bits of int32_t ports[] array.
+ * Format: (count << 16) | port
+ *
+ * Examples:
+ *   "443"   -> count=1, port=443  -> 0x00010443
+ *   "443:3" -> count=3, port=443  -> 0x00030443
+ *   "80:2"  -> count=2, port=80   -> 0x00020050
+ */
+#define PORT_VALUE(x)		((uint16_t)((x) & 0xFFFF))
+#define PORT_COUNT(x)		((uint16_t)(((x) >> 16) & 0xFFFF))
+#define PORT_ENCODE(port, cnt)	(((int32_t)(cnt) << 16) | ((port) & 0xFFFF))
+
 void init_portsquick(void);
 void reset_getnextport(void);
 void shuffle_ports(void);
