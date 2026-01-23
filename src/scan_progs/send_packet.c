@@ -268,11 +268,17 @@ static void  inc_payload(void) {
  */
 static void init_tcp_payload(void) {
 	sl.tcp_plindex=0;
-	sl.tcp_plcount=count_payloads(IPPROTO_TCP, (uint16_t)sl.curport, s->payload_group);
+	/*
+	 * Get payload count from parsed workunit port string (via PORT_COUNT macro).
+	 * MAIN enriches port string with counts before sending workunit, so SEND
+	 * does not need to call count_payloads() or load TCP payloads.
+	 */
+	sl.tcp_plcount=PORT_COUNT(sl.curport);
 	if (sl.tcp_plcount == 0) {
 		sl.tcp_plcount=1;	/* at least one probe even with no payload */
 	}
-	DBG(M_SND, "TCP port %d has %u payloads", sl.curport, sl.tcp_plcount);
+	DBG(M_SND, "TCP port %u has %u payloads (from workunit)",
+		PORT_VALUE(sl.curport), sl.tcp_plcount);
 }
 
 static int cmp_tcp_payload(void) {
@@ -870,7 +876,7 @@ static void _send_packet(void) {
 	target_u.ss=&sl.curhost;
 
 	if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
-		rport=(uint16_t)sl.curport;
+		rport=PORT_VALUE(sl.curport);
 
 		if (s->ss->src_port == -1) {
 			sl.local_port=0;
@@ -891,8 +897,8 @@ static void _send_packet(void) {
 		 */
 		if (s->ss->mode == MODE_TCPSCAN && sl.tcp_plcount > 1) {
 			sl.local_port=encode_payload_port((uint16_t)sl.local_port, sl.tcp_plindex);
-			DBG(M_SND, "TCP multi-payload: port %d index %u/%u -> sport %u",
-				sl.curport, sl.tcp_plindex, sl.tcp_plcount, sl.local_port);
+			DBG(M_SND, "TCP multi-payload: port %u index %u/%u -> sport %u",
+				PORT_VALUE(sl.curport), sl.tcp_plindex, sl.tcp_plcount, sl.local_port);
 		}
 
 		/*
@@ -1045,9 +1051,9 @@ static void _send_packet(void) {
 		snprintf(myhost, sizeof(myhost) -1, "%s", cidr_saddrstr((const struct sockaddr *)myaddr_u.s));
 
 		if (s->ss->mode == MODE_TCPSCAN || s->ss->mode == MODE_UDPSCAN || s->ss->mode == MODE_TCPTRACE) {
-			DBG(M_SND, "sending to `%s:%d' from `%s:%u'",
+			DBG(M_SND, "sending to `%s:%u' from `%s:%u'",
 				cidr_saddrstr((const struct sockaddr *)&sl.curhost),
-				sl.curport,
+				PORT_VALUE(sl.curport),
 				myhost,
 				(uint16_t)sl.local_port
 			);
