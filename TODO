@@ -1,14 +1,27 @@
-before release: 
+before release:
 
-Unicornscan Wish list:
+Unicornscan Wish list (Alicorn UI):
 1. check boxes on search results
    a) ability to "select all" (ie check all boxes) after narrowing down the search
+      [DONE] Scan-level: useScanSelection.ts, ScanTable.tsx with select-all
      i) ability to delete selected results
+        [DONE] useBulkScanDeletion hook with progress tracking
     ii) ability to select port:ip combinations for use in findings database
+        [TODO] Selection only works at scan level; need useResultSelection.ts
+               hook + checkboxes in ResultsTab/PortTable + uni_findings table
 2. better search capabilities
+   [DONE] 7 search types: port, CIDR, IP prefix, MAC, ASN, regex, text
+         See: alicorn/src/features/hosts/search-utils.ts (599 lines)
 3. ability to add notes to individual items
+   [DONE] uni_notes table supports 6 entity types:
+         scan, host, ipreport, arpreport, service, network
+         See: NotesTab.tsx with auto-save and undo/redo
 4. ability to manually add/modify banner information
+   [TODO] Banners are read-only in uni_ipreportdata. Implementation:
+         Store overrides in uni_services.extra_data JSONB column.
+         Need: BannerEditDialog.tsx + updateServiceBannerOverride() API
 5. case insensitive banner searching
+   [DONE] Uses 'i' flag in regex - createTextSearchRegex() in search-utils.ts
 
 tester flag for non brain dead terms
 icmp scanning (no problem, itll be easy)?
