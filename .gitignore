@@ -81,3 +81,4 @@ package.json
 package-lock.json
 .playwright-mcp/
 agents/
+CLAUDE.md
