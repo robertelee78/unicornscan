@@ -112,13 +112,16 @@ was made to avoid confusion with the DECnet library.
 
 ### 1.3.1 Downloading Unicornscan
 
+[VERSION_BADGE]
+
 Source code and releases are available on GitHub:
 
 <https://github.com/robertelee78/unicornscan>
 
-To download the latest release tarball, visit the Releases page:
+Download the latest source tarball:
 
-<https://github.com/robertelee78/unicornscan/releases>
+```install-source-download
+```
 
 Or clone the Git repository for the development version:
 
@@ -134,9 +137,7 @@ install:
 
 1. **Extract the downloaded tarball** (skip if using git clone):
 
-   ```bash
-   tar jxvf unicornscan-VERSION.tar.bz2
-   cd unicornscan-VERSION
+   ```install-extract
    ```
 
 2. **If building from a git clone**, generate the configure script:

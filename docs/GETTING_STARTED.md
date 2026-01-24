@@ -4,8 +4,8 @@
 
 If you haven't installed Unicornscan yet:
 
-- **[Install from Package](INSTALL-package.md)** - Recommended for most users (Debian/Ubuntu)
-- **[Install from Source](INSTALL-source.md)** - For development or unsupported platforms
+- **[Install from Package](/docs/install-package)** - Recommended for most users (Debian/Ubuntu)
+- **[Install from Source](/docs/install-source)** - For development or unsupported platforms
 
 ## Philosophy: More Than a Port Scanner
 

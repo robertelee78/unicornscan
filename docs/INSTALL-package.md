@@ -15,6 +15,8 @@ If you prefer to compile from source, see the [INSTALL-source.md](INSTALL-source
 
 ## 1.2 Quick Install
 
+[VERSION_BADGE]
+
 Download the appropriate package from the GitHub Releases page:
 
 <https://github.com/robertelee78/unicornscan/releases>
@@ -34,14 +36,12 @@ That's it! The package manager handles all dependencies, and Linux capabilities 
 
 1. Download the `.deb` package from GitHub Releases:
 
-   ```bash
-   wget https://github.com/robertelee78/unicornscan/releases/download/vVERSION/unicornscan_VERSION_amd64.deb
+   ```install-wget-deb
    ```
 
 2. Install the package (`apt` automatically resolves dependencies):
 
-   ```bash
-   sudo apt install ./unicornscan_VERSION_amd64.deb
+   ```install-apt
    ```
 
    Runtime dependencies are installed automatically via the package manager. Key libraries include **libpcap**, **libdumbnet**, and **libltdl**.
@@ -69,14 +69,12 @@ That's it! The package manager handles all dependencies, and Linux capabilities 
 
 2. Download the `.rpm` package from GitHub Releases:
 
-   ```bash
-   wget https://github.com/robertelee78/unicornscan/releases/download/vVERSION/unicornscan-VERSION.x86_64.rpm
+   ```install-wget-rpm
    ```
 
 3. Install the package (`dnf` automatically resolves dependencies):
 
-   ```bash
-   sudo dnf install ./unicornscan-VERSION.x86_64.rpm
+   ```install-dnf
    ```
 
    Runtime dependencies are installed automatically via the package manager. Key libraries include **libpcap**, **libdnet**, **libtool-ltdl**, and **libcap**.
