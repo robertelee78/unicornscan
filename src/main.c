@@ -630,10 +630,17 @@ int main(int argc, char **argv) {
 						workunit_reinit();
 						master_reset_phase_state();
 						/*
-						 * For phase 2+, create workunits only for hosts
-						 * that responded to ARP in phase 1.
+						 * For phase 2+, if phase 0 was ARP, create workunits
+						 * only for hosts that responded. Otherwise (e.g., -mT+U),
+						 * use original target list for all phases.
 						 */
-						do_targets_from_arp_cache();
+						if (s->phases[0].mode == MODE_ARPSCAN) {
+							do_targets_from_arp_cache();
+						}
+						else {
+							prepare_targets_for_phase();
+							do_targets();
+						}
 					}
 
 					VRB(1, "scan iteration %u phase %u/%u: %s",
