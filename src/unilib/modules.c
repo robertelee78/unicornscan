@@ -31,6 +31,14 @@
 #include <unilib/qfifo.h>
 
 /*
+ * Process identity macros (matching parse.y convention)
+ * MAIN: Master process handles TCP connections
+ * SEND: Sender process handles UDP packet transmission
+ */
+#define MAIN (ident == IDENT_MASTER || ident == IDENT_ANY)
+#define SEND (ident == IDENT_SEND || ident == IDENT_ANY)
+
+/*
  * XXX this module interface was kinda ltdl'ized but it needs quite a bit of work
  */
 
@@ -251,24 +259,52 @@ int init_payload_modules(int (*add_pl)(uint16_t, uint16_t, int32_t, const uint8_
 			/*
 			 * Check for default payload (dport == -1) vs port-specific (dport >= 0)
 			 * Default payloads are used when no port-specific payload exists.
+			 *
+			 * Process guards match parse.y pattern:
+			 * - TCP default payloads only registered in Master (handles connections)
+			 * - UDP default payloads only registered in Sender (handles raw packets)
 			 */
 			if (walk->param_u.payload_s.dport == -1) {
-				/* Default payload - register via add_default_payload() */
-				if (add_default_payload(
-					walk->param_u.payload_s.proto,
-					walk->param_u.payload_s.sport,
-					NULL,
-					0,
-					walk->func_u.dl_create_payload,
-					walk->param_u.payload_s.payload_group
-					) != 1) {
-					ERR("cant register default payload for module `%s'", walk->fname);
-					lt_dlclose(walk->handle);
-					continue;
+				int proto=walk->param_u.payload_s.proto;
+
+				if (SEND && proto == IPPROTO_UDP) {
+					/* Sender handles UDP default payloads */
+					if (add_default_payload(
+						proto,
+						walk->param_u.payload_s.sport,
+						NULL,
+						0,
+						walk->func_u.dl_create_payload,
+						walk->param_u.payload_s.payload_group
+						) != 1) {
+						ERR("cant register default payload for module `%s'", walk->fname);
+						lt_dlclose(walk->handle);
+						continue;
+					}
+					VRB(1, "added module default payload for UDP");
 				}
-				VRB(1, "added module default payload for proto %u",
-					walk->param_u.payload_s.proto
-				);
+				else if (MAIN && proto == IPPROTO_TCP) {
+					/* Master handles TCP default payloads */
+					if (add_default_payload(
+						proto,
+						walk->param_u.payload_s.sport,
+						NULL,
+						0,
+						walk->func_u.dl_create_payload,
+						walk->param_u.payload_s.payload_group
+						) != 1) {
+						ERR("cant register default payload for module `%s'", walk->fname);
+						lt_dlclose(walk->handle);
+						continue;
+					}
+					VRB(1, "added module default payload for TCP");
+				}
+				else if ((SEND && proto == IPPROTO_TCP) || (MAIN && proto == IPPROTO_UDP)) {
+					/* Intentional no-op: silently skip irrelevant protocol for this process */
+				}
+				else {
+					PANIC("unexpected process identity %d with proto %u in init_payload_modules()", ident, proto);
+				}
 			}
 			else {
 				/* Port-specific payload - register via callback */
