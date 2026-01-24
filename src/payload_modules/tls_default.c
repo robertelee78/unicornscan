@@ -17,13 +17,13 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.          *
  **********************************************************************/
 /*
- * TLS 1.2/1.3 ClientHello payload module for port 443
+ * TLS 1.2/1.3 ClientHello default payload module
  *
- * Generates a modern TLS ClientHello that elicits ServerHello responses
- * from TLS-enabled services on the standard HTTPS port.
+ * Registered as a default TCP payload (dport=-1) for probing TLS services
+ * on non-standard ports. Used when no port-specific payload exists.
  *
  * See tls_common.h for TLS constants and create_payload implementation.
- * See tls_default.c for the default TCP payload variant (dport=-1).
+ * See tls.c for the port-443-specific variant.
  */
 #include "tls_common.h"
 
@@ -34,12 +34,12 @@ void delete_module(void);
 int init_module(mod_entry_t *m) {
 	snprintf(m->license, sizeof(m->license) - 1, "GPLv2");
 	snprintf(m->author, sizeof(m->author) - 1, "unicornscan-modernization");
-	snprintf(m->desc, sizeof(m->desc) - 1, "TLS 1.2/1.3 ClientHello (port 443)");
+	snprintf(m->desc, sizeof(m->desc) - 1, "TLS 1.2/1.3 ClientHello (default)");
 	m->iver=0x0103;
 	m->type=MI_TYPE_PAYLOAD;
 
 	m->param_u.payload_s.sport=-1;
-	m->param_u.payload_s.dport=443;
+	m->param_u.payload_s.dport=-1;	/* Default payload for all TCP ports */
 	m->param_u.payload_s.proto=IPPROTO_TCP;
 	m->param_u.payload_s.payload_group=1;
 
