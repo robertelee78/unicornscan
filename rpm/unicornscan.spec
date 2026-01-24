@@ -191,9 +191,12 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
-* Wed Jan 22 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.48-1
+* Thu Jan 23 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.48-1
 - TCP Multi-Payload Support: Send multiple probes per port for protocol fallback
 - Dynamic payload modules (tls.so) now included in payload count
+- Default TLS payload for non-standard ports (any port without specific payload)
+- Split TLS module into port-specific and default fallback payload module
+- New payload modules: WebSocket (port 4444), Google Cast, JSON-RPC discovery
 - New port:count syntax for workunit communication between MAIN and SEND
 - Consolidated payload encoding functions to scan_export.h
 - Unit tests for PORT_* macros and payload encoding (41 tests)

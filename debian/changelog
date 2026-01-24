@@ -6,6 +6,11 @@ unicornscan (0.4.48-1) unstable; urgency=medium
     - MAIN selects correct payload when delivering after handshake
   * Dynamic payload modules (tls.so) now included in payload count
     - Fixed module initialization order to load before workunit creation
+  * Default TLS payload for non-standard ports (any port without specific payload)
+    - Split TLS module into port-specific (993, 995, 465, 636, 853, 8443)
+      and default fallback payload module
+    - Widen dport field from uint16_t to int32_t for -1 (default) convention
+  * New payload modules: WebSocket (port 4444), Google Cast, JSON-RPC discovery
   * New port:count syntax for workunit IPC between MAIN and SEND
     - PORT_ENCODE/PORT_VALUE/PORT_COUNT macros in portfunc.h
     - Backward compatible with existing (uint16_t) casts
@@ -15,7 +20,7 @@ unicornscan (0.4.48-1) unstable; urgency=medium
   * TLS payloads upgraded to TLS 1.3 with 1.2 fallback
   * iOS/macOS 15+ constrained network p0f signature with fuzzy ws matching
 
- -- Robert E. Lee <robert@unicornscan.org>  Wed, 22 Jan 2026 18:20:00 -0800
+ -- Robert E. Lee <robert@unicornscan.org>  Thu, 23 Jan 2026 00:00:00 -0800
 
 unicornscan (0.4.47-1) unstable; urgency=medium
 
