@@ -9,6 +9,9 @@
 
 DO NOT BE LAZY. We have plenty of time to do it right. No short cuts. Never make assumptions. Always dive deep and ensure you know the problem you're solving. Make use of search as needed.  Measure 3x, cut once.  No fallback. No stub (todo later) code.  Just pure excellence, done the right way the entire time. Also recall Chesterton's fence; always understand current fully before changing it.
 
+# Git Commits
+Do NOT add `Co-Authored-By` lines to commit messages.
+
 # Archon Integration & Workflow
 
 **CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.**
