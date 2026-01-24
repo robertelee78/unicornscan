@@ -65,7 +65,7 @@ typedef struct mod_entry_t {
 		struct payload_mod {
 			int16_t proto;
 			int32_t sport;
-			uint16_t dport;
+			int32_t dport;	/* -1 for default payload (matches sport convention) */
 			uint16_t payload_group;
 		} payload_s;
 		struct report_mod {
