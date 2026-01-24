@@ -249,25 +249,46 @@ int init_payload_modules(int (*add_pl)(uint16_t, uint16_t, int32_t, const uint8_
 			walk->state=MI_STATE_HOOKED;
 
 			/*
-			 * XXX
+			 * Check for default payload (dport == -1) vs port-specific (dport >= 0)
+			 * Default payloads are used when no port-specific payload exists.
 			 */
-			if (add_pl(walk->param_u.payload_s.proto,
-				(uint16_t)walk->param_u.payload_s.dport,
-				walk->param_u.payload_s.sport,
-				NULL,
-				0,
-				walk->func_u.dl_create_payload,
-				walk->param_u.payload_s.payload_group
-				) != 1) {
-				ERR("cant register payload for module `%s'", walk->fname);
-				lt_dlclose(walk->handle);
-				continue;
+			if (walk->param_u.payload_s.dport == -1) {
+				/* Default payload - register via add_default_payload() */
+				if (add_default_payload(
+					walk->param_u.payload_s.proto,
+					walk->param_u.payload_s.sport,
+					NULL,
+					0,
+					walk->func_u.dl_create_payload,
+					walk->param_u.payload_s.payload_group
+					) != 1) {
+					ERR("cant register default payload for module `%s'", walk->fname);
+					lt_dlclose(walk->handle);
+					continue;
+				}
+				VRB(1, "added module default payload for proto %u",
+					walk->param_u.payload_s.proto
+				);
 			}
-
-			VRB(1, "added module payload for port %d proto %u",
-				walk->param_u.payload_s.dport,
-				walk->param_u.payload_s.proto
-			);
+			else {
+				/* Port-specific payload - register via callback */
+				if (add_pl(walk->param_u.payload_s.proto,
+					(uint16_t)walk->param_u.payload_s.dport,
+					walk->param_u.payload_s.sport,
+					NULL,
+					0,
+					walk->func_u.dl_create_payload,
+					walk->param_u.payload_s.payload_group
+					) != 1) {
+					ERR("cant register payload for module `%s'", walk->fname);
+					lt_dlclose(walk->handle);
+					continue;
+				}
+				VRB(1, "added module payload for port %d proto %u",
+					walk->param_u.payload_s.dport,
+					walk->param_u.payload_s.proto
+				);
+			}
 		}
 	}
 
