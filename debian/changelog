@@ -1,3 +1,10 @@
+unicornscan (0.4.50-1) unstable; urgency=medium
+
+  * Support non-ARP compound mode (-mT+U) for TCP+UDP scanning without ARP
+  * Documentation and housekeeping updates
+
+ -- Robert E. Lee <robert@unicornscan.org>  Fri, 24 Jan 2026 10:00:00 -0800
+
 unicornscan (0.4.49-1) unstable; urgency=medium
 
   * Default TLS payload for non-standard ports (any port without specific payload)
