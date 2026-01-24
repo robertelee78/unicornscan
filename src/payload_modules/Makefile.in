@@ -1,6 +1,6 @@
 include ../../Makefile.inc
 
-SRCS=ntalk.c rdns.c sip.c upnp.c http.c httpexp.c dhcp.c stun.c nbns.c tls.c tls_default.c mongo.c
+SRCS=ntalk.c rdns.c sip.c upnp.c http.c httpexp.c dhcp.c stun.c nbns.c tls.c tls_default.c mongo.c websocket.c
 
 OBJS=$(SRCS:.c=.lo)
 SHLIBS=$(OBJS:.lo=.la)
