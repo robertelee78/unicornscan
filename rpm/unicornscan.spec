@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           unicornscan
-Version:        0.4.50
+Version:        0.4.51
 Release:        1%{?dist}
 Summary:        Asynchronous stateless TCP/UDP network scanner
 
@@ -191,6 +191,10 @@ echo ""
 %dir %{_sharedstatedir}/unicornscan/alicorn
 
 %changelog
+* Sun Jan 26 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.51-1
+- Fix ARP mode packet estimation showing 0 packets
+- Fix runtime version and bug report URL in packageinfo.h
+
 * Fri Jan 24 2026 Robert E. Lee <robert@unicornscan.org> - 0.4.50-1
 - Support non-ARP compound mode (-mT+U) for TCP+UDP scanning without ARP
 - Documentation and housekeeping updates

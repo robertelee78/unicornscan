@@ -1,3 +1,10 @@
+unicornscan (0.4.51-1) unstable; urgency=medium
+
+  * Fix ARP mode packet estimation showing 0 packets
+  * Fix runtime version and bug report URL in packageinfo.h
+
+ -- Robert E. Lee <robert@unicornscan.org>  Sun, 26 Jan 2026 10:00:00 -0800
+
 unicornscan (0.4.50-1) unstable; urgency=medium
 
   * Support non-ARP compound mode (-mT+U) for TCP+UDP scanning without ARP
