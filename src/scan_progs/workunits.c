@@ -406,6 +406,7 @@ int workunit_add(const char *targets, char **estr) {
 
 			case MODE_ARPSCAN:
 				port_str=NULL;
+				num_pkts=1;	/* ARP: 1 request per host */
 				break;
 
 			default:
