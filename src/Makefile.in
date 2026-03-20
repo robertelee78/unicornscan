@@ -20,6 +20,9 @@ all: @targetname@
 compile.h: ../configure
 	CC="$(CC)" ./compiledby.sh > compile.h
 
+# getconfig.c #includes compile.h -- explicit dep prevents parallel build race
+getconfig.lo: compile.h
+
 .PHONY: alld
 alld:
 	@for g in $(SUBDIRS); do \
