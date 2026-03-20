@@ -43,7 +43,9 @@ services:
   # PostgreSQL Database
   # ==========================================================================
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
     container_name: alicorn-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alicorn}
@@ -51,7 +53,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-unicornscan}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sql/pgsql_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     ports:
       - "5432:5432"
     restart: unless-stopped

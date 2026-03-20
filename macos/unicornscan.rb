@@ -160,6 +160,10 @@ class Unicornscan < Formula
     (alicorn_dest).install "alicorn/Dockerfile"
     (alicorn_dest).install "alicorn/nginx.conf"
 
+    # PostgreSQL with schema (uses COPY instead of volume mount for Colima compat)
+    (alicorn_dest/"postgres").install "alicorn/postgres/Dockerfile"
+    (alicorn_dest/"postgres").install "alicorn/postgres/pgsql_schema.sql"
+
     # PostgREST sub-service
     (alicorn_dest/"postgrest").install "alicorn/postgrest/Dockerfile"
 

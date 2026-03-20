@@ -26,8 +26,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-unicornscan}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Mount the unicornscan PostgreSQL schema for initialization
-      - ../src/output_modules/database/sql/pgsql_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     ports:
       - "5432:5432"
     restart: unless-stopped
