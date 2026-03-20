@@ -28,8 +28,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       # Mount the unicornscan PostgreSQL schema for initialization
       - ../src/output_modules/database/sql/pgsql_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-    ports:
-      - "${ALICORN_PG_PORT:-5433}:5432"
+    # No host port — PostgREST connects via Docker network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alicorn} -d ${POSTGRES_DB:-unicornscan}"]
@@ -39,12 +38,10 @@ services:
       start_period: 10s
 
   # ==========================================================================
-  # PostgREST API (custom build with wget for healthcheck)
+  # PostgREST API (official multi-arch image)
   # ==========================================================================
   postgrest:
-    build:
-      context: ./postgrest
-      dockerfile: Dockerfile
+    image: postgrest/postgrest:v12.2.3
     container_name: alicorn-postgrest
     environment:
       PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unicornscan}
@@ -58,12 +55,6 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
 
   # ==========================================================================
   # Alicorn Web UI
@@ -82,14 +73,8 @@ services:
       - "8080:80"
     depends_on:
       postgrest:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80/"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
 
 volumes:
   postgres_data:

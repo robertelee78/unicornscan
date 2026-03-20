@@ -252,7 +252,7 @@ check_ports() {
     local ports_in_use=""
     local port_info=""
 
-    for port in 31337 31338 ${ALICORN_PG_PORT:-5433}; do
+    for port in 31337 31338; do
         if port_in_use "$port"; then
             ports_in_use="$ports_in_use $port"
             # Try to identify what's using the port
@@ -269,7 +269,7 @@ check_ports() {
         echo ""
         echo "  Port 31337 = Alicorn Web UI"
         echo "  Port 31338 = Alicorn API (PostgREST)"
-        echo "  Port ${ALICORN_PG_PORT:-5433}  = PostgreSQL database"
+        echo "  (PostgreSQL runs inside Docker network only, no host port needed)"
         echo ""
         echo "Please stop the conflicting service(s) or change their ports."
         echo "If this is from a previous Alicorn run, try: sudo unicornscan-alicorn stop"
@@ -457,9 +457,14 @@ cmd_start() {
 
     # Build and start containers (first run will build images, takes ~2 minutes)
     print_status "Building containers (first run may take 1-2 minutes)..."
-    $COMPOSE_CMD --env-file "$ENV_FILE" up -d --build
+    if ! $COMPOSE_CMD --env-file "$ENV_FILE" up -d --build 2>&1; then
+        # Retry: postgres healthcheck may not have passed yet on first compose up
+        print_warning "Initial start had failures, waiting for postgres healthcheck..."
+        sleep 10
+        $COMPOSE_CMD --env-file "$ENV_FILE" up -d 2>&1 || true
+    fi
 
-    # Wait for services to be healthy
+    # Wait for services to be ready
     print_status "Waiting for services to start..."
     sleep 5
 

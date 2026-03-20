@@ -52,8 +52,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./sql/pgsql_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-    ports:
-      - "${ALICORN_PG_PORT:-5433}:5432"
+    # PostgreSQL is only accessed by PostgREST via Docker network.
+    # No host port mapping needed — avoids conflicts with host PostgreSQL.
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alicorn} -d ${POSTGRES_DB:-unicornscan}"]
@@ -63,12 +63,10 @@ services:
       start_period: 10s
 
   # ==========================================================================
-  # PostgREST API (custom build with wget for healthcheck)
+  # PostgREST API (official multi-arch image, no custom build needed)
   # ==========================================================================
   postgrest:
-    build:
-      context: ./postgrest
-      dockerfile: Dockerfile
+    image: postgrest/postgrest:v12.2.3
     container_name: alicorn-postgrest
     environment:
       PGRST_DB_URI: postgres://${POSTGRES_USER:-alicorn}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-unicornscan}
@@ -83,7 +81,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["NONE"]
       interval: 10s
       timeout: 5s
       retries: 5
