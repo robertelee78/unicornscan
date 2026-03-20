@@ -362,7 +362,13 @@ int main(int argc, char ** argv) {
 		exit(1);
 	}
 
-
+	/*
+	 * Open the libdnet ethernet handle BEFORE pcap_open_live.
+	 *
+	 * On macOS, libdnet's eth_open() only tries /dev/bpf0. If pcap
+	 * grabs bpf0 first, eth_open() fails with EBUSY. Opening the
+	 * dnet handle first lets pcap fall through to bpf1.
+	 */
 	bob.e=eth_open(bob.device);
 	if (bob.e == NULL) {
 		ERR("cant open ethernet link: %s", strerror(errno));
@@ -401,9 +407,11 @@ int main(int argc, char ** argv) {
 	snprintf(pfilter, sizeof(pfilter) -1, FILTER);
 	(void )pcap_lookupnet(bob.device, &net, &mask, errors);
 
-	pdev=pcap_open_live(bob.device, 500, 1, -1, errors);
+	/* XXX use 100ms timeout; -1 causes BIOCSRTIMEOUT on macOS BPF */
+	pdev=pcap_open_live(bob.device, 500, 1, 100, errors);
 	if (pdev == NULL) {
 		ERR("cant open up interface `%s': %s", bob.device, errors);
+		eth_close(bob.e);
 		exit(1);
 	}
 

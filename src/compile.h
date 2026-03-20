@@ -1,1 +1,1 @@
-#define COMPILE_STR "Compiled by robert on Linux tadpole 6.17.0-8-generic x86_64 at Fri Jan 23 19:25:50 PST 2026 with gcc version 15.2.015.2.044"
+#define COMPILE_STR "Compiled by robert on Darwin Roberts-MBP 25.3.0 arm64 at Thu Mar 19 23:50:06 PDT 2026 with gcc version "

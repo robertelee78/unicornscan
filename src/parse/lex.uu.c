@@ -1,5 +1,5 @@
 
-#line 3 "lex.uu.c"
+#line 2 "lex.uu.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -848,9 +848,9 @@ struct incf_s incs[INCLUDE_DEPTH];
 void switchfiles(const char *);
 void uuerror(const char *);
 
-#line 852 "lex.uu.c"
+#line 851 "lex.uu.c"
 
-#line 854 "lex.uu.c"
+#line 853 "lex.uu.c"
 
 #define INITIAL 0
 #define scomment 1
@@ -1071,7 +1071,7 @@ YY_DECL
 	{
 #line 57 "parse.l"
 
-#line 1075 "lex.uu.c"
+#line 1074 "lex.uu.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1283,7 +1283,7 @@ YY_RULE_SETUP
 #line 105 "parse.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 1287 "lex.uu.c"
+#line 1286 "lex.uu.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(scomment):
 case YY_STATE_EOF(cppcomment):

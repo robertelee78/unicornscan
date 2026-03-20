@@ -195,88 +195,23 @@ int drop_privs(void) {
  *         -1 on hard failure.
  */
 static int apply_sandbox(void) {
-	char *errbuf=NULL;
-	int ret=0;
-	FILE *fp=NULL;
-	char *profile_str=NULL;
-	long file_len=0;
-	size_t read_len=0;
 
-#ifndef SANDBOX_PROFILE
-	DBG(M_CLD, "SANDBOX_PROFILE not defined at compile time, skipping sandbox");
+	/*
+	 * sandbox_init() was deprecated in macOS 10.8 and the
+	 * SANDBOX_NAMED flag only accepts Apple's built-in profile
+	 * constants (kSBXProfileNoNetwork, etc.), not inline Scheme
+	 * text or file paths. Our custom .sb profile cannot be loaded
+	 * through this API on modern macOS (10.15+).
+	 *
+	 * XXX investigate sandbox_exec or App Sandbox entitlements
+	 * as a replacement for process-level sandboxing on macOS.
+	 * For now, rely on non-root BPF access via ChmodBPF and
+	 * the existing privilege drop in drop_privs().
+	 */
+	DBG(M_CLD, "macOS sandbox_init() is deprecated, sandboxing skipped");
+	VRB(2, "sandbox not available on this macOS version");
+
 	return 0;
-#else
-	/*
-	 * Read the sandbox profile from disk. We cannot use
-	 * SANDBOX_NAMED_EXTERNAL with a bare filename -- that looks up
-	 * profiles in /usr/share/sandbox which we do not control. Instead,
-	 * read the profile text and pass it via SANDBOX_NAMED with the
-	 * profile content as the "name" parameter. Apple's sandbox_init()
-	 * interprets SANDBOX_NAMED as a profile string when it starts with
-	 * '(' (the opening paren of Scheme syntax).
-	 */
-	fp=fopen(SANDBOX_PROFILE, "r");
-	if (fp == NULL) {
-		ERR("sandbox profile `%s' not found: %s (sandboxing skipped)",
-			SANDBOX_PROFILE, strerror(errno));
-		return 0;
-	}
-
-	/* Determine file size */
-	if (fseek(fp, 0, SEEK_END) != 0) {
-		ERR("fseek on sandbox profile fails: %s", strerror(errno));
-		fclose(fp);
-		return 0;
-	}
-	file_len=ftell(fp);
-	if (file_len <= 0 || file_len > 65536) {
-		ERR("sandbox profile has invalid size %ld", file_len);
-		fclose(fp);
-		return 0;
-	}
-	rewind(fp);
-
-	profile_str=(char *)xmalloc((size_t)file_len + 1);
-	read_len=fread(profile_str, 1, (size_t)file_len, fp);
-	fclose(fp);
-
-	if (read_len != (size_t)file_len) {
-		ERR("short read on sandbox profile: expected %ld got " STFMT,
-			file_len, read_len);
-		xfree(profile_str);
-		return 0;
-	}
-	profile_str[file_len]='\0';
-
-	DBG(M_CLD, "applying macOS sandbox profile from `%s' (%ld bytes)",
-		SANDBOX_PROFILE, file_len);
-
-	/*
-	 * sandbox_init with SANDBOX_NAMED: when the profile string begins
-	 * with '(' it is interpreted as inline profile text rather than a
-	 * named profile lookup.
-	 */
-	ret=sandbox_init(profile_str, SANDBOX_NAMED, &errbuf);
-	xfree(profile_str);
-
-	if (ret != 0) {
-		ERR("sandbox_init failed: %s (sandboxing skipped)",
-			errbuf ? errbuf : "unknown error");
-		if (errbuf != NULL) {
-			sandbox_free_error(errbuf);
-		}
-		/*
-		 * Non-fatal: continue without sandbox. This allows the
-		 * scanner to work on macOS versions where sandbox_init()
-		 * is unsupported or where the profile uses unsupported
-		 * operations.
-		 */
-		return 0;
-	}
-
-	VRB(1, "macOS sandbox applied from `%s'", SANDBOX_PROFILE);
-	return 1;
-#endif /* SANDBOX_PROFILE */
 }
 #endif /* HAVE_SANDBOX_INIT */
 
