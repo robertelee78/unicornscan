@@ -104,9 +104,11 @@ class Unicornscan < Formula
       (lib/"unicornscan/modules").install Dir[modules_staged/"*"]
     end
 
-    # Remove .la files -- Homebrew convention.  The scanner loads modules
-    # via ltdl which can locate .so/.dylib files without .la wrappers.
-    rm Dir[lib/"unicornscan/modules/*.la"]
+    # NOTE: Do NOT remove .la files from the modules directory.
+    # unicornscan's module loader (src/unilib/modules.c) uses SHLIB_EXT=".la"
+    # to discover loadable modules. Without .la files, no modules load and
+    # features like -epgsqldb, -eosdetect, and payload modules are silently
+    # disabled. This overrides the normal Homebrew convention of removing .la.
 
     # --- Configuration files ---
     # Install config files to etc/unicornscan/.  Homebrew marks files
