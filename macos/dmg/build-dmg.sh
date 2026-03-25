@@ -242,6 +242,20 @@ else
     fi
 fi
 
+# --- Alicorn management script: /usr/local/bin/ ---
+# The unicornscan-alicorn script manages the Docker-based Alicorn web UI
+# stack (start/stop/status/logs).  It lives in debian/ for historical
+# reasons but is cross-platform.  The Homebrew formula installs it from
+# the same source (see macos/unicornscan.rb:91).
+ALICORN_SCRIPT_SRC="${REPO_ROOT}/debian/unicornscan-alicorn"
+if [ -f "${ALICORN_SCRIPT_SRC}" ]; then
+    cp "${ALICORN_SCRIPT_SRC}" "${PKG_ROOT}/usr/local/bin/unicornscan-alicorn"
+    chmod 755 "${PKG_ROOT}/usr/local/bin/unicornscan-alicorn"
+    info "  + /usr/local/bin/unicornscan-alicorn"
+else
+    warn "unicornscan-alicorn script not found at ${ALICORN_SCRIPT_SRC}"
+fi
+
 # --- Install/uninstall helper scripts ---
 for helper in install-chmodbpf.sh uninstall-chmodbpf.sh; do
     SRC="${REPO_ROOT}/macos/${helper}"
@@ -308,14 +322,37 @@ if [ -f "${SANDBOX_SRC}" ]; then
 else
     warn "Sandbox profile not found at ${SANDBOX_SRC}"
 fi
+SANDBOX_SENDER_SRC="${REPO_ROOT}/macos/unicornscan-sender.sb"
+if [ -f "${SANDBOX_SENDER_SRC}" ]; then
+    cp "${SANDBOX_SENDER_SRC}" "${PKG_ROOT}/usr/local/share/unicornscan/"
+    info "  + /usr/local/share/unicornscan/unicornscan-sender.sb"
+else
+    warn "Sender sandbox profile not found at ${SANDBOX_SENDER_SRC}"
+fi
 
 # --- Alicorn files: /usr/local/share/unicornscan/alicorn/ ---
 ALICORN_SRC="${REPO_ROOT}/alicorn"
 if [ -d "${ALICORN_SRC}" ]; then
     mkdir -p "${PKG_ROOT}/usr/local/share/unicornscan/alicorn"
-    # Copy Docker deployment files and source needed for builds.
-    for item in docker-compose.yml docker-compose.standalone.yml docker-compose.full.yml \
-                Dockerfile nginx.conf index.html \
+
+    # Docker Compose: install the standalone (full-stack) compose as the
+    # primary docker-compose.yml.  The standalone variant bundles all four
+    # services (postgres, postgrest, geoip-api, alicorn) so that
+    # `unicornscan-alicorn start` works out of the box on a DMG install.
+    # This mirrors what the Homebrew formula does (macos/unicornscan.rb:159).
+    #
+    # The dev-only docker-compose.yml (single web service, no database) and
+    # docker-compose.full.yml are NOT installed — only the renamed standalone.
+    if [ -f "${ALICORN_SRC}/docker-compose.standalone.yml" ]; then
+        cp "${ALICORN_SRC}/docker-compose.standalone.yml" \
+           "${PKG_ROOT}/usr/local/share/unicornscan/alicorn/docker-compose.yml"
+        info "  + docker-compose.yml (standalone full-stack)"
+    else
+        warn "docker-compose.standalone.yml not found in ${ALICORN_SRC}"
+    fi
+
+    # Copy remaining Docker build contexts, source, and config files.
+    for item in Dockerfile nginx.conf index.html \
                 package.json package-lock.json \
                 vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json \
                 geoip-api postgrest sql cli src public; do
@@ -323,6 +360,12 @@ if [ -d "${ALICORN_SRC}" ]; then
             cp -R "${ALICORN_SRC}/${item}" "${PKG_ROOT}/usr/local/share/unicornscan/alicorn/"
         fi
     done
+
+    # Copy the postgres build context (needed by standalone compose).
+    if [ -d "${ALICORN_SRC}/postgres" ]; then
+        cp -R "${ALICORN_SRC}/postgres" "${PKG_ROOT}/usr/local/share/unicornscan/alicorn/"
+    fi
+
     info "  + /usr/local/share/unicornscan/alicorn/ (web UI)"
 else
     info "  Alicorn source not found — skipping."
@@ -331,6 +374,193 @@ fi
 # --- State directory: /usr/local/var/unicornscan/ ---
 mkdir -p "${PKG_ROOT}/usr/local/var/unicornscan"
 info "  + /usr/local/var/unicornscan/ (state directory)"
+
+# ---------------------------------------------------------------------------
+# Step 1b: Bundle shared libraries and fix rpaths
+# ---------------------------------------------------------------------------
+# The binaries were linked against Homebrew dylibs at /opt/homebrew/.
+# A DMG install must be self-contained — it cannot depend on Homebrew.
+# We copy the required dylibs into /usr/local/lib/unicornscan/ and rewrite
+# all load commands so binaries find them at their installed location.
+
+info "Bundling shared libraries..."
+
+BUNDLED_LIB_DIR="${PKG_ROOT}/usr/local/lib/unicornscan"
+BUNDLED_LIB_INSTALL="/usr/local/lib/unicornscan"
+mkdir -p "${BUNDLED_LIB_DIR}"
+
+# Collect all non-system dylib dependencies from every Mach-O in the package.
+# Then copy each unique dylib and rewrite load commands in all consumers.
+
+collect_brew_dylibs() {
+    # Scan a Mach-O binary for dylib references outside /usr/lib/.
+    otool -L "$1" 2>/dev/null | awk '/^\t/ { print $1 }' | grep -v '^/usr/lib/' | grep -v '^/System/'
+}
+
+# Build a deduplicated list of all Homebrew dylibs needed.
+DYLIB_LIST=""
+for binary in \
+    "${PKG_ROOT}/usr/local/bin/unicornscan" \
+    "${PKG_ROOT}/usr/local/bin/fantaip" \
+    "${PKG_ROOT}/usr/local/bin/unibrow" \
+    "${PKG_ROOT}/usr/local/bin/unicfgtst" \
+    "${PKG_ROOT}/usr/local/libexec/unicornscan/unisend" \
+    "${PKG_ROOT}/usr/local/libexec/unicornscan/unilisten"; do
+    if [ -f "$binary" ]; then
+        for dylib in $(collect_brew_dylibs "$binary"); do
+            case "${DYLIB_LIST}" in
+                *"${dylib}"*) ;;  # already in list
+                *) DYLIB_LIST="${DYLIB_LIST} ${dylib}" ;;
+            esac
+        done
+    fi
+done
+
+# Also scan loadable modules (.so files).
+if [ -d "${BUNDLED_LIB_DIR}/modules" ]; then
+    for module in "${BUNDLED_LIB_DIR}/modules/"*.so; do
+        if [ -f "$module" ]; then
+            for dylib in $(collect_brew_dylibs "$module"); do
+                case "${DYLIB_LIST}" in
+                    *"${dylib}"*) ;;
+                    *) DYLIB_LIST="${DYLIB_LIST} ${dylib}" ;;
+                esac
+            done
+        fi
+    done
+fi
+
+# Copy each dylib and recursively resolve transitive dependencies.
+# Uses a work-queue approach: PENDING holds paths not yet processed,
+# SEEN tracks all paths already queued to prevent infinite loops.
+COPIED_DYLIBS=""
+SEEN="${DYLIB_LIST}"
+PENDING="${DYLIB_LIST}"
+
+while [ -n "${PENDING}" ]; do
+    # Pop the current batch and reset PENDING for newly discovered deps.
+    CURRENT_BATCH="${PENDING}"
+    PENDING=""
+
+    for dylib in ${CURRENT_BATCH}; do
+        BASENAME="$(basename "$dylib")"
+
+        # Skip if already copied (basename collision from different paths).
+        case "${COPIED_DYLIBS}" in
+            *"${BASENAME}"*) continue ;;
+        esac
+
+        if [ -f "$dylib" ]; then
+            cp "$dylib" "${BUNDLED_LIB_DIR}/${BASENAME}"
+            chmod 644 "${BUNDLED_LIB_DIR}/${BASENAME}"
+            COPIED_DYLIBS="${COPIED_DYLIBS} ${BASENAME}"
+            info "  + lib/unicornscan/${BASENAME}"
+
+            # Discover transitive deps from the original (not yet rewritten) dylib.
+            for trans in $(collect_brew_dylibs "$dylib"); do
+                case "${SEEN}" in
+                    *"${trans}"*) ;;  # already seen
+                    *)
+                        SEEN="${SEEN} ${trans}"
+                        PENDING="${PENDING} ${trans}"
+                        # Also add to DYLIB_LIST so rewrite_dylib_refs covers it.
+                        DYLIB_LIST="${DYLIB_LIST} ${trans}"
+                        ;;
+                esac
+            done
+        else
+            warn "Dylib not found, skipping: ${dylib}"
+        fi
+    done
+done
+
+# Rewrite the install_name of each bundled dylib to its installed path.
+for dname in ${COPIED_DYLIBS}; do
+    BUNDLED="${BUNDLED_LIB_DIR}/${dname}"
+    if [ -f "$BUNDLED" ]; then
+        install_name_tool -id "${BUNDLED_LIB_INSTALL}/${dname}" "$BUNDLED" 2>/dev/null || true
+    fi
+done
+
+# Rewrite load commands in all binaries and modules.
+rewrite_dylib_refs() {
+    local target="$1"
+    for dylib in ${DYLIB_LIST}; do
+        BASENAME="$(basename "$dylib")"
+        NEW_PATH="${BUNDLED_LIB_INSTALL}/${BASENAME}"
+        # Only rewrite if the old path differs from the new path.
+        if [ "$dylib" != "$NEW_PATH" ]; then
+            install_name_tool -change "$dylib" "$NEW_PATH" "$target" 2>/dev/null || true
+        fi
+    done
+}
+
+info "Rewriting dylib load paths..."
+
+for binary in \
+    "${PKG_ROOT}/usr/local/bin/unicornscan" \
+    "${PKG_ROOT}/usr/local/bin/fantaip" \
+    "${PKG_ROOT}/usr/local/bin/unibrow" \
+    "${PKG_ROOT}/usr/local/bin/unicfgtst" \
+    "${PKG_ROOT}/usr/local/libexec/unicornscan/unisend" \
+    "${PKG_ROOT}/usr/local/libexec/unicornscan/unilisten"; do
+    if [ -f "$binary" ]; then
+        rewrite_dylib_refs "$binary"
+    fi
+done
+
+# Rewrite module .so files too.
+if [ -d "${BUNDLED_LIB_DIR}/modules" ]; then
+    for module in "${BUNDLED_LIB_DIR}/modules/"*.so; do
+        if [ -f "$module" ]; then
+            rewrite_dylib_refs "$module"
+        fi
+    done
+fi
+
+# Also rewrite cross-references between bundled dylibs themselves.
+for dname in ${COPIED_DYLIBS}; do
+    BUNDLED="${BUNDLED_LIB_DIR}/${dname}"
+    if [ -f "$BUNDLED" ]; then
+        rewrite_dylib_refs "$BUNDLED"
+    fi
+done
+
+# Re-sign all modified Mach-O files with ad-hoc signatures.
+# install_name_tool invalidates the linker-generated ad-hoc signature.
+# On macOS 11+, unsigned or invalidly-signed arm64 binaries are killed
+# with SIGKILL (exit 137) by the kernel before they can execute.
+info "Re-signing binaries and libraries..."
+
+for binary in \
+    "${PKG_ROOT}/usr/local/bin/unicornscan" \
+    "${PKG_ROOT}/usr/local/bin/fantaip" \
+    "${PKG_ROOT}/usr/local/bin/unibrow" \
+    "${PKG_ROOT}/usr/local/bin/unicfgtst" \
+    "${PKG_ROOT}/usr/local/libexec/unicornscan/unisend" \
+    "${PKG_ROOT}/usr/local/libexec/unicornscan/unilisten"; do
+    if [ -f "$binary" ]; then
+        codesign -f -s - "$binary" 2>/dev/null || warn "Failed to sign $(basename "$binary")"
+    fi
+done
+
+for dname in ${COPIED_DYLIBS}; do
+    BUNDLED="${BUNDLED_LIB_DIR}/${dname}"
+    if [ -f "$BUNDLED" ]; then
+        codesign -f -s - "$BUNDLED" 2>/dev/null || warn "Failed to sign ${dname}"
+    fi
+done
+
+# Re-sign module .so files.
+if [ -d "${BUNDLED_LIB_DIR}/modules" ]; then
+    for module in "${BUNDLED_LIB_DIR}/modules/"*.so; do
+        if [ -f "$module" ]; then
+            codesign -f -s - "$module" 2>/dev/null || warn "Failed to sign $(basename "$module")"
+        fi
+    done
+fi
+
+info "Dylib bundling complete."
 
 # ---------------------------------------------------------------------------
 # Step 2: Copy installer scripts
@@ -431,10 +661,11 @@ cat > "${RESOURCES_DIR}/welcome.html" << 'WELCOME'
 <html>
 <head>
 <style>
-body { font-family: -apple-system, Helvetica Neue, sans-serif; margin: 20px; }
-h1 { font-size: 24px; color: #333; }
-p { font-size: 14px; color: #555; line-height: 1.6; }
-code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+body { font-family: -apple-system, Helvetica Neue, sans-serif; margin: 20px; color-scheme: light dark; }
+h1 { font-size: 24px; }
+p { font-size: 14px; line-height: 1.6; }
+li { font-size: 14px; line-height: 1.6; }
+code { padding: 2px 6px; border-radius: 3px; font-size: 13px; }
 </style>
 </head>
 <body>

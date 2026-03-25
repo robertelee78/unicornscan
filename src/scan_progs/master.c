@@ -273,7 +273,21 @@ void run_scan(void) {
 		DBG(M_TRC, "traceroute session created ttl %u-%u", s->ss->minttl, s->ss->maxttl);
 	}
 
+	{
+	time_t last_progress=time(NULL);
+
 	for (master_state=MASTER_START; (s->senders + s->listeners) > 0 ;) {
+
+		/* watchdog: detect stalled scan loop when no IPC progress is made */
+		{
+			time_t tnow=time(NULL);
+			if ((tnow - last_progress) > (time_t)(s->ss->recv_timeout * 3)) {
+				ERR("scan loop stalled for %d seconds with %d senders + %d listeners alive, forcing cleanup",
+					(int)(tnow - last_progress), s->senders, s->listeners);
+				master_updatestate(MASTER_DONE);
+				break;
+			}
+		}
 
 		/* if we are not waiting for the senders to finish, we can dispatch work */
 		if (master_state == MASTER_SENT_LISTEN_WORKUNITS || master_state == MASTER_START) {
@@ -294,6 +308,7 @@ void run_scan(void) {
 		readable=drone_poll(s->master_tickrate);
 		if (readable) {
 			master_read_drones();
+			time(&last_progress);
 		}
 
 		if (master_state == MASTER_WAIT_SENDER && senders_done()) {
@@ -328,6 +343,7 @@ void run_scan(void) {
 		}
 
 	} /* walk from state START to SCAN DONE */
+	} /* last_progress scope */
 
 	fifo_destroy(s->pri_work);
 

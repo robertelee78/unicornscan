@@ -136,6 +136,7 @@ class Unicornscan < Formula
     # Sandbox profile for the listener process.  The configure.ac
     # SANDBOX_PROFILE macro points to datadir/unicornscan/ at runtime.
     (share/"unicornscan").install "macos/unicornscan-listener.sb"
+    (share/"unicornscan").install "macos/unicornscan-sender.sb"
 
     # ChmodBPF LaunchDaemon files -- users run install-chmodbpf.sh
     # manually after brew install (requires sudo).

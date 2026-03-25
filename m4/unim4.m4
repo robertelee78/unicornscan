@@ -98,7 +98,7 @@ AC_ARG_WITH(libdnet,
 [  --with-libdnet=PREFIX   use already installed libdnet in PREFIX
 ],
 [
-case "$dnet_pfx" in
+case "$withval" in
 no)
 	lookin=""
 	;;
@@ -106,7 +106,7 @@ yes)
 	lookin=$default_libdnet_directories
 	;;
 *)
-	lookin=$dnet_pfx
+	lookin=$withval
 	;;
 esac
 ])

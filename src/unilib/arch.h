@@ -23,4 +23,7 @@
  */
 int drop_privs(void);
 
+/* apply a macOS sandbox profile to the current process (no-op on non-macOS) */
+int apply_sandbox_profile(const char *profile_path);
+
 #endif

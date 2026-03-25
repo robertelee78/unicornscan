@@ -61,6 +61,7 @@
 #include <scan_progs/tcphash.h>
 #include <scan_progs/entry.h>
 #include <parse/parse.h>
+#include <unilib/arch.h>
 
 #define CTVOID 1
 #define CTPAYL 2
@@ -560,6 +561,19 @@ void send_packet(void) {
 				ERR("unknown workunit type 0x%08x, ignoring", *wk_u.magic);
 				continue;
 			}
+
+			/* apply sender sandbox after socket is open (one-time) */
+#ifdef HAVE_SANDBOX_INIT
+			{
+				static int sandbox_applied=0;
+				if (!sandbox_applied) {
+					if (apply_sandbox_profile(SANDBOX_PROFILE_SENDER) < 0) {
+						ERR("sender sandbox apply failed (continuing)");
+					}
+					sandbox_applied=1;
+				}
+			}
+#endif
 
 			/* s->pps shouldnt be negative, but well just check anyhow */
 			if (s->pps < 1) PANIC("pps too low");

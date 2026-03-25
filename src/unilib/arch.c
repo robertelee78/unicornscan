@@ -191,6 +191,9 @@ int get_interface_info(const char *iname, interface_info_t *ii) {
 int drop_privs(void) {
 	return 1;
 }
+int apply_sandbox_profile(const char *profile_path) {
+	return 0;
+}
 #else
 
 #ifdef HAVE_SANDBOX_INIT
@@ -212,14 +215,16 @@ int drop_privs(void) {
  * a VRB(1) message and returns 0 (non-fatal), identical to today's
  * behaviour.
  *
- * The profile path is compiled in as SANDBOX_PROFILE (set from
- * @datadir@/unicornscan/unicornscan-listener.sb by Makefile.inc.in).
+ * The profile path is passed as a parameter.  For the listener, this is
+ * SANDBOX_PROFILE (@datadir@/unicornscan/unicornscan-listener.sb).
+ * For the sender, this is SANDBOX_PROFILE_SENDER
+ * (@datadir@/unicornscan/unicornscan-sender.sb).
  *
  * Returns: 1 on success (sandbox applied),
  *          0 if sandbox was not applied (non-fatal -- scan proceeds),
  *         -1 on hard failure (sandbox_apply() returned non-zero).
  */
-static int apply_sandbox(void) {
+int apply_sandbox_profile(const char *profile_path) {
 	void *libsb=NULL;
 	fn_create_params  sb_create_params=NULL;
 	fn_free_params    sb_free_params=NULL;
@@ -231,11 +236,11 @@ static int apply_sandbox(void) {
 	char *error=NULL;
 	int rc=0;
 
-#ifndef SANDBOX_PROFILE
-	/* build system did not define the profile path -- skip silently */
-	DBG(M_CLD, "SANDBOX_PROFILE not defined at compile time, sandbox skipped");
-	return 0;
-#else
+	if (profile_path == NULL || profile_path[0] == '\0') {
+		DBG(M_CLD, "no sandbox profile path provided, sandbox skipped");
+		return 0;
+	}
+
 	/*
 	 * Resolve SPI symbols at runtime so the binary works on any macOS
 	 * that has the library present.  RTLD_LOCAL prevents the handle
@@ -265,14 +270,14 @@ static int apply_sandbox(void) {
 		params=sb_create_params();
 	}
 
-	profile=sb_compile_file(SANDBOX_PROFILE, params, &error);
+	profile=sb_compile_file(profile_path, params, &error);
 
 	if (sb_free_params != NULL && params != NULL) {
 		sb_free_params(params);
 	}
 
 	if (profile == NULL) {
-		VRB(1, "sandbox_compile_file(`%s') failed: %s", SANDBOX_PROFILE,
+		VRB(1, "sandbox_compile_file(`%s') failed: %s", profile_path,
 			error ? error : "(null)");
 		dlclose(libsb);
 		return 0;
@@ -291,9 +296,13 @@ static int apply_sandbox(void) {
 		return -1;
 	}
 
-	VRB(1, "macOS sandbox applied from `%s'", SANDBOX_PROFILE);
+	VRB(1, "macOS sandbox applied from `%s'", profile_path);
 	return 1;
-#endif /* SANDBOX_PROFILE */
+}
+#else
+/* non-macOS stub: sandbox not available */
+int apply_sandbox_profile(const char *profile_path) {
+	return 0;
 }
 #endif /* HAVE_SANDBOX_INIT */
 
@@ -318,7 +327,7 @@ int drop_privs(void) {
 	if (getuid() != 0) {
 		VRB(1, "already running as non-root (uid %d), skipping privilege drop", getuid());
 #ifdef HAVE_SANDBOX_INIT
-		if (apply_sandbox() < 0) {
+		if (apply_sandbox_profile(SANDBOX_PROFILE) < 0) {
 			ERR("sandbox apply returned hard failure");
 			return -1;
 		}
@@ -349,7 +358,7 @@ int drop_privs(void) {
 			strerror(errno));
 	}
 
-	if (apply_sandbox() < 0) {
+	if (apply_sandbox_profile(SANDBOX_PROFILE) < 0) {
 		ERR("sandbox apply returned hard failure");
 		return -1;
 	}

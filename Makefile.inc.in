@@ -20,7 +20,7 @@ DESTDIR ?= @DESTDIR@
 TARGETNAME=@targetname@
 
 COPTS=@U_COPTS@
-CDEFS=@U_CDEFS@ $(DEFS) -DLIBDIR=\"@libdir@\" -DSYSCONFDIR=\"@sysconfdir@\" -DLIBEXECDIR=\"@libexecdir@\" -DLOCALSTATEDIR=\"@localstatedir@\" -DPROGNAME=\"@PACKAGE_NAME@\" -DSANDBOX_PROFILE=\"@datadir@/unicornscan/unicornscan-listener.sb\"
+CDEFS=@U_CDEFS@ $(DEFS) -DLIBDIR=\"@libdir@\" -DSYSCONFDIR=\"@sysconfdir@\" -DLIBEXECDIR=\"@libexecdir@\" -DLOCALSTATEDIR=\"@localstatedir@\" -DPROGNAME=\"@PACKAGE_NAME@\" -DSANDBOX_PROFILE=\"@datadir@/unicornscan/unicornscan-listener.sb\" -DSANDBOX_PROFILE_SENDER=\"@datadir@/unicornscan/unicornscan-sender.sb\"
 CINCS=@U_CINCS@ -I$(BUILD_DIR)/src -I$(BUILD_DIR)/libs/fake/include -I$(BUILD_DIR)/ext_src
 LDFLAGS=@U_LDFLAGS@ @U_LIBS@ -luext @LIBS@ -L$(BUILD_DIR)/libs/fake/lib -L$(BUILD_DIR)/ext_src
 
