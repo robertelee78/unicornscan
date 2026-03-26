@@ -777,8 +777,9 @@ void do_daemon(void) {
 		exit(1);
 	}
 	else if (child > 0) {
-		/* Original parent: exit so sudo's direct child is gone */
-		exit(0);
+		/* Original parent: _exit to avoid atexit handlers and stdio
+		 * flushing that can corrupt the child's inherited state */
+		_exit(0);
 	}
 
 	/* First child: become session leader */
