@@ -35,6 +35,19 @@
 (allow network*)
 
 ;; -----------------------------------------------------------------------
+;; System sockets (raw socket creation)
+;; -----------------------------------------------------------------------
+;; ip_open() creates a SOCK_RAW socket via socket(AF_INET, SOCK_RAW, ...).
+;; On macOS, socket creation is gated by the "system-socket" sandbox
+;; operation, which is separate from "network*" (network* covers bind,
+;; connect, sendto, etc. but not the socket() syscall itself).
+;; Without this, compound mode fails in phase 2+ because ARP (phase 1)
+;; uses BPF file I/O (/dev/bpf*) which doesn't need system-socket, but
+;; TCP/UDP scanning needs a raw IP socket opened after the sandbox is
+;; already active.
+(allow system-socket)
+
+;; -----------------------------------------------------------------------
 ;; System call: sysctl
 ;; -----------------------------------------------------------------------
 ;; Required by libdnet (ip_open uses sysctl to discover routing) and by
@@ -187,4 +200,4 @@
 ;;   - process-exec (cannot spawn new processes)
 ;;   - process-fork (cannot fork)
 ;;   - file-write-create (cannot create new files outside allowed paths)
-;;   - system-socket (raw socket creation gated by network* above)
+;;   - system-socket is allowed above for raw socket creation only
