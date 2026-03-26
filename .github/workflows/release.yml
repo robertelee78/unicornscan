@@ -10,6 +10,9 @@ on:
         description: 'Version tag (e.g., v0.4.8)'
         required: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-deb:
     name: Build .deb (${{ matrix.distro }})
@@ -664,11 +667,33 @@ jobs:
           cd ..
           ls -la artifacts/
 
-      - name: Upload artifact
+      - name: Build DMG installer
+        run: |
+          set -ex
+          VERSION="${{ steps.version.outputs.version }}"
+          STAGING="$(pwd)/staging"
+
+          # The build-dmg.sh script creates a .dmg containing Install.pkg
+          # with bundled dylibs, rpaths rewritten, and ad-hoc signed binaries.
+          chmod +x macos/dmg/build-dmg.sh
+          ./macos/dmg/build-dmg.sh \
+            --version "$VERSION" \
+            --destdir "$STAGING" \
+            --output-dir "$(pwd)/artifacts"
+
+          ls -la artifacts/*.dmg
+
+      - name: Upload tarball artifact
         uses: actions/upload-artifact@v4
         with:
           name: unicornscan-macos-arm64
           path: artifacts/*.tar.gz
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unicornscan-macos-dmg
+          path: artifacts/*.dmg
 
   release:
     name: Create Release
@@ -690,13 +715,14 @@ jobs:
         run: ls -la artifacts/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/*.deb
             artifacts/*.rpm
             artifacts/*.pkg.tar.zst
             artifacts/*.tar.gz
+            artifacts/*.dmg
           generate_release_notes: true
           draft: false
           prerelease: false
