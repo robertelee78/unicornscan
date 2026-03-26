@@ -5,109 +5,58 @@ A fast network scanner with asynchronous stateless TCP/UDP probing
 and advanced banner grabbing.
 
 
-INSTALLATION
-------------
+QUICK START
+-----------
 
 1. Double-click "Install.pkg" in this disk image.
-2. Follow the on-screen prompts (you will need an administrator password).
-3. The installer will:
-   - Place scanner binaries in /usr/local/bin/
-   - Install modules to /usr/local/lib/unicornscan/modules/
-   - Install configuration to /usr/local/etc/unicornscan/
-   - Set up the ChmodBPF LaunchDaemon for non-root packet capture
-   - Create the 'unicornscan' group and add your user to it
-4. LOG OUT and log back in (or reboot) so the group membership takes
-   effect.  Without this step, you will need to use sudo.
+2. Follow the on-screen prompts (administrator password required).
+3. LOG OUT and log back in (or reboot) for BPF group membership
+   to take effect.
+4. Open Terminal and run:
+
+       unicornscan -mT 192.168.1.1:1-1024
+
+For full documentation, usage examples, and the Alicorn web UI
+setup guide, visit:
+
+    https://unicornscan.org/docs/getting-started
 
 
-BPF DEVICE PERMISSIONS (ChmodBPF)
----------------------------------
-
-The installer automatically configures a LaunchDaemon that sets
-/dev/bpf* device permissions at every boot.  This allows members of
-the 'unicornscan' group to capture packets without root privileges.
-
-No manual configuration is needed.  If you want to add additional
-users to the group:
-
-    sudo dseditgroup -o edit -a USERNAME -t user unicornscan
-
-
-ALICORN WEB UI
---------------
-
-Alicorn is the web-based results dashboard for unicornscan.  If the
-disk image contains an Alicorn.app, you can:
-
-1. Drag Alicorn.app to your Applications folder.
-2. Launch it from Applications or Spotlight.
-
-Alicorn requires Docker Desktop to run its full stack (PostgreSQL,
-PostgREST, GeoIP API).  See the Alicorn documentation for details.
-
-
-RUNNING YOUR FIRST SCAN
+WHAT THE INSTALLER DOES
 ------------------------
 
-Open Terminal and run:
+- Places scanner binaries in /usr/local/bin/
+- Installs modules to /usr/local/lib/unicornscan/modules/
+- Installs configuration to /usr/local/etc/unicornscan/
+- Sets up the ChmodBPF LaunchDaemon for non-root packet capture
+- Creates the 'unicornscan' group and adds your user to it
+- Downloads free GeoIP databases (DB-IP Lite, no registration)
 
-    # TCP SYN scan of ports 1-1024 on a target
-    unicornscan -mT 192.168.1.1:1-1024
+To add other users to the BPF capture group:
 
-    # UDP scan
-    unicornscan -mU 192.168.1.1:1-1024
-
-    # Scan with increased rate (packets per second)
-    unicornscan -mT -r 500 192.168.1.1:1-65535
-
-    # Show help
-    unicornscan -h
-
-Note: If you have not yet logged out and back in after installation,
-prefix commands with sudo:
-
-    sudo unicornscan -mT 192.168.1.1:1-1024
+    sudo dseditgroup -o edit -a USERNAME -t user unicornscan
 
 
 UNINSTALLATION
 --------------
 
-To completely remove unicornscan:
+See https://unicornscan.org/docs/getting-started#uninstall for
+the full removal procedure, or run:
 
-    # 1. Unload and remove ChmodBPF
-    sudo launchctl unload /Library/LaunchDaemons/org.unicornscan.ChmodBPF.plist
-    sudo rm -f /Library/LaunchDaemons/org.unicornscan.ChmodBPF.plist
-    sudo rm -f /usr/local/bin/ChmodBPF
-
-    # 2. Remove binaries
+    sudo /usr/local/bin/uninstall-chmodbpf.sh
     sudo rm -f /usr/local/bin/unicornscan /usr/local/bin/us
-    sudo rm -f /usr/local/bin/fantaip
-    sudo rm -f /usr/local/bin/unibrow
-    sudo rm -f /usr/local/bin/unicfgtst
-    sudo rm -f /usr/local/bin/unicornscan-geoip-update
-
-    # 3. Remove libraries, config, and data
-    sudo rm -rf /usr/local/lib/unicornscan
-    sudo rm -rf /usr/local/etc/unicornscan
-    sudo rm -rf /usr/local/libexec/unicornscan
-    sudo rm -rf /usr/local/var/unicornscan
+    sudo rm -f /usr/local/bin/fantaip /usr/local/bin/unibrow
+    sudo rm -f /usr/local/bin/unicfgtst /usr/local/bin/unicornscan-geoip-update
+    sudo rm -rf /usr/local/lib/unicornscan /usr/local/etc/unicornscan
+    sudo rm -rf /usr/local/libexec/unicornscan /usr/local/var/unicornscan
     sudo rm -rf /usr/local/share/unicornscan
-
-    # 4. Remove sandbox profile
-    sudo rm -f /usr/local/share/unicornscan/unicornscan-listener.sb
-
-    # 5. Optionally remove the unicornscan group
     sudo dseditgroup -o delete unicornscan
-
-    # 6. Remove Alicorn.app (if installed)
     rm -rf /Applications/Alicorn.app
-
-    # 7. Remove log file
-    sudo rm -f /var/log/unicornscan-chmodbpf.log
 
 
 SUPPORT
 -------
 
-    https://github.com/robertelee78/unicornscan
-    robert@unicornscan.org
+    Docs:    https://unicornscan.org/docs/getting-started
+    Source:  https://github.com/robertelee78/unicornscan
+    Email:   robert@unicornscan.org
