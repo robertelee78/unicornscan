@@ -199,7 +199,104 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 7: Download free GeoIP databases
+# Step 7: Ensure Docker is available
+# ---------------------------------------------------------------------------
+# Alicorn requires Docker for the PostgreSQL + web UI stack.  If Docker
+# is not present, try to install it via Homebrew (Colima + Docker CLI).
+# If Homebrew is also absent, tell the user exactly what to do.
+
+DOCKER_AVAILABLE="no"
+ALICORN_SCRIPT="/usr/local/bin/unicornscan-alicorn"
+
+if command -v docker >/dev/null 2>&1; then
+    log_info "Docker found: $(command -v docker)"
+    DOCKER_AVAILABLE="yes"
+else
+    log_info "Docker not found.  Attempting to install via Homebrew..."
+    # Homebrew must run as a non-root user
+    if [ -n "${REAL_USER}" ] && [ "${REAL_USER}" != "root" ] && command -v brew >/dev/null 2>&1; then
+        log_info "Installing docker, docker-compose, and colima via Homebrew..."
+        su - "${REAL_USER}" -c 'brew install docker docker-compose colima 2>&1' || true
+        if command -v docker >/dev/null 2>&1; then
+            DOCKER_AVAILABLE="yes"
+            log_info "Docker installed successfully via Homebrew."
+        else
+            log_warn "Homebrew install of Docker did not succeed."
+        fi
+    elif command -v brew >/dev/null 2>&1; then
+        log_warn "Homebrew found but could not determine non-root user for install."
+    else
+        log_warn "Neither Docker nor Homebrew found."
+    fi
+fi
+
+if [ "${DOCKER_AVAILABLE}" = "no" ]; then
+    log_warn "Docker is required for the Alicorn web UI and database output."
+    log_warn "Install Docker manually, then start Alicorn:"
+    log_warn ""
+    log_warn "  Option 1 - Colima (lightweight, recommended):"
+    log_warn "    brew install docker docker-compose colima"
+    log_warn "    colima start"
+    log_warn "    unicornscan-alicorn start"
+    log_warn ""
+    log_warn "  Option 2 - Docker Desktop:"
+    log_warn "    brew install --cask docker"
+    log_warn "    # Open Docker Desktop and wait for it to start"
+    log_warn "    unicornscan-alicorn start"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 8: Start Docker daemon if needed
+# ---------------------------------------------------------------------------
+
+if [ "${DOCKER_AVAILABLE}" = "yes" ]; then
+    if ! docker info >/dev/null 2>&1; then
+        log_info "Docker installed but daemon not running."
+        if command -v colima >/dev/null 2>&1; then
+            log_info "Starting Colima..."
+            if [ -n "${REAL_USER}" ] && [ "${REAL_USER}" != "root" ]; then
+                su - "${REAL_USER}" -c 'colima start 2>&1' || true
+            else
+                colima start 2>&1 || true
+            fi
+        fi
+        # Re-check
+        if ! docker info >/dev/null 2>&1; then
+            log_warn "Docker daemon still not running."
+            log_warn "Start it manually, then run: unicornscan-alicorn start"
+            DOCKER_AVAILABLE="no"
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Step 9: Start Alicorn web UI
+# ---------------------------------------------------------------------------
+# Stop any stale containers, then start the full stack so the user can
+# immediately scan with -epgsqldb and view results at localhost:31337.
+
+if [ "${DOCKER_AVAILABLE}" = "yes" ] && [ -x "${ALICORN_SCRIPT}" ]; then
+    # Stop stale containers from a previous install
+    for container in alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip; do
+        if docker ps -q --filter "name=${container}" 2>/dev/null | grep -q .; then
+            log_info "Stopping stale container: ${container}"
+            docker stop "${container}" 2>/dev/null || true
+            docker rm "${container}" 2>/dev/null || true
+        fi
+    done
+
+    log_info "Starting Alicorn web UI..."
+    if [ -n "${REAL_USER}" ] && [ "${REAL_USER}" != "root" ]; then
+        su - "${REAL_USER}" -c "${ALICORN_SCRIPT} start 2>&1" || \
+            log_warn "Alicorn start failed.  Run manually: unicornscan-alicorn start"
+    else
+        "${ALICORN_SCRIPT}" start 2>&1 || \
+            log_warn "Alicorn start failed.  Run manually: unicornscan-alicorn start"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Step 10: Download free GeoIP databases
 # ---------------------------------------------------------------------------
 # Download DB-IP Lite databases so GeoIP lookups work out of the box.
 # These are free (CC BY 4.0) and require no registration.
@@ -220,9 +317,6 @@ if [ -x "${GEOIP_SCRIPT}" ]; then
     if kill -0 "${GEOIP_PID}" 2>/dev/null; then
         log_info "GeoIP download still running in background (PID ${GEOIP_PID})."
     else
-        # Capture exit code without triggering set -e (wait returns the
-        # background process's exit code, which may be non-zero if GeoIP
-        # config update was skipped — that's not a reason to fail the install).
         GEOIP_RC=0
         wait "${GEOIP_PID}" 2>/dev/null || GEOIP_RC=$?
         if [ "${GEOIP_RC}" -eq 0 ]; then
@@ -252,20 +346,15 @@ echo "  group.  You MUST log out and log back in (or reboot)"
 echo "  for the group membership to take effect."
 echo ""
 fi
+if [ "${DOCKER_AVAILABLE}" = "yes" ]; then
+echo "  Alicorn web UI:  http://localhost:31337"
+echo "  Scan with DB:    unicornscan -epgsqldb <target>"
+echo ""
+fi
 echo "  Quick start:"
 echo "    unicornscan -mT 192.168.1.1:1-1024"
 echo ""
-echo "  To add other users:"
-echo "    sudo dseditgroup -o edit -a USERNAME -t user ${BPF_GROUP}"
-echo ""
-echo "  To uninstall:"
-echo "    sudo /usr/local/bin/uninstall-chmodbpf.sh"
-echo "    sudo rm -f /usr/local/bin/unicornscan /usr/local/bin/us"
-echo "    sudo rm -f /usr/local/bin/fantaip /usr/local/bin/unibrow"
-echo "    sudo rm -rf /usr/local/lib/unicornscan"
-echo "    sudo rm -rf /usr/local/etc/unicornscan"
-echo "    sudo rm -rf /usr/local/libexec/unicornscan"
-echo "    sudo rm -rf /usr/local/share/unicornscan"
+echo "  Full docs: https://unicornscan.org/docs/getting-started"
 echo "=========================================================="
 echo ""
 
