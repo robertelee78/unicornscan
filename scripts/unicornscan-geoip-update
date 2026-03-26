@@ -14,13 +14,17 @@
 
 set -e
 
-# Detect platform and set GeoIP directory accordingly
+# Detect platform and set paths accordingly
 if [ "$(uname -s)" = "Darwin" ]; then
-    # macOS: use Homebrew prefix if available, otherwise /usr/local
+    # macOS: find where unicornscan is actually installed.
+    # Homebrew installs to $(brew --prefix), DMG installs to /usr/local.
+    # Check the actual config file location rather than assuming.
+    _prefix="/usr/local"
     if command -v brew &>/dev/null; then
-        _prefix="$(brew --prefix)"
-    else
-        _prefix="/usr/local"
+        _brew_prefix="$(brew --prefix)"
+        if [ -f "${_brew_prefix}/etc/unicornscan/modules.conf" ]; then
+            _prefix="${_brew_prefix}"
+        fi
     fi
     GEOIP_DIR="${_prefix}/share/GeoIP"
     MODULES_CONF="${_prefix}/etc/unicornscan/modules.conf"

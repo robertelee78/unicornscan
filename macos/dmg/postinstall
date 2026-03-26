@@ -281,6 +281,13 @@ fi
 # immediately scan with -epgsqldb and view results at localhost:31337.
 
 if [ "${DOCKER_AVAILABLE}" = "yes" ] && [ -x "${ALICORN_SCRIPT}" ]; then
+    # Ensure the var dir is writable by the installing user (postinstall
+    # runs as root, but unicornscan-alicorn needs user write access for
+    # Docker Compose .env, logs, etc.)
+    if [ -n "${REAL_USER}" ] && [ "${REAL_USER}" != "root" ]; then
+        chown -R "${REAL_USER}" /usr/local/var/unicornscan 2>/dev/null || true
+    fi
+
     # Stop stale containers from a previous install
     for container in alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip; do
         if docker ps -q --filter "name=${container}" 2>/dev/null | grep -q .; then
