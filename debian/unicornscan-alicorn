@@ -35,7 +35,14 @@ get_alicorn_dir() {
         Darwin)
             local hb
             hb="$(detect_homebrew_prefix)"
-            if [ -n "$hb" ]; then
+            # Verify the Homebrew path actually contains our files.
+            # Homebrew may be installed but unicornscan may have been
+            # installed via DMG to /usr/local/ instead.
+            if [ -n "$hb" ] && [ -f "$hb/share/unicornscan/alicorn/docker-compose.yml" ]; then
+                echo "$hb/share/unicornscan/alicorn"
+            elif [ -f "/usr/local/share/unicornscan/alicorn/docker-compose.yml" ]; then
+                echo "/usr/local/share/unicornscan/alicorn"
+            elif [ -n "$hb" ]; then
                 echo "$hb/share/unicornscan/alicorn"
             else
                 echo "/usr/local/share/unicornscan/alicorn"
@@ -53,7 +60,11 @@ get_data_dir() {
         Darwin)
             local hb
             hb="$(detect_homebrew_prefix)"
-            if [ -n "$hb" ]; then
+            if [ -n "$hb" ] && [ -d "$hb/var/unicornscan" ]; then
+                echo "$hb/var/unicornscan/alicorn"
+            elif [ -d "/usr/local/var/unicornscan" ]; then
+                echo "/usr/local/var/unicornscan/alicorn"
+            elif [ -n "$hb" ]; then
                 echo "$hb/var/unicornscan/alicorn"
             else
                 echo "$HOME/Library/Application Support/unicornscan/alicorn"
@@ -71,7 +82,11 @@ get_config_dir() {
         Darwin)
             local hb
             hb="$(detect_homebrew_prefix)"
-            if [ -n "$hb" ]; then
+            if [ -n "$hb" ] && [ -d "$hb/etc/unicornscan" ]; then
+                echo "$hb/etc/unicornscan"
+            elif [ -d "/usr/local/etc/unicornscan" ]; then
+                echo "/usr/local/etc/unicornscan"
+            elif [ -n "$hb" ]; then
                 echo "$hb/etc/unicornscan"
             else
                 echo "/usr/local/etc/unicornscan"
@@ -517,7 +532,7 @@ cmd_start() {
     echo ""
     echo "  Web UI:    http://localhost:31337"
     echo "  API:       http://localhost:31338"
-    echo "  Database:  postgresql://localhost:${ALICORN_PG_PORT:-5433}/unicornscan"
+    echo "  Database:  postgresql://localhost:${ALICORN_PG_PORT:-5432}/unicornscan"
     echo ""
     echo "Run a scan with database export:"
     echo "  unicornscan -epgsqldb <target>"

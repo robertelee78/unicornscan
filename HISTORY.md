@@ -72,6 +72,31 @@ The project is now actively maintained with goals including:
 
 ---
 
+## macOS Apple Silicon Support (March 2026)
+
+Version 0.4.52 adds macOS as a first-class platform, bringing unicornscan to Apple Silicon (arm64) for the first time.
+
+### Platform Support
+- Native arm64 compilation on macOS (Apple Silicon)
+- Homebrew formula for easy installation (`brew install unicornscan`)
+- Standalone DMG installer with signed package
+- macOS sandbox profiles for sender and listener process isolation
+- ChmodBPF LaunchDaemon for non-root BPF device access
+
+### Alicorn Web UI
+- Docker Compose-based deployment (PostgreSQL + PostgREST + web frontend)
+- Automated database password generation and configuration
+- Cross-platform management script (`unicornscan-alicorn`)
+- GeoIP database download integration
+
+### Build System
+- Autotools configuration updated for macOS/Darwin detection
+- Platform-conditional sandbox profile installation
+- libdnet configure variable fix for Homebrew environments
+- Master loop watchdog timer for process health monitoring
+
+---
+
 ## In Memoriam
 
 This modernization effort honors **Jack C. Louis** and his innovative work on unicornscan. The architecture he designed remains elegant and effective nearly two decades later.
@@ -88,6 +113,7 @@ This modernization effort honors **Jack C. Louis** and his innovative work on un
 | 0.4.8 | December 2025 | GCC 14/15 compatibility, build fixes |
 | 0.4.9 | December 2025 | NIC offload handling, pcap fixes |
 | 0.4.10 | December 2025 | Package setcap, documentation |
+| 0.4.52 | March 2026 | macOS Apple Silicon support, Homebrew formula, DMG installer, Alicorn Web UI |
 
 ---
 

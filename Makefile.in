@@ -15,16 +15,22 @@ install: all
 	@echo "Installing unicornscan-geoip-update..."
 	mkdir -p $(DESTDIR)$(bindir)
 	$(INSTALL_PROGRAM) scripts/unicornscan-geoip-update $(DESTDIR)$(bindir)/unicornscan-geoip-update
-	@echo "Installing macOS sandbox profile..."
-	mkdir -p $(DESTDIR)$(datadir)/unicornscan
-	$(INSTALL) -m 644 macos/unicornscan-listener.sb $(DESTDIR)$(datadir)/unicornscan/unicornscan-listener.sb
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+	    echo "Installing macOS sandbox profiles..."; \
+	    mkdir -p $(DESTDIR)$(datadir)/unicornscan; \
+	    $(INSTALL) -m 644 macos/unicornscan-listener.sb $(DESTDIR)$(datadir)/unicornscan/unicornscan-listener.sb; \
+	    $(INSTALL) -m 644 macos/unicornscan-sender.sb $(DESTDIR)$(datadir)/unicornscan/unicornscan-sender.sb; \
+	fi
 
 uninstall:
 	@for g in $(SUBDIRS); do \
 		cd $$g && @USE_MAKE@ uninstall || exit 1 && cd ..; \
 	done
 	rm -f $(DESTDIR)$(bindir)/unicornscan-geoip-update
-	rm -f $(DESTDIR)$(datadir)/unicornscan/unicornscan-listener.sb
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+	    rm -f $(DESTDIR)$(datadir)/unicornscan/unicornscan-listener.sb; \
+	    rm -f $(DESTDIR)$(datadir)/unicornscan/unicornscan-sender.sb; \
+	fi
 
 slack:
 	./scripts/mkslackpkg
