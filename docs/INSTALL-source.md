@@ -95,7 +95,28 @@ Optional for GeoIP lookups:
 sudo pacman -S libmaxminddb
 ```
 
-### 1.2.4 Library Name Differences
+### 1.2.4 macOS (Homebrew)
+
+```bash
+brew install autoconf automake libtool pkg-config libpcap libdnet flex bison
+```
+
+Optional for PostgreSQL support:
+
+```bash
+brew install libpq
+```
+
+Optional for GeoIP lookups:
+
+```bash
+brew install libmaxminddb
+```
+
+> **Note:** macOS requires GNU Make. Homebrew installs it as `gmake`.
+> Use `gmake` instead of `make` for all build commands below.
+
+### 1.2.5 Library Name Differences
 
 Note that the low-level networking library has different package names:
 
@@ -149,7 +170,7 @@ install:
 3. **Configure the build system**:
 
    ```bash
-   ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+   ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-pgsql
    ```
 
    This configures unicornscan to install in standard system locations:
@@ -157,6 +178,9 @@ install:
    - Libraries in `/usr/lib/unicornscan/`
    - Configuration in `/etc/unicornscan/`
    - Runtime state in `/var/unicornscan/`
+
+   > **Note:** `--with-pgsql` enables the PostgreSQL database output module,
+   > required for the Alicorn Web UI. Omit it if you don't need database export.
 
    Run `./configure --help` to see all available options (described below).
 
@@ -241,9 +265,11 @@ If you run into trouble compiling, you can:
 
 | Error Message             | Solution                                              |
 |---------------------------|-------------------------------------------------------|
-| "libdnet not found"       | On Debian/Ubuntu, the package is called `libdumbnet-dev` |
+| "libdnet/libdumbnet not found" | On Debian/Ubuntu: `sudo apt install libdumbnet-dev` |
 | "libltdl not found"       | Install `libltdl-dev` (Debian) or `libtool-ltdl-devel` (Fedora) |
-| "Need an operator"        | Use `gmake` instead of `make` on BSD systems          |
+| "libpcap not found"       | Install `libpcap-dev` (Debian) or `libpcap-devel` (Fedora) |
+| "Need an operator"        | Use `gmake` instead of `make` on BSD/macOS systems    |
+| "PostgreSQL Support: no"  | Add `--with-pgsql` to your `./configure` command      |
 
 ## 1.5 Getting the Web UI Working
 
