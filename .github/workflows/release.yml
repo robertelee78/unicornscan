@@ -744,9 +744,15 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Compute source tarball sha256
         id: sha
@@ -763,6 +769,33 @@ jobs:
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "Computed sha256: $SHA256"
 
+      - name: Update in-repo formula sha256
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -ex
+          VERSION="${{ steps.sha.outputs.version }}"
+          TAG="${{ steps.sha.outputs.tag }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+
+          # Update sha256 in the in-repo formula
+          sed -i "s/sha256 \"[a-f0-9]*\"/sha256 \"${SHA256}\"/" macos/unicornscan.rb
+
+          # Update version URL if it changed
+          sed -i "s|url \"https://github.com/.*/archive/refs/tags/v.*\.tar\.gz\"|url \"https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.tar.gz\"|" macos/unicornscan.rb
+
+          # Commit and push back to main if anything changed
+          if git diff --quiet macos/unicornscan.rb; then
+            echo "Formula already up to date"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add macos/unicornscan.rb
+            git commit -m "Update Homebrew formula sha256 for ${TAG}"
+            git push origin HEAD:main
+            echo "In-repo formula updated (sha256: ${SHA256})"
+          fi
+
       - name: Update tap formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -772,13 +805,14 @@ jobs:
           TAG="${{ steps.sha.outputs.tag }}"
           SHA256="${{ steps.sha.outputs.sha256 }}"
 
-          # Read the in-repo formula as the source of truth
-          FORMULA_CONTENT=$(cat macos/unicornscan.rb)
+          # Fail fast if the token is missing
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN secret is not set. Create a fine-grained PAT with Contents read/write on homebrew-unicornscan and save it as a repo secret."
+            exit 1
+          fi
 
-          # Update the version URL and sha256 in the formula content
-          FORMULA_CONTENT=$(echo "$FORMULA_CONTENT" | \
-            sed "s|url \"https://github.com/.*/archive/refs/tags/v.*\.tar\.gz\"|url \"https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.tar.gz\"|" | \
-            sed "s/sha256 \"[a-f0-9]*\"/sha256 \"${SHA256}\"/")
+          # Read the updated in-repo formula as the source of truth
+          FORMULA_CONTENT=$(cat macos/unicornscan.rb)
 
           # Get the current file SHA from the tap repo
           TAP_SHA=$(gh api repos/${{ github.repository_owner }}/homebrew-unicornscan/contents/Formula/unicornscan.rb --jq '.sha' 2>/dev/null || echo "")
