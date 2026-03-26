@@ -7,11 +7,20 @@ install: all
 	mkdir -p $(DESTDIR)/$(sysconfdir)/$(TARGETNAME)
 	# Create unicornscan group for shared config access (skip if DESTDIR is set - package build)
 	@if [ -z "$(DESTDIR)" ]; then \
-		if ! getent group unicornscan >/dev/null 2>&1; then \
-			groupadd unicornscan 2>/dev/null && \
-			echo "Created 'unicornscan' group" || \
-			echo "Note: Could not create unicornscan group (may need root)"; \
-		fi; \
+		case "$$(uname -s)" in \
+		Darwin) \
+			if ! dscl . -read /Groups/unicornscan >/dev/null 2>&1; then \
+				dseditgroup -o create unicornscan 2>/dev/null && \
+				echo "Created 'unicornscan' group" || \
+				echo "Note: Could not create unicornscan group (may need root)"; \
+			fi ;; \
+		*) \
+			if ! getent group unicornscan >/dev/null 2>&1; then \
+				groupadd unicornscan 2>/dev/null && \
+				echo "Created 'unicornscan' group" || \
+				echo "Note: Could not create unicornscan group (may need root)"; \
+			fi ;; \
+		esac; \
 	fi
 	# modules.conf contains credentials - use restrictive permissions
 	# Don't overwrite existing to preserve user's database password
@@ -67,23 +76,43 @@ install: all
 	# Set modules.conf ownership to root:unicornscan with 660 permissions
 	# This allows users in the unicornscan group to read/write the config
 	@CONF_TARGET="$(DESTDIR)/$(sysconfdir)/$(TARGETNAME)/modules.conf"; \
-	if [ -z "$(DESTDIR)" ] && getent group unicornscan >/dev/null 2>&1; then \
-		chown root:unicornscan "$$CONF_TARGET" 2>/dev/null || true; \
-		chmod 660 "$$CONF_TARGET" 2>/dev/null || true; \
+	if [ -z "$(DESTDIR)" ]; then \
+		case "$$(uname -s)" in \
+		Darwin) \
+			if dscl . -read /Groups/unicornscan >/dev/null 2>&1; then \
+				chown root:unicornscan "$$CONF_TARGET" 2>/dev/null || true; \
+				chmod 660 "$$CONF_TARGET" 2>/dev/null || true; \
+			else \
+				chmod 644 "$$CONF_TARGET" 2>/dev/null || true; \
+			fi ;; \
+		*) \
+			if getent group unicornscan >/dev/null 2>&1; then \
+				chown root:unicornscan "$$CONF_TARGET" 2>/dev/null || true; \
+				chmod 660 "$$CONF_TARGET" 2>/dev/null || true; \
+			fi ;; \
+		esac; \
 	fi
 	# Auto-add sudo user to unicornscan group (skip if DESTDIR is set - package build)
 	@if [ -z "$(DESTDIR)" ]; then \
-		if [ -n "$$SUDO_UID" ]; then \
-			SUDO_USER_NAME=$$(getent passwd "$$SUDO_UID" | cut -d: -f1); \
-			if [ -n "$$SUDO_USER_NAME" ]; then \
-				if ! id -nG "$$SUDO_USER_NAME" 2>/dev/null | grep -qw unicornscan; then \
-					usermod -aG unicornscan "$$SUDO_USER_NAME" 2>/dev/null && \
-					echo "Added '$$SUDO_USER_NAME' to 'unicornscan' group (re-login to activate)" || true; \
-				fi; \
-			fi; \
+		if [ -n "$$SUDO_USER" ]; then \
+			case "$$(uname -s)" in \
+			Darwin) \
+				if ! dseditgroup -o checkmember -m "$$SUDO_USER" unicornscan >/dev/null 2>&1; then \
+					dseditgroup -o edit -a "$$SUDO_USER" -t user unicornscan 2>/dev/null && \
+					echo "Added '$$SUDO_USER' to 'unicornscan' group (re-login to activate)" || true; \
+				fi ;; \
+			*) \
+				if ! id -nG "$$SUDO_USER" 2>/dev/null | grep -qw unicornscan; then \
+					usermod -aG unicornscan "$$SUDO_USER" 2>/dev/null && \
+					echo "Added '$$SUDO_USER' to 'unicornscan' group (re-login to activate)" || true; \
+				fi ;; \
+			esac; \
 		else \
 			if [ "$$(id -u)" = "0" ]; then \
-				echo "Note: Run 'usermod -aG unicornscan <username>' to grant config access"; \
+				case "$$(uname -s)" in \
+				Darwin) echo "Note: Run 'sudo dseditgroup -o edit -a <username> -t user unicornscan' to grant config access" ;; \
+				*) echo "Note: Run 'usermod -aG unicornscan <username>' to grant config access" ;; \
+				esac; \
 			fi; \
 		fi; \
 	fi
