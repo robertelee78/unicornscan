@@ -74,6 +74,26 @@ fi
 log_info "Architecture check passed: ${CURRENT_ARCH}"
 
 # ---------------------------------------------------------------------------
+# Cleanup: Stop any running Alicorn containers from a previous install
+# ---------------------------------------------------------------------------
+# On upgrade, Docker containers from the old version may still be running
+# and holding ports (31337, 5432, etc.).  Stop them now so the new install
+# can start fresh.  This is a best-effort cleanup — if Docker isn't
+# installed or isn't running, we skip silently (Docker is optional).
+
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    for container in alicorn-postgres alicorn-postgrest alicorn-web alicorn-geoip; do
+        if docker ps -q --filter "name=${container}" 2>/dev/null | grep -q .; then
+            log_info "Stopping existing container: ${container}"
+            docker stop "${container}" 2>/dev/null || true
+            docker rm "${container}" 2>/dev/null || true
+        fi
+    done
+else
+    log_info "Docker not available — skipping container cleanup."
+fi
+
+# ---------------------------------------------------------------------------
 # All checks passed
 # ---------------------------------------------------------------------------
 
