@@ -12,6 +12,10 @@
 
 set -e
 
+# The macOS Installer sandbox has a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin).
+# Docker and Homebrew live outside that.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/opt/homebrew/sbin:/usr/local/sbin:$PATH"
+
 SCRIPT_NAME="$(basename "$0")"
 MIN_MACOS_MAJOR=13          # Ventura
 MIN_MACOS_NAME="macOS 13 (Ventura)"

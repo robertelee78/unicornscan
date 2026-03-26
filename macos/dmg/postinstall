@@ -13,6 +13,11 @@
 
 set -e
 
+# The macOS Installer sandbox has a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin).
+# Docker, Homebrew, and our own binaries live outside that, so we extend PATH
+# to include the locations where they are actually installed.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/opt/homebrew/sbin:/usr/local/sbin:$PATH"
+
 SCRIPT_NAME="$(basename "$0")"
 BPF_GROUP="unicornscan"
 PLIST_PATH="/Library/LaunchDaemons/org.unicornscan.ChmodBPF.plist"
