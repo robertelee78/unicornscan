@@ -12,6 +12,9 @@
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include <pcap.h>
 
@@ -799,6 +802,18 @@ void do_daemon(void) {
 		/* chdir failed, not fatal for daemon operation */
 	}
 	umask(077);
+
+	/* close all inherited FDs >= 3 so sudo's PTY/pipe FDs
+	 * dont keep it waiting after the process tree forks */
+	{
+		int fd=0, maxfd=0;
+
+		maxfd=(int)sysconf(_SC_OPEN_MAX);
+		if (maxfd < 0) maxfd=256;
+		for (fd=3; fd < maxfd; fd++) {
+			close(fd);
+		}
+	}
 
 	if (freopen("/dev/null", "r", stdin) == NULL ||
 	    freopen("/dev/null", "w", stdout) == NULL ||
