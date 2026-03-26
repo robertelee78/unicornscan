@@ -28,7 +28,8 @@ Then install with a single command:
 |----------------|------------------------------------------------------|
 | Debian/Ubuntu  | `sudo apt install ./unicornscan_VERSION_amd64.deb`   |
 | Fedora/RHEL    | `sudo dnf install ./unicornscan-VERSION.x86_64.rpm`  |
-| macOS          | `brew tap robertelee78/unicornscan && brew install unicornscan` |
+| macOS (Homebrew) | `brew tap robertelee78/unicornscan && brew install unicornscan` |
+| macOS (DMG)    | Download `.dmg` from Releases, open `Install.pkg`    |
 
 That's it! The package manager handles all dependencies, and Linux capabilities are set automatically so you can scan without root privileges.
 
@@ -102,19 +103,44 @@ That's it! The package manager handles all dependencies, and Linux capabilities 
    brew install unicornscan
    ```
 
-2. Verify the installation:
+   This installs unicornscan with PostgreSQL and GeoIP support by default
+   (both are `recommended` dependencies).
+
+2. Enable non-root packet capture by installing the ChmodBPF daemon:
+
+   ```bash
+   sudo $(brew --prefix)/share/unicornscan/macos/install-chmodbpf.sh
+   ```
+
+   Then **log out and log back in** for group membership to take effect.
+
+3. Verify the installation:
 
    ```bash
    unicornscan -V
    unicornscan -h
    ```
 
-> **Note:** macOS requires BPF device access for raw packet capture. Install
-> ChmodBPF (bundled with Wireshark) or run with `sudo`:
->
-> ```bash
-> brew install --cask wireshark   # installs ChmodBPF as a side-effect
-> ```
+### 1.3.4 macOS (DMG Installer)
+
+For users who don't use Homebrew, a `.dmg` disk image is available from the
+GitHub Releases page.
+
+1. Download `unicornscan-VERSION-macos-arm64.dmg` from:
+
+   <https://github.com/robertelee78/unicornscan/releases>
+
+2. Open the `.dmg` and double-click `Install.pkg`.
+
+3. Follow the on-screen prompts (administrator password required).
+
+4. **Log out and log back in** so BPF group membership takes effect.
+
+The DMG installer is self-contained — it bundles all required shared libraries
+and does not require Homebrew. It includes:
+- Scanner binaries and modules
+- ChmodBPF LaunchDaemon for non-root packet capture
+- Alicorn.app for the web UI (if included in the release)
 
 ### 1.3.4 Verifying Non-Root Scanning
 
