@@ -46,6 +46,7 @@ DESTDIR=""
 APP_DIR=""
 OUTPUT_DIR="${REPO_ROOT}/packages"
 SIGN_IDENTITY=""
+CODESIGN_IDENTITY=""
 CLEANUP_DIRS=""
 
 # ---------------------------------------------------------------------------
@@ -120,6 +121,10 @@ while [ $# -gt 0 ]; do
         --sign)
             shift
             SIGN_IDENTITY="$1"
+            ;;
+        --codesign)
+            shift
+            CODESIGN_IDENTITY="$1"
             ;;
         --help|-h)
             usage
@@ -526,10 +531,22 @@ for dname in ${COPIED_DYLIBS}; do
     fi
 done
 
-# Re-sign all modified Mach-O files with ad-hoc signatures.
+# Re-sign all modified Mach-O files.
 # install_name_tool invalidates the linker-generated ad-hoc signature.
 # On macOS 11+, unsigned or invalidly-signed arm64 binaries are killed
 # with SIGKILL (exit 137) by the kernel before they can execute.
+#
+# If --codesign IDENTITY is provided, sign with Developer ID Application
+# (required for notarization: hardened runtime + secure timestamp).
+# Otherwise, fall back to ad-hoc signing (sufficient for local use).
+if [ -n "${CODESIGN_IDENTITY}" ]; then
+    CODESIGN_FLAGS="-f -s ${CODESIGN_IDENTITY} --timestamp --options runtime"
+    info "Signing with Developer ID: ${CODESIGN_IDENTITY}"
+else
+    CODESIGN_FLAGS="-f -s -"
+    info "Ad-hoc signing (no --codesign identity provided)"
+fi
+
 info "Re-signing binaries and libraries..."
 
 for binary in \
@@ -540,14 +557,14 @@ for binary in \
     "${PKG_ROOT}/usr/local/libexec/unicornscan/unisend" \
     "${PKG_ROOT}/usr/local/libexec/unicornscan/unilisten"; do
     if [ -f "$binary" ]; then
-        codesign -f -s - "$binary" 2>/dev/null || warn "Failed to sign $(basename "$binary")"
+        codesign ${CODESIGN_FLAGS} "$binary" 2>/dev/null || warn "Failed to sign $(basename "$binary")"
     fi
 done
 
 for dname in ${COPIED_DYLIBS}; do
     BUNDLED="${BUNDLED_LIB_DIR}/${dname}"
     if [ -f "$BUNDLED" ]; then
-        codesign -f -s - "$BUNDLED" 2>/dev/null || warn "Failed to sign ${dname}"
+        codesign ${CODESIGN_FLAGS} "$BUNDLED" 2>/dev/null || warn "Failed to sign ${dname}"
     fi
 done
 
@@ -555,7 +572,7 @@ done
 if [ -d "${BUNDLED_LIB_DIR}/modules" ]; then
     for module in "${BUNDLED_LIB_DIR}/modules/"*.so; do
         if [ -f "$module" ]; then
-            codesign -f -s - "$module" 2>/dev/null || warn "Failed to sign $(basename "$module")"
+            codesign ${CODESIGN_FLAGS} "$module" 2>/dev/null || warn "Failed to sign $(basename "$module")"
         fi
     done
 fi

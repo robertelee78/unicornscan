@@ -676,55 +676,64 @@ jobs:
           cd ..
           ls -la artifacts/
 
-      - name: Import signing certificate
+      - name: Import signing certificates
         env:
-          CERT_P12: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          INSTALLER_P12: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          APPLICATION_P12: ${{ secrets.APPLE_APPLICATION_CERT_P12 }}
           CERT_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERT_PASSWORD }}
         run: |
           set -ex
-          if [ -z "$CERT_P12" ]; then
-            echo "::warning::APPLE_INSTALLER_CERT_P12 not set — package will not be signed"
+          if [ -z "$INSTALLER_P12" ] || [ -z "$APPLICATION_P12" ]; then
+            echo "::warning::Signing certs not set — package will not be signed or notarized"
             echo "SIGN_IDENTITY=" >> "$GITHUB_ENV"
+            echo "CODESIGN_IDENTITY=" >> "$GITHUB_ENV"
             exit 0
           fi
 
           # Create a temporary keychain for CI
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Import the certificate
-          # Use echo -n to avoid trailing newline, --decode for portability,
-          # -o for direct output. The p12 must be exported with -legacy flag
-          # (PBE-SHA1-3DES) because macOS security framework rejects OpenSSL 3.x
-          # default algorithms (AES-256-CBC/PBKDF2).
-          echo -n "$CERT_P12" | base64 --decode -o "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" \
-            -P "$CERT_PASSWORD" \
-            -A -t cert -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
+          # Import both certificates (both use the same p12 password and
+          # legacy PBE-SHA1-3DES encoding for macOS compatibility)
+          echo -n "$INSTALLER_P12" | base64 --decode -o "$RUNNER_TEMP/installer.p12"
+          security import "$RUNNER_TEMP/installer.p12" \
+            -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          rm -f "$RUNNER_TEMP/installer.p12"
 
-          # Allow productsign and codesign to use the keychain without prompting
+          echo -n "$APPLICATION_P12" | base64 --decode -o "$RUNNER_TEMP/application.p12"
+          security import "$RUNNER_TEMP/application.p12" \
+            -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          rm -f "$RUNNER_TEMP/application.p12"
+
+          # Allow codesign/productsign to use the keychain without prompting
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          # Add to search list so productsign can find it
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
-          # Find the Developer ID Installer identity
-          IDENTITY=$(security find-identity -v -p basic "$KEYCHAIN_PATH" | grep "Developer ID Installer" | head -1 | awk -F'"' '{print $2}')
-          if [ -z "$IDENTITY" ]; then
-            echo "::warning::No Developer ID Installer identity found in keychain"
-            echo "SIGN_IDENTITY=" >> "$GITHUB_ENV"
-          else
-            echo "Found signing identity: $IDENTITY"
-            echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          # Find identities
+          security find-identity -v "$KEYCHAIN_PATH"
+
+          INSTALLER_ID=$(security find-identity -v -p basic "$KEYCHAIN_PATH" | grep "Developer ID Installer" | head -1 | awk -F'"' '{print $2}')
+          APPLICATION_ID=$(security find-identity -v -p basic "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -1 | awk -F'"' '{print $2}')
+
+          if [ -z "$INSTALLER_ID" ]; then
+            echo "::error::No Developer ID Installer identity found"
+            exit 1
+          fi
+          if [ -z "$APPLICATION_ID" ]; then
+            echo "::error::No Developer ID Application identity found"
+            exit 1
           fi
 
-          # Clean up the p12 file
-          rm -f "$RUNNER_TEMP/cert.p12"
+          echo "Installer identity: $INSTALLER_ID"
+          echo "Application identity: $APPLICATION_ID"
+          echo "SIGN_IDENTITY=$INSTALLER_ID" >> "$GITHUB_ENV"
+          echo "CODESIGN_IDENTITY=$APPLICATION_ID" >> "$GITHUB_ENV"
 
       - name: Build DMG installer
         run: |
@@ -734,13 +743,13 @@ jobs:
 
           chmod +x macos/dmg/build-dmg.sh
 
-          # Build the DMG, passing signing identity if available
-          if [ -n "$SIGN_IDENTITY" ]; then
+          if [ -n "$SIGN_IDENTITY" ] && [ -n "$CODESIGN_IDENTITY" ]; then
             ./macos/dmg/build-dmg.sh \
               --version "$VERSION" \
               --destdir "$STAGING" \
               --output-dir "$(pwd)/artifacts" \
-              --sign "$SIGN_IDENTITY"
+              --sign "$SIGN_IDENTITY" \
+              --codesign "$CODESIGN_IDENTITY"
           else
             ./macos/dmg/build-dmg.sh \
               --version "$VERSION" \
@@ -760,16 +769,13 @@ jobs:
           set -ex
           DMG_PATH=$(ls artifacts/*.dmg)
 
-          # Submit for notarization
           xcrun notarytool submit "$DMG_PATH" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
 
-          # Staple the notarization ticket to the DMG
           xcrun stapler staple "$DMG_PATH"
-
           echo "DMG signed and notarized successfully"
 
       - name: Upload tarball artifact
