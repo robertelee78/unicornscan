@@ -566,14 +566,23 @@ jobs:
           export PKG_CONFIG_PATH="$(brew --prefix libpcap)/lib/pkgconfig:$(brew --prefix postgresql@16)/lib/pkgconfig:$(brew --prefix libmaxminddb)/lib/pkgconfig:$PKG_CONFIG_PATH"
           export HOMEBREW_PREFIX="$(brew --prefix)"
 
+          # Homebrew keg-only packages need explicit include/lib paths
+          LIBTOOL_PREFIX="$(brew --prefix libtool)"
+          LIBDNET_PREFIX="$(brew --prefix libdnet)"
+          LIBPCAP_PREFIX="$(brew --prefix libpcap)"
+          PG_PREFIX="$(brew --prefix postgresql@16)"
+          MAXMIND_PREFIX="$(brew --prefix libmaxminddb)"
+
           autoreconf -fiv
           ./configure \
-            CFLAGS="-D_GNU_SOURCE -Wno-error" \
+            CFLAGS="-D_GNU_SOURCE -Wno-error -I${LIBTOOL_PREFIX}/include -I${LIBDNET_PREFIX}/include -I${LIBPCAP_PREFIX}/include -I${PG_PREFIX}/include -I${MAXMIND_PREFIX}/include" \
+            LDFLAGS="-L${LIBTOOL_PREFIX}/lib -L${LIBDNET_PREFIX}/lib -L${LIBPCAP_PREFIX}/lib -L${PG_PREFIX}/lib -L${MAXMIND_PREFIX}/lib" \
+            CPPFLAGS="-I${LIBTOOL_PREFIX}/include -I${LIBDNET_PREFIX}/include -I${LIBPCAP_PREFIX}/include -I${PG_PREFIX}/include -I${MAXMIND_PREFIX}/include" \
             --prefix=/usr/local \
             --sysconfdir=/etc \
             --localstatedir=/var \
-            --with-pgsql \
-            --with-libdnet="$(brew --prefix libdnet)"
+            --with-pgsql="${PG_PREFIX}" \
+            --with-libdnet="${LIBDNET_PREFIX}"
 
       - name: Build
         run: |
