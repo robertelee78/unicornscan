@@ -676,21 +676,96 @@ jobs:
           cd ..
           ls -la artifacts/
 
+      - name: Import signing certificate
+        env:
+          CERT_P12: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERT_PASSWORD }}
+        run: |
+          set -ex
+          if [ -z "$CERT_P12" ]; then
+            echo "::warning::APPLE_INSTALLER_CERT_P12 not set — package will not be signed"
+            echo "SIGN_IDENTITY=" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          # Create a temporary keychain for CI
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import the certificate
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/productsign \
+            -T /usr/bin/codesign
+
+          # Allow productsign and codesign to use the keychain without prompting
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to search list so productsign can find it
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Find the Developer ID Installer identity
+          IDENTITY=$(security find-identity -v -p basic "$KEYCHAIN_PATH" | grep "Developer ID Installer" | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$IDENTITY" ]; then
+            echo "::warning::No Developer ID Installer identity found in keychain"
+            echo "SIGN_IDENTITY=" >> "$GITHUB_ENV"
+          else
+            echo "Found signing identity: $IDENTITY"
+            echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          fi
+
+          # Clean up the p12 file
+          rm -f "$RUNNER_TEMP/cert.p12"
+
       - name: Build DMG installer
         run: |
           set -ex
           VERSION="${{ steps.version.outputs.version }}"
           STAGING="$(pwd)/staging"
 
-          # The build-dmg.sh script creates a .dmg containing Install.pkg
-          # with bundled dylibs, rpaths rewritten, and ad-hoc signed binaries.
           chmod +x macos/dmg/build-dmg.sh
+
+          # Build the DMG, passing signing identity if available
+          SIGN_ARGS=""
+          if [ -n "$SIGN_IDENTITY" ]; then
+            SIGN_ARGS="--sign $SIGN_IDENTITY"
+          fi
+
           ./macos/dmg/build-dmg.sh \
             --version "$VERSION" \
             --destdir "$STAGING" \
-            --output-dir "$(pwd)/artifacts"
+            --output-dir "$(pwd)/artifacts" \
+            $SIGN_ARGS
 
           ls -la artifacts/*.dmg
+
+      - name: Notarize DMG
+        if: env.SIGN_IDENTITY != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -ex
+          DMG_PATH=$(ls artifacts/*.dmg)
+
+          # Submit for notarization
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket to the DMG
+          xcrun stapler staple "$DMG_PATH"
+
+          echo "DMG signed and notarized successfully"
 
       - name: Upload tarball artifact
         uses: actions/upload-artifact@v4
