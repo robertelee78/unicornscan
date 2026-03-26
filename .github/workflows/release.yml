@@ -765,7 +765,7 @@ jobs:
 
       - name: Update tap formula
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           set -ex
           VERSION="${{ steps.sha.outputs.version }}"
