@@ -34,7 +34,7 @@ class Unicornscan < Formula
   depends_on "pkg-config" => :build
   depends_on "libdnet"
   depends_on "libpcap"
-  depends_on :macos
+  depends_on macos: :ventura
   depends_on "postgresql@16" => :recommended
   depends_on "libmaxminddb" => :recommended
 
@@ -135,8 +135,8 @@ class Unicornscan < Formula
     # --- macOS-specific files ---
     # Sandbox profile for the listener process.  The configure.ac
     # SANDBOX_PROFILE macro points to datadir/unicornscan/ at runtime.
-    (share/"unicornscan").install "macos/unicornscan-listener.sb"
-    (share/"unicornscan").install "macos/unicornscan-sender.sb"
+    (share/"unicornscan").install staged/"share/unicornscan/unicornscan-listener.sb"
+    (share/"unicornscan").install staged/"share/unicornscan/unicornscan-sender.sb"
 
     # ChmodBPF LaunchDaemon files -- users run install-chmodbpf.sh
     # manually after brew install (requires sudo).

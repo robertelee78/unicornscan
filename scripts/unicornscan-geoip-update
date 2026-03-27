@@ -14,6 +14,15 @@
 
 set -e
 
+# Cross-platform sed -i wrapper (BSD sed on macOS requires -i '')
+sed_inplace() {
+    if [ "$(uname -s)" = "Darwin" ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # Detect platform and set paths accordingly
 if [ "$(uname -s)" = "Darwin" ]; then
     # macOS: find where unicornscan is actually installed.
@@ -22,7 +31,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
     _prefix="/usr/local"
     if command -v brew &>/dev/null; then
         _brew_prefix="$(brew --prefix)"
-        if [ -f "${_brew_prefix}/etc/unicornscan/modules.conf" ]; then
+        if [ -f "${_brew_prefix}/bin/unicornscan" ] || \
+           [ -d "${_brew_prefix}/share/unicornscan" ]; then
             _prefix="${_brew_prefix}"
         fi
     fi
@@ -206,11 +216,11 @@ update_modules_conf() {
     # Update or add geoip_citydb
     if [ -n "$city_path" ] && [ -f "$city_path" ]; then
         if grep -q "geoip_citydb" "$MODULES_CONF" 2>/dev/null; then
-            sed -i "s|geoip_citydb:.*|geoip_citydb: \"$city_path\";|" "$MODULES_CONF"
+            sed_inplace "s|geoip_citydb:.*|geoip_citydb: \"$city_path\";|" "$MODULES_CONF"
         else
             # Add after geoip: "true" line if it exists
             if grep -q 'geoip:.*"true"' "$MODULES_CONF" 2>/dev/null; then
-                sed -i "/geoip:.*\"true\"/a\\	geoip_citydb: \"$city_path\";" "$MODULES_CONF"
+                sed_inplace "/geoip:.*\"true\"/a\\	geoip_citydb: \"$city_path\";" "$MODULES_CONF"
             fi
         fi
         echo "  Set geoip_citydb: \"$city_path\""
@@ -220,13 +230,13 @@ update_modules_conf() {
     # Update or add geoip_asndb
     if [ -n "$asn_path" ] && [ -f "$asn_path" ]; then
         if grep -q "geoip_asndb" "$MODULES_CONF" 2>/dev/null; then
-            sed -i "s|geoip_asndb:.*|geoip_asndb: \"$asn_path\";|" "$MODULES_CONF"
+            sed_inplace "s|geoip_asndb:.*|geoip_asndb: \"$asn_path\";|" "$MODULES_CONF"
         else
             # Add after geoip_citydb if it exists, otherwise after geoip: "true"
             if grep -q "geoip_citydb" "$MODULES_CONF" 2>/dev/null; then
-                sed -i "/geoip_citydb:/a\\	geoip_asndb: \"$asn_path\";" "$MODULES_CONF"
+                sed_inplace "/geoip_citydb:/a\\	geoip_asndb: \"$asn_path\";" "$MODULES_CONF"
             elif grep -q 'geoip:.*"true"' "$MODULES_CONF" 2>/dev/null; then
-                sed -i "/geoip:.*\"true\"/a\\	geoip_asndb: \"$asn_path\";" "$MODULES_CONF"
+                sed_inplace "/geoip:.*\"true\"/a\\	geoip_asndb: \"$asn_path\";" "$MODULES_CONF"
             fi
         fi
         echo "  Set geoip_asndb: \"$asn_path\""

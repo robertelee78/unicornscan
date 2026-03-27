@@ -152,7 +152,7 @@ echo "  To add other users:"
 echo "    sudo dseditgroup -o edit -a USERNAME -t user ${BPF_GROUP}"
 echo ""
 echo "  To uninstall:"
-echo "    sudo ${SCRIPT_DIR}/uninstall-chmodbpf.sh"
+echo "    sudo \$(brew --prefix 2>/dev/null || echo /usr/local)/share/unicornscan/macos/uninstall-chmodbpf.sh"
 echo "=========================================================="
 echo ""
 
