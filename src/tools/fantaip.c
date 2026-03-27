@@ -28,6 +28,10 @@
 
 #include <arpa/inet.h>
 
+#ifdef WITH_LONGOPTS
+#include <getopt.h>
+#endif
+
 #ifdef HAVE_DUMBNET_H
 #include <dumbnet.h>
 #else
@@ -277,7 +281,13 @@ int main(int argc, char ** argv) {
 
 	memset(&ifr, 0, sizeof(ifr));
 
+#ifdef WITH_LONGOPTS
+	{
+	static const struct option longopts[]={ {0, 0, 0, 0} };
+	while ((opt=getopt_long(argc, argv, "i:hH:dvg:", longopts, NULL)) != -1) {
+#else
 	while ((opt=getopt(argc, argv, "i:hH:dvg:")) != -1) {
+#endif
 		switch (opt) {
 			case 'h':
 				usage();
@@ -303,6 +313,9 @@ int main(int argc, char ** argv) {
 				break;
 		}
 	}
+#ifdef WITH_LONGOPTS
+	}
+#endif
 
 	if (optind < argc) {
 		char *mptr=NULL;
