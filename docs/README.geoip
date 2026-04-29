@@ -34,6 +34,7 @@ sudo pacman -S libmaxminddb
 | MaxMind GeoLite2 | Proprietary (free) | Required | https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/ |
 | DB-IP Lite | CC BY 4.0 | No | https://db-ip.com/db/lite.php |
 | IPLocate.io | MIT | No | https://www.iplocate.io/free-databases |
+| IP2Location LITE | CC BY 4.0 | No | https://download.ip2location.com/lite/ |
 
 ### Automatic Updates (MaxMind)
 
